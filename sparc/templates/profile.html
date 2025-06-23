@@ -1,0 +1,859 @@
+{% extends "index.html" %}
+
+{% block title %}Profile - {{ user.username }}{% endblock %}
+
+{% block content %}
+
+{% load static %}
+
+{% load humanize %}
+
+<style>
+  .profile-card {
+    @apply bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl shadow-lg transition-all duration-300;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .profile-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+
+  .profile-card:hover::before {
+    transform: translateX(100%);
+  }
+
+  .stat-card {
+    @apply bg-white p-6 rounded-xl shadow-md transition-all duration-300;
+    border: 1px solid rgba(59, 130, 246, 0.1);
+  }
+
+  .stat-card:hover {
+    @apply shadow-xl transform -translate-y-1;
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
+  .role-badge {
+    @apply inline-flex items-center px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300;
+    background-color: #2563eb;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Removed hover effect for role-badge */
+
+  .team-badge {
+    @apply inline-flex items-center px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300;
+    background-color: #0d9488;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* Removed hover effect for team-badge */
+
+  .action-button {
+    @apply px-8 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-3;
+    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    min-width: 180px;
+  }
+
+  .action-button:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, #1d4ed8 0%, #93c5fd 100%);
+  }
+
+  .action-button.edit-profile {
+    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+  }
+
+  .action-button.edit-profile:hover {
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, #1d4ed8 0%, #93c5fd 100%);
+  }
+
+  .add-sales-button {
+    @apply px-8 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-3;
+    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 180px;
+  }
+
+  .add-sales-button:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    background: linear-gradient(135deg, #1d4ed8 0%, #93c5fd 100%);
+  }
+
+  .table-header {
+    @apply bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 font-semibold;
+  }
+
+  .table-row {
+    @apply transition-all duration-200 hover:bg-blue-50;
+  }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .status-active {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .status-cancelled {
+    @apply bg-orange-100 text-red-800;
+  }
+
+  .status-reserved {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+</style>
+<style id="responsive-fix">
+/* Responsive fixes – replaces invalid @apply rules with plain CSS so page works on all devices */
+.profile-card{
+  background:linear-gradient(to bottom right,#eff6ff,#ffffff);
+  padding:2rem;border-radius:1rem;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);
+  position:relative;overflow:hidden;transition:all .3s ease;
+}
+.profile-card:hover{transform:translateY(-2px);}
+.stat-card{
+  background:#ffffff;padding:1.5rem;border-radius:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.05);
+  border:1px solid rgba(59,130,246,.1);transition:all .3s;
+}
+.stat-card:hover{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.05);transform:translateY(-4px);border-color:rgba(59,130,246,.3)}
+.role-badge,.team-badge{
+  display:inline-flex;align-items:center;padding:.75rem 1.5rem;border-radius:.5rem;font-weight:600;font-size:.875rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(10px);
+}
+.role-badge{background-color:#2563eb;}
+.team-badge{background-color:#0d9488;}
+.action-button,.add-sales-button{
+  display:flex;align-items:center;justify-content:center;gap:.75rem;padding:1rem 2rem;border-radius:.75rem;font-weight:600;font-size:1rem;color:#fff;min-width:180px;border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 4px 15px rgba(37,99,235,.3);transition:all .3s;background:linear-gradient(135deg,#2563eb 0%,#60a5fa 100%);
+}
+.action-button:hover,.add-sales-button:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 6px 20px rgba(37,99,235,.4);background:linear-gradient(135deg,#1d4ed8 0%,#93c5fd 100%);}
+.action-button.edit-profile{background:linear-gradient(135deg,#2563eb 0%,#60a5fa 100%);}
+.table-header{background:linear-gradient(to right,#eff6ff,#dbeafe);color:#1e3a8a;font-weight:600;}
+.table-row{transition:background .2s;}
+.table-row:hover{background:#eff6ff;}
+.status-badge{padding:.25rem .75rem;border-radius:9999px;font-size:.75rem;font-weight:600;}
+.status-active{background:#dcfce7;color:#166534;}
+.status-cancelled{background:#ffedd5;color:#b91c1c;}
+.status-reserved{background:#fef3c7;color:#ca8a04;}
+/* Avatar responsive */
+@media(max-width:767px){
+  .profile-card img{width:80px;height:80px;}
+  .profile-card h2{font-size:1.5rem;}
+  .action-button,.add-sales-button{padding:.75rem 1.25rem;font-size:.875rem;}
+  .grid-cols-1.md\:grid-cols-3{grid-template-columns:1fr!important;}
+}
+</style>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Accounting Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e3a8a',
+                        secondary: '#065f46',
+                        accent: '#3b82f6',
+                    },
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <div class="min-h-screen flex">
+        <!-- Main Content -->
+        <div class="flex-1">
+                <!-- Profile Header -->
+                <div class="profile-card mb-8 flex flex-col md:flex-row items-center md:items-start justify-between bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl shadow-lg transition-all duration-300 relative overflow-hidden group">
+                    <div class="flex items-center space-x-6">
+                        {% if user.profile.image and user.profile.image.name != 'default.jpg' %}
+                            <img src="{{ user.profile.image.url }}" alt="Profile Picture" class="w-24 h-24 rounded-full object-cover ring-4 ring-blue-400 ring-opacity-50 shadow-lg transform transition-transform duration-300 hover:scale-105">
+                        {% else %}
+                            <div class="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-3xl shadow-lg">
+                                <i class="fas fa-user"></i>
+                            </div>
+                        {% endif %}
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-800 mb-2">{{ user.first_name }} {{ user.last_name }}</h2>
+                            <div class="flex flex-wrap gap-3">
+                                <span class="role-badge" title="Role: {{ user.profile.role }}">
+                                    <i class="fas fa-user-tie mr-2"></i>{{ user.profile.role }}
+                                </span>
+                                <span class="team-badge" title="Team: {{ user.profile.team.display_name }}">
+                                    <i class="fas fa-users mr-2"></i>{{ user.profile.team.display_name }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-4 mt-6 md:mt-0">
+                        <a href="{% url 'edit_profile' %}" class="action-button edit-profile hover:scale-105">
+                            <i class="fas fa-user-edit text-lg"></i>
+                            <span>Edit Profile</span>
+                        </a>
+                    </div>
+                    <div class="absolute inset-0 pointer-events-none group-hover:opacity-100 opacity-0 transition-opacity duration-500" style="background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.08), transparent);"></div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Personal Info Card -->
+                    <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-id-card mr-2 text-blue-500"></i>Personal Information</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3"><i class="fas fa-envelope text-blue-500"></i><div><p class="text-sm text-gray-500">Email</p><p class="font-medium">{{ user.email }}</p></div></div>
+                            <div class="flex items-center space-x-3"><i class="fas fa-phone text-blue-500"></i><div><p class="text-sm text-gray-500">Phone</p><p class="font-medium">{{ user.profile.phone_number }}</p></div></div>
+                            <div class="flex items-center space-x-3"><i class="fas fa-map-marker-alt text-blue-500"></i><div><p class="text-sm text-gray-500">Address</p><p class="font-medium">{{ user.profile.address|default:'Not provided' }}</p></div></div>
+                            <div class="flex items-center space-x-3"><i class="fas fa-calendar text-blue-500"></i><div><p class="text-sm text-gray-500">Member Since</p><p class="font-medium">{{ user.date_joined|date:"F d, Y" }}</p></div></div>
+                        </div>
+                    </div>
+
+                    <!-- Sales Summary Card -->
+                    <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-chart-line mr-2 text-blue-500"></i>Sales Summary</h3>
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
+                                <div class="flex justify-between items-center"><p class="font-semibold text-blue-900">Total Reserved Sales</p><span class="text-2xl font-bold text-blue-700">₱{{ total_active|add:total_cancelled|floatformat:2|intcomma }}</span></div>
+                                <p class="text-sm text-blue-600 mt-1">Lifetime total</p>
+                            </div>
+
+                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-green-50 transition-colors"><div><p class="font-medium text-gray-800">Active Sales</p><p class="text-sm text-green-600">{{ active_percentage|default:0|floatformat:1 }}% of total</p></div><span class="text-xl font-bold text-green-600">₱{{ total_active|floatformat:2|intcomma }}</span></div>
+
+                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-red-50 transition-colors"><div><p class="font-medium text-gray-800">Cancelled Sales</p><p class="text-sm text-orange-600">{{ cancelled_percentage|default:0|floatformat:1 }}% of total</p></div><span class="text-xl font-bold text-orange-600">₱{{ total_cancelled|floatformat:2|intcomma }}</span></div>
+
+                            <!-- Add Unit Sold Section -->
+                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-indigo-50 transition-colors"><div><p class="font-medium text-gray-800">Units Sold</p><p class="text-sm text-indigo-600">Active properties</p></div><div class="flex items-center"><i class="fas fa-home text-indigo-500 mr-2"></i><span class="text-xl font-bold text-indigo-600">{{ active_count|default:0 }}</span></div></div>
+                            
+                            
+                            {% if cancelled_percentage > 30 %}
+                            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg animate-pulse">
+                                <div class="flex items-start"><div class="flex-shrink-0"><i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i></div><div class="ml-3"><h3 class="text-sm font-medium text-yellow-800">Performance Review Required</h3><div class="mt-1 text-sm text-yellow-700"><p>Your cancelled sales rate is above 30%. A meeting with your manager is recommended for performance review and additional training.</p></div>{% if user.profile.role != 'Sales Manager' %}<div class="mt-2"><a href="#" class="text-sm font-medium text-yellow-800 hover:text-yellow-900 flex items-center"><i class="fas fa-calendar-plus mr-1"></i>Schedule Meeting</a></div>{% endif %}</div></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Sales Chart Card -->
+                    <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-chart-pie mr-2 text-blue-500"></i>Sales Distribution</h3>
+                        <div class="flex items-center justify-center h-[300px]">
+                            <canvas id="propertyLossPieChart" class="max-w-full"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Transactions Table -->
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-history mr-2 text-blue-500"></i>Recent Sales Transactions</h3>
+                            <div class="flex space-x-2">
+                                    <a href="{% url 'export_sales_excel' %}" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center" title="Export to Excel">
+                                        <i class="fas fa-file-excel mr-1"></i><span class="hidden sm:inline">Export</span>
+                                    </a>
+                                    <button onclick="printSection('sales-table')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center" title="Print Table">
+                                        <i class="fas fa-print mr-1"></i><span class="hidden sm:inline">Print</span>
+                                    </button>
+                                    <button onclick="openModal()" class="add-sales-button hover:scale-105 flex items-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors" title="Add New Sale">
+                                        <i class="fas fa-plus-circle text-xl"></i><span class="hidden sm:inline ml-1">Add</span>
+                                    </button>
+                                </div>
+                        </div>
+                    </div>
+
+                    <div id="sales-table" class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="table-header">
+                                <tr>
+                                    <th class="px-6 py-4 text-left">Date</th>
+                                    <th class="px-6 py-4 text-left">Property</th>
+                                    <th class="px-6 py-4 text-left hidden md:table-cell">Developer</th>
+                                    <th class="px-6 py-4 text-left whitespace-nowrap">Amount</th>
+                                    <th class="px-6 py-4 text-left">Status</th>
+{% if user.is_superuser %}
+                                     <th class="px-6 py-4 text-left hidden md:table-cell">Created By</th>
+{% endif %}
+                                     <th class="px-6 py-4 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                {% for sale in sales %}
+                                <tr class="table-row hover:bg-blue-50 transition-colors cursor-pointer">
+                                    <td class="px-6 py-4">{{ sale.date|date:"Y-m-d" }}</td>
+                                    <td class="px-6 py-4">{{ sale.property_name }}</td>
+                                    <td class="px-6 py-4 hidden md:table-cell">{{ sale.developer }}</td>
+                                    <td class="px-6 py-4 font-semibold whitespace-nowrap">₱{{ sale.amount|floatformat:2|intcomma }}</td>
+                                    <td class="px-6 py-4"><span class="status-badge {% if sale.status == 'Active' %}status-active{% elif sale.status == 'Cancelled' %}status-cancelled{% else %}status-reserved{% endif %}">{{ sale.status }}</span></td>
+{% if user.is_superuser %}
+                                     <td class="px-6 py-4 hidden md:table-cell">{{ sale.user.get_full_name|default:sale.user.username }}</td>
+{% endif %}
+                                     <td class="px-6 py-4">
+                                        <div class="flex space-x-3">
+                                            <button onclick="openEditModal('{{ sale.id }}')" class="text-blue-600 hover:text-blue-800 transition-colors"><i class="fas fa-edit"></i></button>
+                                            <button onclick="deleteSale('{{ sale.id }}')" class="text-orange-400 hover:text-orange-800 transition-colors"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <!-- Pagination Controls -->
+                        {% if sales.paginator.num_pages > 1 %}
+                        <div class="flex justify-center items-center space-x-2 mt-4 pb-4">
+                            {% if sales.has_previous %}
+                            <a href="?page={{ sales.previous_page_number }}" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"><i class="fas fa-chevron-left"></i></a>
+                            {% endif %}
+                            <span class="px-3 py-2">Page {{ sales.number }} of {{ sales.paginator.num_pages }}</span>
+                            {% if sales.has_next %}
+                            <a href="?page={{ sales.next_page_number }}" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"><i class="fas fa-chevron-right"></i></a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="addSalesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Add New Sale</h3>
+            <form method="POST" action="{% url 'add_sale' %}" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" name="date" required
+                           value="{% now 'Y-m-d' %}"
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Property</label>
+                    <select name="property" required
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                        <option value="">Select a Property</option>
+                        {% for property in properties %}
+                        <option value="{{ property.name }}">{{ property.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Developer</label>
+                    <select name="developer" required
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                        <option value="">Select a Developer</option>
+                        {% for developer in developers %}
+                        <option value="{{ developer.name }}">{{ developer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if user.is_superuser %}
+                <div class="flex space-x-4 mt-2">
+                    <button onclick="openPropertyModal()" class="text-sm text-blue-600 hover:text-blue-800">
+                        + Add New Property
+                    </button>
+                    <button onclick="openDeveloperModal()" class="text-sm text-blue-600 hover:text-blue-800">
+                        + Add New Developer
+                    </button>
+                </div>
+                {% endif %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                    <input type="number" name="amount" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select name="status" required
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                        <option value="Active">Active</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-4">
+                    <button type="button" onclick="closeModal()"
+                            class="px-4 py-2 border text-gray-600 rounded hover:bg-gray-100">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Add Sale
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="editSalesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">Edit Sale</h3>
+            <form id="editSaleForm" method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" name="date" id="edit-date" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Property</label>
+                    <input type="text" name="property" id="edit-property" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Developer</label>
+                    <input type="text" name="developer" id="edit-developer" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                    <input type="number" name="amount" id="edit-amount" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select name="status" id="edit-status" required
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                        <option value="Active">Active</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-4">
+                    <button type="button" onclick="closeEditModal()"
+                            class="px-4 py-2 border text-gray-600 rounded hover:bg-gray-100">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="propertyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Property Management</h3>
+                <button onclick="closePropertyModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Add Property Form -->
+            <form id="propertyForm" class="space-y-4 mb-6">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Property Name</label>
+                    <input type="text" name="name" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Add Property
+                    </button>
+                </div>
+            </form>
+
+            <!-- Existing Properties List -->
+            <div class="border-t pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Existing Properties</h4>
+                <div class="max-h-60 overflow-y-auto">
+                    {% for property in properties %}
+                    <div class="flex justify-between items-center py-2 hover:bg-gray-50 px-2 rounded">
+                        <span class="text-sm text-gray-800">{{ property.name }}</span>
+                        <button onclick="deleteProperty('{{ property.id }}')" 
+                                class="text-red-600 hover:text-red-800">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="developerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Developer Management</h3>
+                <button onclick="closeDeveloperModal()" class="text-gray-500 hover:text-gray-700">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Add Developer Form -->
+            <form id="developerForm" class="space-y-4 mb-6">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Developer Name</label>
+                    <input type="text" name="name" required
+                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Add Developer
+                    </button>
+                </div>
+            </form>
+
+            <!-- Existing Developers List -->
+            <div class="border-t pt-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Existing Developers</h4>
+                <div class="max-h-60 overflow-y-auto">
+                    {% for developer in developers %}
+                    <div class="flex justify-between items-center py-2 hover:bg-gray-50 px-2 rounded">
+                        <span class="text-sm text-gray-800">{{ developer.name }}</span>
+                        <button onclick="deleteDeveloper('{{ developer.id }}')" 
+                                class="text-red-600 hover:text-red-800">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openModal() {
+            document.getElementById('addSalesModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('addSalesModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('addSalesModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+    </script>
+    <script>
+        function openEditModal(saleId) {
+            document.getElementById('editSalesModal').classList.remove('hidden');
+            document.getElementById('editSaleForm').action = `/edit-sale/${saleId}/`;
+            
+            // Fetch the sale data and populate the form
+            fetch(`/get-sale/${saleId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('edit-date').value = data.date;
+                    document.getElementById('edit-property').value = data.property_name;
+                    document.getElementById('edit-developer').value = data.developer;
+                    document.getElementById('edit-amount').value = data.amount;
+                    document.getElementById('edit-status').value = data.status;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error loading sale data');
+                });
+        }
+
+        function closeEditModal() {
+            document.getElementById('editSalesModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('editSalesModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+    </script>
+    <script>
+        function deleteSale(saleId) {
+            if (confirm('Are you sure you want to delete this sale?')) {
+                // Send delete request to your backend
+                fetch(`/delete-sale/${saleId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Reload the page to show updated data
+                        window.location.reload();
+                    } else {
+                        alert('Error deleting sale');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting sale');
+                });
+            }
+        }
+    </script>
+    <script>
+        var propertyLossCtx = document.getElementById('propertyLossPieChart').getContext('2d');
+        var propertyLossData = [
+          parseFloat("{{ total_active|default_if_none:0|floatformat:'2' }}"),
+          parseFloat("{{ total_cancelled|default_if_none:0|floatformat:'2' }}")
+        ];
+        var propertyLossLabels = ['Active', 'Cancelled'];
+        var propertyLossColors = ['#16a34a', '#dc2626'];
+
+        var propertyLossChart = new Chart(propertyLossCtx, {
+          type: 'pie',
+          data: {
+            labels: propertyLossLabels,
+            datasets: [{
+              data: propertyLossData,
+              backgroundColor: propertyLossColors,
+              borderColor: '#fff',
+              borderWidth: 2,
+              hoverOffset: 16
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+              animateScale: true,
+              animateRotate: true
+            },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                align: 'center',
+                labels: {
+                  boxWidth: 24,
+                  font: { size: 20, weight: 'bold' },
+                  color: '#1e293b',
+                  padding: 24
+                }
+              },
+              tooltip: {
+                backgroundColor: '#f3f4f6',
+                titleColor: '#0f172a',
+                bodyColor: '#0f172a',
+                borderColor: '#e5e7eb',
+                borderWidth: 1,
+                titleFont: { weight: 'bold', size: 18 },
+                bodyFont: { size: 17 }
+              }
+            },
+            hover: {
+              mode: 'nearest',
+              intersect: true
+            }
+          }
+        });
+
+        propertyLossCtx.canvas.onclick = function(evt) {
+          var points = propertyLossChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+          if (points.length) {
+            var idx = points[0].index;
+            var value = propertyLossData[idx];
+            var total = propertyLossData.reduce(function(a, b) { return a + b; }, 0);
+            var percent = total ? (value / total * 100) : 0;
+            var label = propertyLossLabels[idx];
+            alert(label + '\nAmount: ₱' + value.toLocaleString() + '\nPercent: ' + percent.toFixed(1) + '%');
+          }
+        };
+    </script>
+    <script>
+        // Property form submission
+        document.getElementById('propertyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('{% url "add_property" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Error adding property');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error adding property');
+            });
+        });
+
+        // Developer form submission
+        document.getElementById('developerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('{% url "add_developer" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Error adding developer');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error adding developer');
+            });
+        });
+
+        // Delete property function
+        function deleteProperty(propertyId) {
+            if (confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
+                fetch(`/delete-property/${propertyId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error deleting property');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting property');
+                });
+            }
+        }
+
+        // Delete developer function
+        function deleteDeveloper(developerId) {
+            if (confirm('Are you sure you want to delete this developer? This action cannot be undone.')) {
+                fetch(`/delete-developer/${developerId}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Error deleting developer');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting developer');
+                });
+            }
+        }
+
+        // Modal functions
+        function openPropertyModal() {
+            document.getElementById('propertyModal').classList.remove('hidden');
+        }
+
+        function closePropertyModal() {
+            document.getElementById('propertyModal').classList.add('hidden');
+        }
+
+        function openDeveloperModal() {
+            document.getElementById('developerModal').classList.remove('hidden');
+        }
+
+        function closeDeveloperModal() {
+            document.getElementById('developerModal').classList.add('hidden');
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const propertyModal = document.getElementById('propertyModal');
+            const developerModal = document.getElementById('developerModal');
+            
+            if (event.target === propertyModal) {
+                closePropertyModal();
+            }
+            if (event.target === developerModal) {
+                closeDeveloperModal();
+            }
+        }
+
+        // Add escape key listener
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closePropertyModal();
+                closeDeveloperModal();
+            }
+        });
+    </script>
+    <script>
+    function printSection(id) {
+        const originalHtml = document.body.innerHTML;
+        const section = document.getElementById(id).innerHTML;
+        document.body.innerHTML = section;
+        window.print();
+        document.body.innerHTML = originalHtml;
+        location.reload();
+    }
+</script>
+</body>
+</html>
+
+{% endblock %}

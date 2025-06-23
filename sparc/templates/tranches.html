@@ -1,0 +1,627 @@
+{% extends "index.html" %}
+
+{% load static %}
+
+
+{% load humanize %}
+{% load custom_filters %}
+
+
+{% block content %}
+
+<style>
+    @media print {
+        @page {
+            size: auto;
+            margin: 20px;
+        }
+
+        body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+            padding: 20px;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        .max-w-8xl {
+            max-width: 100% !important; /* Ensure full width for printing */
+            width: 100% !important;
+        }
+
+        table {
+            width: 100% !important; /* Ensure tables expand fully */
+            font-size: 12px !important;
+        }
+
+        .overflow-x-auto {
+            overflow: visible !important; /* Ensure no horizontal scrolling in print */
+        }
+
+        .shadow, .rounded-lg {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+
+        .bg-green-100, .bg-green-200, .bg-green-300,
+        .bg-blue-100, .bg-blue-200, .bg-blue-300,
+        .bg-yellow-200, .bg-red-200 {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        h3 {
+            page-break-before: avoid;
+            page-break-after: avoid;
+        }
+
+        .divide-y > :not([hidden]) ~ :not([hidden]) {
+            border-bottom-width: 1px !important;
+        }
+    }
+
+    @media print {
+  .page-break {
+    page-break-before: always;
+  }
+
+  @media print {
+        .no-print {
+            display: none !important;
+        }
+    }
+}
+
+    /* Update styles for more compact layout */
+    .form-container {
+        display: flex;
+        position: relative;
+        min-height: 400px;
+        max-height: 800px;
+        overflow-y: auto;
+    }
+
+    .left-sidebar {
+        width: 25%;
+        position: sticky;
+        top: 0;
+        height: fit-content;
+        padding-right: 1rem;
+        max-height: 800px;
+    }
+
+    .right-content {
+        width: 75%;
+        padding-left: 1rem;
+        overflow-y: auto;
+    }
+
+    .section-button {
+        width: 100%;
+        text-align: left;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+        padding: 0.75rem 1rem;
+        background-color: #1E88E5; /* Solid blue */
+        color: #FFFFFF; /* White text */
+        border: none;
+    }
+
+    .section-button:hover {
+        background-color: #1976D2; /* Slightly darker blue on hover */
+    }
+
+    .section-button.active {
+        background-color: #1565C0; /* Darker blue for active state */
+        color: #FFFFFF;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-content {
+        margin-bottom: 1rem;
+        background-color: #FFFFFF;
+        border: 2px solid #1E88E5;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Update form background */
+    form.bg-emerald-100 {
+        background-color: #E3F2FD !important; /* Light blue background */
+    }
+</style>
+
+<!-- UI Enhancements -->
+<style>
+/* Gradient sidebar with improved buttons */
+.left-sidebar {
+    background: linear-gradient(180deg,#1E88E5 0%,#42A5F5 100%);
+    border-radius: 1rem;
+    padding: 1rem;
+}
+.left-sidebar .section-button {
+    background: transparent;
+    color: #ffffff;
+    font-weight: 600;
+    border-left: 4px solid transparent;
+    border-radius: 0;
+}
+.left-sidebar .section-button:hover {
+    border-left-color: #ffffff;
+    transform: translateX(3px);
+}
+.left-sidebar .section-button.active {
+    background: rgba(255,255,255,0.15);
+    border-left-color: #ffffff;
+}
+
+/* Fade-in for section content */
+.section-content {
+    animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(10px);} 
+    to   {opacity: 1; transform: translateY(0);} 
+}
+
+/* Mobile responsiveness: stack sidebar */
+@media (max-width: 768px) {
+    .left-sidebar {
+        position: static;
+        width: 100%;
+        display: flex;
+        overflow-x: auto;
+        border-radius: 0;
+    }
+    .right-content {
+        width: 100%;
+        padding-left: 0;
+    }
+    .section-button {
+        flex: 1 0 auto;
+        text-align: center;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+</style>
+  
+
+{% load widget_tweaks %}
+
+    <div class="bg-white p-8 rounded-lg shadow-lg">
+        <!-- Header Card -->
+<div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+    <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-8">
+        <div class="flex items-center justify-center space-x-8">
+            <div class="bg-white p-3 rounded-2xl shadow-inner">
+                <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-20 h-20 object-contain">
+            </div>
+            <div class="text-white">
+                <h2 class="text-3xl font-bold mb-2">Inner SPARC Realty Corporation</h2>
+                <div class="text-sm opacity-90 space-y-1">
+                    <p>Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina</p>
+                    <p>Salawag, Dasmariñas, Cavite 4114</p>
+                    <p>63917-853-4875 / 63999-994-3304 / (046)458-0706</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+       
+            
+
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">
+    <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+        Commission Tranche Form
+    </span>
+</h1>
+
+        <p class="text-sm text-gray-600 mb-4">Fill out the form below to generate the commission report.</p>
+
+        <form method="POST" class="bg-emerald-100 p-8 rounded-2xl shadow-lg">
+            {% csrf_token %}
+            
+            <div class="form-container">
+                <!-- Left Sidebar with Fixed Buttons -->
+                <div class="left-sidebar">
+                    <button type="button" onclick="toggleSection('projectDetails')" class="section-button font-bold py-3 px-4 rounded-xl shadow-sm">
+                        Project Details
+                    </button>
+                    <button type="button" onclick="toggleSection('priceDetails')" class="section-button font-bold py-3 px-4 rounded-xl shadow-sm">
+                        Price Details
+                    </button>
+                    <button type="button" onclick="toggleSection('otherDeductions')" class="section-button font-bold py-3 px-4 rounded-xl shadow-sm">
+                        Other Deductions
+                    </button>
+                    <button type="button" onclick="toggleSection('commissionRelease')" class="section-button font-bold py-3 px-4 rounded-xl shadow-sm">
+                        Condition For Commission Release
+                    </button>
+                    <button type="button" onclick="toggleSection('commissionSchedule')" class="section-button font-bold py-3 px-4 rounded-xl shadow-sm">
+                        Commission Schedule
+                    </button>
+                </div>
+
+                <!-- Right Content Area -->
+                <div class="right-content">
+                    <!-- Project Details Section -->
+                    <div id="projectDetails" class="section-content w-full bg-white p-6 rounded-xl shadow-md hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="agent_name" class="block text-gray-700 font-medium mb-2">Agent's Name</label>
+                                {{ form.agent_name|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                                {% if form.agent_name.errors %}
+                                    <div class="text-red-500 text-sm mt-1">
+                                        {{ form.agent_name.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <label for="buyer_name" class="block text-gray-700 font-medium mb-2">Client's Name</label>
+                                {{ form.buyer_name|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="project_name" class="block text-gray-700 font-medium mb-2">Project Name</label>
+                                {{ form.project_name|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="phase" class="block text-gray-700 font-medium mb-2">Phase</label>
+                                {{ form.phase|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="unit_id" class="block text-gray-700 font-medium mb-2">Unit ID</label>
+                                {{ form.unit_id|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="reservation_date" class="block text-gray-700 font-medium mb-2">Reservation Date</label>
+                                {{ form.reservation_date|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price Details Section -->
+                    <div id="priceDetails" class="section-content w-full bg-white p-6 rounded-xl shadow-md hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="total_contract_price" class="block text-gray-700 font-medium mb-2">Total Contract Price</label>
+                                {{ form.total_contract_price|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300 comma-format" }}
+                            </div>
+                            <div>
+                                <label for="process_fee_percentage" class="block text-gray-700 font-medium mb-2">Less Miscellaneous/Processing Fee (%)</label>
+                                {{ form.process_fee_percentage|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="commission_rate" class="block text-gray-700 font-medium mb-2">Commission Rate (%)</label>
+                                {{ form.commission_rate|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="vat_rate" class="block text-gray-700 font-medium mb-2">VAT Rate (%)</label>
+                                {{ form.vat_rate|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="withholding_tax_rate" class="block text-gray-700 font-medium mb-2">Withholding Tax Rate (%)</label>
+                                {{ form.withholding_tax_rate|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other Deductions Section -->
+                    <div id="otherDeductions" class="section-content w-full bg-white p-6 rounded-xl shadow-md hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="deduction_type" class="block text-gray-700 font-medium mb-2">Deduction Type</label>
+                                {{ form.deduction_type|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="other_deductions" class="block text-gray-700 font-medium mb-2">Other Deductions (₱)</label>
+                                {{ form.other_deductions|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="deduction_tax_rate" class="block text-gray-700 font-medium mb-2">Tax Rate for Deduction (%)</label>
+                                {{ form.deduction_tax_rate|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Condition For Commission Release Section -->
+                    <div id="commissionRelease" class="section-content w-full bg-white p-6 rounded-xl shadow-md hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="option1_percentage" class="block text-gray-700 font-medium mb-2">Within Down Payment Period (%)</label>
+                                {{ form.option1_percentage|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="option2_percentage" class="block text-gray-700 font-medium mb-2">Upon Loan Take Out (%)</label>
+                                {{ form.option2_percentage|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="option1_tax_rate" class="block text-gray-700 font-medium mb-2">Tax Rate for DP Period (%)</label>
+                                {{ form.option1_tax_rate|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                            <div>
+                                <label for="option2_tax_rate" class="block text-gray-700 font-medium mb-2">Tax Rate for Loan Take Out (%)</label>
+                                {{ form.option2_tax_rate|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Combine Date Details and Commission Received sections -->
+                    <div id="commissionSchedule" class="section-content w-full bg-white p-6 rounded-xl shadow-md hidden">
+                        <!-- Date Details -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-bold text-green-700 mb-4">Date Details</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label for="tranche_option" class="block text-gray-700 font-medium mb-2">Tranche Option</label>
+                                    {{ form.tranche_option|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                                </div>
+                                <div>
+                                    <label for="number_months" class="block text-gray-700 font-medium mb-2">No. of months</label>
+                                    <input type="number" id="number_months" name="number_months" min="1" value="{{ form.number_months.value|default:'1' }}" 
+                                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300"
+                                           oninput="updateTrancheInputs()"
+                                           onchange="updateTrancheInputs()">
+                                </div>
+                                <div>
+                                    <label for="schedule2_gap_months" class="block text-gray-700 font-medium mb-2">Gap Between Schedules (in months):</label>
+                                    <input type="number" name="schedule2_gap_months" value="1" min="1" class="w-full p-3 border border-gray-300 rounded-lg">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Commission Received Tranche 1 -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-bold text-green-700 mb-4">Commission Received Tranche 1</h3>
+                            <div id="commissionReceivedContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Dynamic inputs will be added here -->
+                            </div>
+                        </div>
+
+                        <!-- Commission Received Tranche 2 -->
+                        <div class="mb-8">
+                            <h3 class="text-xl font-bold text-green-700 mb-4">Commission Received Tranche 2</h3>
+                            <div id="commissionReceivedContainer2" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Dynamic inputs will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="text-center mt-6">
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-800 focus:ring focus:ring-green-300">
+                    Generate Report
+                </button>
+            </div>
+        </form>
+    </div>
+
+   
+
+    <script>
+        document.getElementById('toggleFormButton').addEventListener('click', function() {
+            const formContainer = document.getElementById('formContainer');
+            formContainer.classList.toggle('hidden');
+            this.textContent = formContainer.classList.contains('hidden') ? 'Show Data' : 'Hide Data';
+        });
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const option1Input = document.querySelector("input[name='option1_percentage']");
+            const option2Input = document.querySelector("input[name='option2_percentage']");
+    
+            form.addEventListener("submit", function (e) {
+                const option1Value = parseFloat(option1Input.value) || 0;
+                const option2Value = parseFloat(option2Input.value) || 0;
+    
+                if (option1Value + option2Value > 100) {
+                    e.preventDefault(); // Prevent form submission
+                    alert("The total percentage cannot exceed 100%. Please adjust the percentage.");
+                }
+            });
+        });
+    </script>
+
+<script>
+    const trancheCount = "{{ tranches|length|default:0 }}";
+    const trancheOption = "{{ tranche_option|default:'' }}";
+    const reservationDate = "{{ reservation_date|date:'Y-m-d'|default:'' }}";
+
+    // Define intervals based on the tranche option
+    const trancheIntervals = {
+        "bi_monthly": [30, 60, 90, 120, 150],
+        "quarterly": [90, 180, 270, 360],
+        "semi_annual": [180, 360],
+        "nine_months": [270],
+        "default": [30, 60, 90, 120, 150]
+    };
+
+    document.getElementById('addTrancheRow').addEventListener('click', function () {
+        trancheCount += 1;
+        const container = document.getElementById('commissionReceivedContainer');
+
+        const newRow = document.createElement('div');
+        newRow.classList.add('commission-row');
+
+        newRow.innerHTML = `
+            <label for="commission_received_${trancheCount}" class="block text-gray-700 font-medium">
+                Tranche ${trancheCount} (0%):
+            </label>
+            <input type="number" step="0.01" name="commission_received_${trancheCount}" 
+                   id="commission_received_${trancheCount}" 
+                   class="w-full mt-1 p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300"
+                   value="0.00">
+        `;
+
+        container.appendChild(newRow);
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+  const inputs = document.querySelectorAll('.comma-format');
+
+  inputs.forEach(input => {
+    input.addEventListener('input', function (e) {
+      // Remove non-numeric characters except dot
+      let value = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
+      
+      // Split into integer and decimal parts
+      const parts = value.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+      e.target.value = parts.join('.');
+    });
+  });
+});
+</script>
+
+<script>
+    // Simple function to handle section toggling
+    function toggleSection(sectionId) {
+        // Hide all sections
+        document.querySelectorAll('.section-content').forEach(section => {
+            section.classList.add('hidden');
+        });
+
+        // Show the selected section
+        const selectedSection = document.getElementById(sectionId);
+        if (selectedSection) {
+            selectedSection.classList.remove('hidden');
+        }
+
+        // Update button styles
+        document.querySelectorAll('.section-button').forEach(button => {
+            if (button.getAttribute('onclick').includes(sectionId)) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+    }
+
+    // Add click handlers to all buttons when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add click event to each button
+        document.querySelectorAll('.section-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const sectionId = this.getAttribute('onclick').split("'")[1];
+                toggleSection(sectionId);
+            });
+        });
+
+        // Show the first section by default
+        toggleSection('projectDetails');
+    });
+</script>
+
+<script>
+    // Function to get current date in YYYY-MM-DD format
+    function getCurrentDate() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // Function to update tranche inputs based on number of months
+    function updateTrancheInputs() {
+        const months = parseInt(document.getElementById('number_months').value) || 1;
+        const container1 = document.getElementById('commissionReceivedContainer');
+        const container2 = document.getElementById('commissionReceivedContainer2');
+        
+        // Clear existing inputs
+        container1.innerHTML = '';
+        container2.innerHTML = '';
+
+        // Create inputs for Tranche 1 (DP Period) - Dynamic based on months
+        for (let i = 1; i <= months; i++) {
+            const inputDiv = document.createElement('div');
+            inputDiv.className = 'commission-row group relative mb-4';
+            inputDiv.innerHTML = `
+                <label for="commission_received_${i}" 
+                       class="block text-green-700 font-medium mb-2 pl-1 border-l-4 border-green-300 bg-yellow-200 py-1 px-3 rounded-r">
+                    Tranche ${i} ({{ option1_percentage|floatformat:2 }}%)
+                </label>
+                <div>
+                <input type="number" step="0.01" name="commission_received_${i}" 
+                       id="commission_received_${i}" 
+                       class="w-full mt-1 p-3 border-2 border-green-100 rounded-lg 
+                              focus:border-green-400 focus:ring-2 focus:ring-green-200
+                              hover:border-green-300 transition-colors duration-200
+                              bg-white shadow-sm"
+                           value="0.00"
+                           placeholder="Enter amount received"
+                           oninput="handleAmountInput(${i}, false)">
+                    <input type="hidden" name="date_received_${i}" id="date_received_${i}">
+                </div>
+                <div class="absolute inset-0 border-2 border-transparent group-hover:border-green-100 rounded-lg pointer-events-none transition-all duration-300"></div>
+            `;
+            container1.appendChild(inputDiv);
+        }
+
+        // Create single input for Tranche 2 (LTO)
+        const ltoDiv = document.createElement('div');
+        ltoDiv.className = 'commission-row group relative mb-4';
+        ltoDiv.innerHTML = `
+            <label for="commission_received2_1" 
+                       class="block text-blue-700 font-medium mb-2 pl-1 border-l-4 border-blue-300 bg-blue-200 py-1 px-3 rounded-r">
+                LTO Tranche ({{ option2_percentage|floatformat:2 }}%)
+                </label>
+            <div>
+                <input type="number" step="0.01" name="commission_received2_1" 
+                       id="commission_received2_1" 
+                       class="w-full mt-1 p-3 border-2 border-blue-100 rounded-lg 
+                              focus:border-blue-400 focus:ring-2 focus:ring-blue-200
+                              hover:border-blue-300 transition-colors duration-200
+                              bg-white shadow-sm"
+                       value="0.00"
+                       placeholder="Enter LTO amount received"
+                       oninput="handleAmountInput(1, true)">
+                <input type="hidden" name="date_received2_1" id="date_received2_1">
+            </div>
+                <div class="absolute inset-0 border-2 border-transparent group-hover:border-blue-100 rounded-lg pointer-events-none transition-all duration-300"></div>
+            `;
+        container2.appendChild(ltoDiv);
+    }
+
+    // Function to handle amount input and set current date
+    function handleAmountInput(trancheNum, isLTO) {
+        const amountInput = document.getElementById(`commission_received${isLTO ? '2_' : '_'}${trancheNum}`);
+        const dateInput = document.getElementById(`date_received${isLTO ? '2_' : '_'}${trancheNum}`);
+        
+        const amount = parseFloat(amountInput.value) || 0;
+        if (amount > 0) {
+            dateInput.value = getCurrentDate();
+        } else {
+            dateInput.value = '';
+        }
+    }
+
+    // Initialize the inputs when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        const numberMonthsInput = document.getElementById('number_months');
+        
+        // Add event listeners for immediate updates
+        numberMonthsInput.addEventListener('input', updateTrancheInputs);
+        numberMonthsInput.addEventListener('change', updateTrancheInputs);
+        
+        // Initial update
+        updateTrancheInputs();
+    });
+</script>
+
+{% endblock %}

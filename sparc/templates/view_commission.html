@@ -1,0 +1,44 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg">
+    <h1 class="text-3xl font-bold text-center mb-8">Commission Details</h1>
+
+    <div class="grid grid-cols-2 gap-6">
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-semibold text-gray-700">Project Name</h3>
+                <p>{{ commission.project_name }}</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700">Developer</h3>
+                <p>{{ commission.developer }}</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700">Buyer</h3>
+                <p>{{ commission.buyer }}</p>
+            </div>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <h3 class="font-semibold text-gray-700">Release Number</h3>
+                <p>{{ commission.release_number }}</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700">Date Released</h3>
+                <p>{{ commission.date_released }}</p>
+            </div>
+            <div>
+                <h3 class="font-semibold text-gray-700">Commission Amount</h3>
+                <p>₱{{ commission.commission_amount|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 text-center">
+        <a href="{% url 'tranches' %}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+            Back to Tranches
+        </a>
+    </div>
+</div>
+{% endblock %}

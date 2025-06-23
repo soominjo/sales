@@ -1,0 +1,432 @@
+{% extends "index.html" %}
+
+{% block content %}
+
+{% load static %}
+
+{% load widget_tweaks %}
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Manager Commission Breakdown</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ... existing styles ... */
+    </style>
+</head>
+
+<body class="bg-gray-100 p-10">
+    {% if edit_mode %}<form method="POST">{% csrf_token %}{% endif %}
+    
+    <div class="min-h-screen bg-gradient-to-br from-blue-100 to-indigo-50 py-8">
+            <!-- Header Card -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+                <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-8">
+                    <div class="flex items-center justify-center space-x-8">
+                        <div class="bg-white p-3 rounded-2xl shadow-inner">
+                            <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-20 h-20 object-contain"> 
+                        </div>
+                        <div class="text-white">
+                            <h2 class="text-3xl font-bold mb-2">Inner SPARC Realty Corporation</h2>
+                            <div class="text-sm opacity-90 space-y-1">
+                                <p>Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina</p>
+                                <p>Salawag, Dasmariñas, Cavite 4114</p>
+                                <p>63917-853-4875/63999-994-3304/(046)458 0706</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Form -->
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">
+                    <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                        Create Commission Slip
+                    </span>
+                </h1>
+
+                <form method="POST" action="{% url 'create_commission_slip' %}" class="space-y-8">
+                    {% csrf_token %}
+
+                    <!-- Project Details Section -->
+                    <div class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+                        <div class="flex items-center mb-6">
+                            <div class="h-8 w-1 bg-blue-600 rounded-full mr-3"></div>
+                            <h2 class="text-xl font-semibold text-gray-800">Project Details</h2>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Agent Selection -->
+                            <div class="space-y-2">
+                                <label for="agent_select" class="block text-sm font-medium text-gray-700">Select Agent</label>
+                                <select id="agent_select" 
+                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm" 
+                                        onchange="updateAgentInfo()">
+                                    <option value="">Select an agent</option>
+                                    {% for user in active_users %}
+                                        {% if user_is_superuser or user_is_staff %}
+                                            <option value="{{ user.id }}" 
+                                                    data-name="{{ user.get_full_name }}"
+                                                    data-position="{{ user.profile.role }}"
+                                                    data-team="{{ user.profile.team.name }}">
+                                                {{ user.get_full_name }} ({{ user.profile.role }} - {{ user.profile.team.name }})
+                                            </option>
+                                        {% elif user.profile.team == request.user.profile.team %}
+                                            <option value="{{ user.id }}" 
+                                                    data-name="{{ user.get_full_name }}"
+                                                    data-position="{{ user.profile.role }}"
+                                                    data-team="{{ user.profile.team.name }}">
+                                                {{ user.get_full_name }} ({{ user.profile.role }} - {{ user.profile.team.name }})
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Position -->
+                            <div class="space-y-2">
+                                <label for="position" class="block text-sm font-medium text-gray-700">Position</label>
+                                <input type="text" name="position[]" id="position_display" readonly
+                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                            </div>
+
+                            <!-- Agent Name -->
+                            <div class="space-y-2">
+                                <label for="sales_agent_name" class="block text-sm font-medium text-gray-700">Name</label>
+                                <input type="text" name="sales_agent_name" id="agent_name_display" readonly
+                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                            </div>
+
+                            <!-- Buyer Name -->
+                            <div class="space-y-2">
+                                <label for="buyer_name" class="block text-sm font-medium text-gray-700">Buyer Name</label>
+                                {{ slip_form.buyer_name|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                            </div>
+
+                            <!-- Project Name -->
+                            <div class="space-y-2">
+                                <label for="project_name" class="block text-sm font-medium text-gray-700">Project Name</label>
+                                {{ slip_form.project_name|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                            </div>
+
+                            <!-- Unit ID -->
+                            <div class="space-y-2">
+                                <label for="unit_id" class="block text-sm font-medium text-gray-700">Unit ID</label>
+                                {{ slip_form.unit_id|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Commission Details Section -->
+                    <div class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+                        <div class="flex items-center mb-6">
+                            <div class="h-8 w-1 bg-blue-600 rounded-full mr-3"></div>
+                            <h2 class="text-xl font-semibold text-gray-800">Commission Details</h2>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Total Selling Price -->
+                            <div class="space-y-2">
+                                <label for="total_selling_price" class="block text-sm font-medium text-gray-700">Total Selling Price</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                    <input type="number" step="0.01" name="total_selling_price" id="total_selling_price"
+                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter amount" required
+                                           onchange="updateCommissionPreview()">
+                                </div>
+                            </div>
+
+                            <!-- Commission Rate -->
+                            <div class="space-y-2">
+                                <label for="commission_rate" class="block text-sm font-medium text-gray-700">Commission Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="commission_rate" id="commission_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter rate" required
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Particulars -->
+                            <div class="space-y-2">
+                                <label for="particulars" class="block text-sm font-medium text-gray-700">Particulars</label>
+                                <select name="particulars[]" id="particulars"
+                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                        onchange="updateFieldsVisibility(); updateCommissionPreview();">
+                                    <option value="FULL COMM">FULL COMM</option>
+                                    <option value="PARTIAL COMM">PARTIAL COMM</option>
+                                    <option value="INCENTIVES">INCENTIVES</option>
+                                </select>
+                            </div>
+
+                            <!-- Incentive Amount (Hidden by default) -->
+                            <div class="space-y-2 incentive-field" style="display: none;">
+                                <label for="incentive_amount" class="block text-sm font-medium text-gray-700">Incentive Amount</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                    <input type="number" step="0.01" name="incentive_amount" id="incentive_amount" value="0"
+                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           onchange="updateCommissionPreview()">
+                                </div>
+                            </div>
+
+                            <!-- Percentage for Partial Commission -->
+                            <div class="space-y-2 partial-field" style="display: none;">
+                                <label for="partial_percentage" class="block text-sm font-medium text-gray-700">
+                                    Percentage of Commission Amount
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="partial_percentage" id="partial_percentage" value="100"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter percentage"
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Cash Advance -->
+                            <div class="space-y-2">
+                                <label for="cash_advance" class="block text-sm font-medium text-gray-700">Cash Advance</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                    <input type="number" step="0.01" name="cash_advance" id="cash_advance"
+                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter cash advance amount" value="0"
+                                           onchange="updateCommissionPreview()">
+                                </div>
+                                <p class="text-sm text-gray-500">10% tax will be automatically deducted</p>
+                            </div>
+
+                            <!-- Withholding Tax Rate -->
+                            <div class="space-y-2">
+                                <label for="withholding_tax_rate" class="block text-sm font-medium text-gray-700">Withholding Tax Rate (%)</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="withholding_tax_rate" id="withholding_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                                <input type="date" name="date" id="date"
+                                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                       required>
+                            </div>
+
+                            <!-- Commission Breakdown Table -->
+                            <div class="col-span-2 mt-4">
+                                <table class="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Particulars</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Advance</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Commission</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider incentive-column" style="display: none;">Incentive</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Commission</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Commission</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td class="px-4 py-2" id="previewPosition">-</td>
+                                            <td class="px-4 py-2" id="previewParticulars">-</td>
+                                            <td class="px-4 py-2" id="previewCashAdvance">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewPercentage">100%</td>
+                                            <td class="px-4 py-2" id="previewBaseCommission">₱0.00</td>
+                                            <td class="px-4 py-2 incentive-column" id="previewIncentive" style="display: none;">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewGrossCommission">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewTax">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewNetCommission">₱0.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Calculation Details -->
+                            <div class="col-span-2 text-sm text-gray-600" id="calculationBreakdown"></div>
+
+                            <!-- Date -->
+                    
+                        </div>
+                    </div>
+
+                    <!-- Submit and Back Buttons -->
+                    <div class="flex justify-center space-x-4">
+                        <a href="{% url 'commission_history' %}" 
+                           class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-lg transform transition hover:-translate-y-0.5">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
+                            Go Back
+                        </a>
+                        <button type="submit" 
+                                class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg transform transition hover:-translate-y-0.5">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                            </svg>
+                            Save Commission Slip
+                        </button>
+                    </div>
+                </form>
+
+                {% if slip_form.errors %}
+                <div class="mt-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">There were errors in your form:</h3>
+                            <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+                                {% for field in slip_form %}
+                                    {% for error in field.errors %}
+                                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in slip_form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateAgentInfo() {
+            const select = document.getElementById('agent_select');
+            const selectedOption = select.options[select.selectedIndex];
+            
+            document.getElementById('position_display').value = selectedOption.dataset.position || '';
+            document.getElementById('agent_name_display').value = selectedOption.dataset.name || '';
+        }
+
+        function updateFieldsVisibility() {
+            const particularsSelect = document.getElementById('particulars');
+            const incentiveField = document.querySelector('.incentive-field');
+            const partialField = document.querySelector('.partial-field');
+            const incentiveColumns = document.querySelectorAll('.incentive-column');
+            const selectedValue = particularsSelect.value;
+            
+            // Hide both fields first
+            incentiveField.style.display = 'none';
+            partialField.style.display = 'none';
+            
+            // Show appropriate field based on selection
+            if (selectedValue === 'INCENTIVES') {
+                incentiveField.style.display = 'block';
+                incentiveColumns.forEach(col => col.style.display = 'table-cell');
+            } else if (selectedValue === 'PARTIAL COMM') {
+                partialField.style.display = 'block';
+                incentiveColumns.forEach(col => col.style.display = 'none');
+            } else {
+                incentiveColumns.forEach(col => col.style.display = 'none');
+            }
+            
+            // Reset values when switching
+            if (selectedValue !== 'PARTIAL COMM') {
+                document.getElementById('partial_percentage').value = '100';
+            }
+            if (selectedValue !== 'INCENTIVES') {
+                document.getElementById('incentive_amount').value = '0';
+            }
+            
+            updateCommissionPreview();
+        }
+
+        function formatCurrency(amount) {
+            return amount.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        function updateCommissionPreview() {
+            const totalSellingPrice = parseFloat(document.getElementById('total_selling_price').value) || 0;
+            const commissionRate = parseFloat(document.getElementById('commission_rate').value) || 0;
+            const cashAdvance = parseFloat(document.getElementById('cash_advance').value) || 0;
+            const particularsSelect = document.getElementById('particulars');
+            const partialPercentage = parseFloat(document.getElementById('partial_percentage').value) || 100;
+            const incentiveAmount = parseFloat(document.getElementById('incentive_amount').value) || 0;
+            const withholdingTaxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10.00;
+            const taxRate = withholdingTaxRate / 100;
+
+            // Calculate cash advance tax and adjusted total
+            const cashAdvanceTax = cashAdvance * 0.10;
+            const netCashAdvance = cashAdvance - cashAdvanceTax;
+            const adjustedTotal = totalSellingPrice - netCashAdvance;
+
+            // Calculate base commission
+            let baseCommission = (adjustedTotal * commissionRate);
+            
+            // Apply partial percentage if applicable
+            if (particularsSelect.value === 'PARTIAL COMM') {
+                baseCommission = baseCommission * (partialPercentage / 100);
+            }
+
+            // Calculate gross commission (base + incentive if applicable)
+            let grossCommission = baseCommission;
+            if (particularsSelect.value === 'INCENTIVES') {
+                grossCommission = baseCommission + incentiveAmount;
+            }
+
+            // Calculate tax and net commission
+            const withholdingTax = grossCommission * taxRate;
+            const netCommission = grossCommission - withholdingTax;
+
+            // Update preview table
+            document.getElementById('previewPosition').textContent = document.getElementById('position_display')?.value || '-';
+            document.getElementById('previewParticulars').textContent = particularsSelect.value;
+            document.getElementById('previewCashAdvance').textContent = `₱${formatCurrency(netCashAdvance)}`;
+            document.getElementById('previewPercentage').textContent = particularsSelect.value === 'PARTIAL COMM' ? `${partialPercentage}%` : '100%';
+            document.getElementById('previewBaseCommission').textContent = `₱${formatCurrency(baseCommission)}`;
+            if (particularsSelect.value === 'INCENTIVES') {
+                document.getElementById('previewIncentive').textContent = `₱${formatCurrency(incentiveAmount)}`;
+            }
+            document.getElementById('previewGrossCommission').textContent = `₱${formatCurrency(grossCommission)}`;
+            document.getElementById('previewTax').textContent = `₱${formatCurrency(withholdingTax)}`;
+            document.getElementById('previewNetCommission').textContent = `₱${formatCurrency(netCommission)}`;
+
+            // Show calculation breakdown
+            let breakdown = `Calculation: `;
+            if (cashAdvance > 0) {
+                breakdown += `(₱${formatCurrency(totalSellingPrice)} - ₱${formatCurrency(netCashAdvance)} = ₱${formatCurrency(adjustedTotal)}) × `;
+            } else {
+                breakdown += `₱${formatCurrency(totalSellingPrice)} × `;
+            }
+            breakdown += `${commissionRate}%`;
+            if (particularsSelect.value === 'PARTIAL COMM') {
+                breakdown += ` × ${partialPercentage}%`;
+            }
+            breakdown += ` = ₱${formatCurrency(baseCommission)} (Base Commission)`;
+            if (particularsSelect.value === 'INCENTIVES') {
+                breakdown += ` + ₱${formatCurrency(incentiveAmount)} (Incentive) = ₱${formatCurrency(grossCommission)} (Gross)`;
+            }
+            breakdown += ` - ${withholdingTaxRate}% tax (₱${formatCurrency(withholdingTax)}) = ₱${formatCurrency(netCommission)} (Net)`;
+            document.getElementById('calculationBreakdown').textContent = breakdown;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFieldsVisibility();
+            updateCommissionPreview();
+        });
+    </script>
+</body>
+
+{% endblock %}

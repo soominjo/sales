@@ -1,0 +1,142 @@
+{% extends "index.html" %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-lg mx-auto">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">Add New Property</h2>
+        
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <form method="POST" class="bg-white shadow-md rounded-lg p-6">
+            {% csrf_token %}
+            <div class="mb-4">
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Property Name</label>
+                <input type="text" name="name" id="name" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div class="mb-6">
+                <label for="developer" class="block text-sm font-medium text-gray-700 mb-2">Developer</label>
+                <select name="developer" id="developer" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Select a Developer</option>
+                    {% for developer in developers %}
+                    <option value="{{ developer.id }}">{{ developer.name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <div class="mt-2">
+                    <button type="button" onclick="openDeveloperModal()"
+                            class="text-sm text-blue-600 hover:text-blue-800">
+                        + Add New Developer
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex justify-end">
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Add Property
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Developer Modal -->
+<div id="developerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">Add New Developer</h3>
+                
+                <div class="mb-4">
+                    <label for="developerName" class="block text-sm font-medium text-gray-700 mb-2">Developer Name</label>
+                    <input type="text" id="developerName"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeDeveloperModal()"
+                            class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                        Cancel
+                    </button>
+                    <button onclick="addDeveloper()"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        Add Developer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDeveloperModal() {
+    document.getElementById('developerModal').classList.remove('hidden');
+}
+
+function closeDeveloperModal() {
+    document.getElementById('developerModal').classList.add('hidden');
+    document.getElementById('developerName').value = '';
+}
+
+function addDeveloper() {
+    const name = document.getElementById('developerName').value.trim();
+    if (!name) {
+        alert('Please enter a developer name');
+        return;
+    }
+    
+    fetch('/add-developer/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `name=${encodeURIComponent(name)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Add new developer to select dropdown
+            const select = document.getElementById('developer');
+            const option = new Option(name, data.developer_id);
+            select.add(option);
+            select.value = data.developer_id;
+            
+            // Close modal
+            closeDeveloperModal();
+        } else {
+            alert(data.message || 'Error adding developer');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding developer');
+    });
+}
+
+// Close modal when clicking outside
+document.getElementById('developerModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDeveloperModal();
+    }
+});
+
+// Close modal with escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDeveloperModal();
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,544 @@
+{% load static tailwind_tags %}
+{% load static %}
+{% load humanize %}
+{% load tailwind_tags %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inner SPARC Realty Corporation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .sidebar-gradient {
+      background: linear-gradient(135deg, 
+        #1e3a8a 0%,    /* Darker blue */
+        #2563eb 50%,   /* Medium blue */
+        #3b82f6 100%   /* Lighter blue */
+      );
+    }
+    
+    .sidebar-collapsed {
+      width: 5rem !important;
+    }
+
+    .sidebar-collapsed .nav-label,
+    .sidebar-collapsed .profile-info-text,
+    .sidebar-collapsed .profile-role-badge {
+      display: none;
+    }
+
+    .sidebar-collapsed .sidebar-logo {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+
+    .sidebar-collapsed .nav-item {
+      justify-content: center;
+      padding: 0.75rem;
+    }
+
+    .sidebar-collapsed .profile-hover-card {
+      justify-content: center;
+      padding: 0.5rem;
+    }
+
+    .sidebar-collapsed .profile-image-container {
+      margin: 0;
+    }
+
+    .nav-item {
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+    }
+
+    .nav-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0;
+      background: rgba(255, 255, 255, 0.1);
+      transition: width 0.3s ease;
+    }
+
+    .nav-item:hover::before {
+      width: 100%;
+    }
+
+    .nav-item:hover {
+      transform: translateX(8px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .nav-item svg {
+      transition: transform 0.3s ease;
+    }
+
+    .nav-item:hover svg {
+      transform: scale(1.1);
+    }
+
+    .nav-label {
+      transition: all 0.3s ease;
+    }
+
+    .nav-item:hover .nav-label {
+      transform: translateX(4px);
+    }
+
+    .sidebar-logo {
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.3));
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-logo:hover {
+      transform: scale(1.05);
+    }
+
+    #sidebar {
+      box-shadow: 4px 0 25px rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(10px);
+    }
+
+    .profile-section {
+      background: rgba(30, 58, 138, 0.4);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .profile-image {
+      transition: transform 0.3s ease;
+    }
+
+    .profile-image:hover {
+      transform: scale(1.05);
+    }
+
+    .active-nav-item {
+      background: rgba(255, 255, 255, 0.15);
+      border-right: 4px solid white;
+    }
+
+    /* Smooth scrollbar for the navigation */
+    nav {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    }
+
+    nav::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    nav::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    nav::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+    }
+
+    /* Mobile menu button animations */
+    .mobile-menu-btn {
+      transition: all 0.3s ease;
+    }
+
+    .mobile-menu-btn:hover {
+      transform: scale(1.1);
+    }
+
+    /* Overlay animation */
+    #overlay {
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+
+    #overlay.show {
+      opacity: 1;
+    }
+
+    /* Profile section animations */
+    .profile-hover-card {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .profile-hover-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+      );
+      transform: translateX(-100%);
+      transition: transform 0.6s ease;
+    }
+
+    .profile-hover-card:hover::after {
+      transform: translateX(100%);
+    }
+
+    .profile-hover-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    .profile-info-text {
+      transition: all 0.3s ease;
+    }
+
+    .profile-hover-card:hover .profile-info-text {
+      transform: translateX(4px);
+    }
+
+    .profile-role-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: rgba(59, 130, 246, 0.9);
+      padding: 4px 8px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      transform: scale(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .profile-hover-card:hover .profile-role-badge {
+      transform: scale(1);
+    }
+
+    .profile-image-container {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .profile-image-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(37, 99, 235, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .profile-hover-card:hover .profile-image-overlay {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Mobile menu button -->
+  <button 
+    id="mobile-toggle"
+    class="fixed top-4 left-4 z-50 p-3 rounded-xl bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all duration-300 mobile-menu-btn md:hidden"
+    aria-label="Toggle menu">
+    <svg id="menu-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+    <svg id="close-icon" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"></line>
+      <line x1="6" y1="6" x2="18" y2="18"></line>
+    </svg>
+  </button>
+
+  <!-- Sidebar -->
+  <div id="sidebar" class="fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out sidebar-gradient text-white shadow-xl w-64 -translate-x-full md:translate-x-0">
+    <!-- Sidebar header -->
+    <div class="flex items-center justify-between p-6 border-b border-white/10">
+      <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="h-20 w-15 mx-auto sidebar-logo">      
+      <h2 id="sidebar-title" class="font-semibold transition-opacity duration-200"></h2>
+      <button 
+        id="sidebar-toggle"
+        class="p-2 rounded-lg bg-blue-700/50 hover:bg-blue-800/50 transition-all duration-300 hidden md:block"
+        aria-label="Collapse sidebar">
+        <svg id="collapse-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m15 18-6-6 6-6"></path>
+        </svg>
+        <svg id="expand-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m9 18 6-6-6-6"></path>
+        </svg>
+      </button>
+    </div>
+
+    <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+      <!-- Dashboard -->
+      <!-- Dashboard link -->
+      {% if user.is_authenticated %}
+      <a href="{% url 'dashboard' %}" 
+         class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'dashboard' %}active-nav-item{% endif %}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span class="nav-label transition-all duration-200 font-medium">Dashboard</span>
+      </a>
+      {% else %}
+      <a href="{% url 'signin' %}" 
+         class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+          </svg>
+          <span class="nav-label transition-all duration-200 font-medium">Dashboard</span>
+      </a>
+      {% endif %}
+
+              
+       <!-- Profile link -->
+       {% if user.is_authenticated %}
+       <a href="{% url 'profile' %}" 
+          class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'profile' %}active-nav-item{% endif %}">
+         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+           <circle cx="12" cy="7" r="4"></circle>
+         </svg>
+         <span class="nav-label transition-all duration-200 font-medium">Profile</span>
+       </a>
+       {% else %}
+       <a href="{% url 'signin' %}" 
+          class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30">
+         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+           <circle cx="12" cy="7" r="4"></circle>
+         </svg>
+         <span class="nav-label transition-all duration-200 font-medium">Profile</span>
+       </a>
+       {% endif %}
+
+            <!-- For superuser only buttons (like Approve) -->
+            {% if user.is_superuser or user.profile.role == 'Sales Manager' %}
+            <a href="{% url 'approve' %}" 
+               class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'approve' %}active-nav-item{% endif %}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span class="nav-label transition-all duration-200 font-medium">Approval</span>
+              {% if unapproved_users_count %}
+              <span class="badge">{{ unapproved_users_count }}</span>
+              {% endif %}
+            </a>
+            {% endif %}
+
+            
+      
+
+ 
+
+       
+
+   
+        <!-- Commission History -->
+      <a href="{% url 'commission_history' %}" 
+      class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'commission_history' %}active-nav-item{% endif %}">
+     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+       <path d="M12 8v4l3 3"/>
+       <circle cx="12" cy="12" r="10"/>
+     </svg>
+     <span class="nav-label transition-all duration-200 font-medium">Commission Record</span>
+      {% if new_commissions_count %}<span class="badge">{{ new_commissions_count }}</span>{% endif %}
+   </a>
+
+      
+
+
+
+     
+      <!-- Tranche History -->
+      <a href="{% url 'tranche_history' %}" 
+         class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'tranche_history' %}active-nav-item{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+        <span class="nav-label transition-all duration-200 font-medium">Tranche Record</span>
+        {% if new_tranches_count %}<span class="badge">{{ new_tranches_count }}</span>{% endif %}
+      </a>
+
+      
+      <!-- Receivables -->
+      <a href="{% url 'receivables' %}" 
+         class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'receivables' %}active-nav-item{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="M7 15h0M12 15h0"/>
+          <path d="M7 8h10"/>
+          <path d="M7 11.5h10"/>
+        </svg>
+        <span class="nav-label transition-all duration-200 font-medium">Receivables</span>
+        {% if pending_receivables_count %}<span class="badge">{{ pending_receivables_count }}</span>{% endif %}
+      </a>
+
+    
+
+
+   
+
+
+
+   
+ 
+<br>
+      <!-- Sign Out -->
+      {% if user.is_authenticated %}
+      <a href="{% url 'signout' %}" 
+         class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-red-500/30 active:bg-red-600/30 focus:outline-none focus:ring-2 focus:ring-white/30 mt-auto {% if request.resolver_match.url_name == 'signout' %}active-nav-item{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span class="nav-label transition-all duration-200 font-medium">Sign Out</span>
+      </a>
+    {% endif %}
+    <style>
+  .badge{margin-left:4px;@apply bg-red-600 text-white text-[10px] font-semibold px-1.5 rounded-full;}
+</style>
+    </nav>
+
+    <div class="profile-section p-4">
+      <div class="flex items-center gap-3">
+        {% if user.is_authenticated %}
+        <a href="{% url 'profile' %}" class="profile-hover-card flex items-center gap-4 w-full rounded-xl p-3 transition-all duration-300 relative">
+          <div class="profile-image-container">
+            {% if user.profile.image and user.profile.image.name != 'default.jpg' %}
+              <img src="{{ user.profile.image.url }}" alt="Profile Picture" class="w-12 h-12 rounded-full object-cover border-2 border-white/30 profile-image shadow-lg">
+            {% else %}
+              <div class="w-12 h-12 rounded-full bg-blue-800/50 flex items-center justify-center border-2 border-white/30 profile-image shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+            {% endif %}
+            <div class="profile-image-overlay rounded-full">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="profile-info-text">
+            <h2 class="text-lg font-semibold">{{ user.first_name }} {{ user.last_name }}</h2>
+            <p class="text-sm text-blue-200">View profile</p>
+          </div>
+          <span class="profile-role-badge">
+            {{ user.profile.role }}
+          </span>
+        </a>
+        {% else %}
+        <a href="{% url 'signin' %}" class="profile-hover-card flex items-center gap-4 w-full rounded-xl p-3 transition-all duration-300">
+          <div class="profile-image-container">
+            <div class="w-12 h-12 rounded-full bg-blue-800/50 flex items-center justify-center border-2 border-white/30 profile-image shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+              </svg>
+            </div>
+            <div class="profile-image-overlay rounded-full">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="profile-info-text">
+            <h2 class="text-lg font-semibold">Sign In</h2>
+            <p class="text-sm text-blue-200">Access your account</p>
+          </div>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div id="overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden hidden" aria-hidden="true"></div>
+
+  <script>
+    const sidebarLogo = document.querySelector('.sidebar-logo');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const mobileToggle = document.getElementById('mobile-toggle');
+    const overlay = document.getElementById('overlay');
+    const mainContent = document.getElementById('main-content');
+    const sidebarTitle = document.getElementById('sidebar-title');
+    const profileInfo = document.getElementById('profile-info');
+    const collapseIcon = document.getElementById('collapse-icon');
+    const expandIcon = document.getElementById('expand-icon');
+    const menuIcon = document.getElementById('menu-icon');
+    const closeIcon = document.getElementById('close-icon');
+    const navLabels = document.querySelectorAll('.nav-label');
+    
+    let expanded = true;
+    let isMobileOpen = false;
+
+    function toggleSidebar(isExpanded) {
+        if (isExpanded) {
+            sidebar.classList.remove('sidebar-collapsed');
+            collapseIcon.classList.remove('hidden');
+            expandIcon.classList.add('hidden');
+            navLabels.forEach(label => label.style.display = '');
+        } else {
+            sidebar.classList.add('sidebar-collapsed');
+            collapseIcon.classList.add('hidden');
+            expandIcon.classList.remove('hidden');
+            navLabels.forEach(label => label.style.display = 'none');
+        }
+    }
+    
+    sidebarToggle.addEventListener('click', () => {
+  expanded = !expanded;
+        toggleSidebar(expanded);
+    });
+    
+    mobileToggle.addEventListener('click', () => {
+      isMobileOpen = !isMobileOpen;
+      
+      if (isMobileOpen) {
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0');
+        overlay.classList.remove('hidden');
+        menuIcon.classList.add('hidden');
+        closeIcon.classList.remove('hidden');
+      } else {
+        sidebar.classList.remove('translate-x-0');
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+        menuIcon.classList.remove('hidden');
+        closeIcon.classList.add('hidden');
+      }
+    });
+    
+    overlay.addEventListener('click', () => {
+      isMobileOpen = false;
+      sidebar.classList.remove('translate-x-0');
+      sidebar.classList.add('-translate-x-full');
+      overlay.classList.add('hidden');
+      menuIcon.classList.remove('hidden');
+      closeIcon.classList.add('hidden');
+    });
+  </script>
+</body>
+</html>

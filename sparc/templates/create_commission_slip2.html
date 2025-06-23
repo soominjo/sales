@@ -1,0 +1,569 @@
+{% extends "index.html" %}
+
+{% load widget_tweaks %}
+
+{% load humanize %}
+
+{% block content %}
+
+{% load static %}
+
+<div class="min-h-screen bg-gradient-to-br from-blue-100 to-indigo-50 py-8">
+        <!-- Header Card -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-8">
+                <div class="flex items-center justify-center space-x-8">
+                    <div class="bg-white p-3 rounded-2xl shadow-inner">
+                        <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-20 h-20 object-contain"> 
+                    </div>
+                    <div class="text-white">
+                        <h2 class="text-3xl font-bold mb-2">Inner SPARC Realty Corporation</h2>
+                        <div class="text-sm opacity-90 space-y-1">
+                            <p>Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina</p>
+                            <p>Salawag, Dasmariñas, Cavite 4114</p>
+                            <p>63917-853-4875/63999-994-3304/(046)458 0706</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Form -->
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                    Create Management Commission Slip
+                </span>
+            </h1>
+
+            <form method="POST" action="{% url 'create_commission_slip2' %}" class="space-y-8">
+                {% csrf_token %}
+
+                <!-- Project Details Section -->
+                <div class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+                    <div class="flex items-center mb-6">
+                        <div class="h-8 w-1 bg-blue-600 rounded-full mr-3"></div>
+                        <h2 class="text-xl font-semibold text-gray-800">Project Details</h2>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Agent Selection -->
+                        <div class="space-y-2">
+                            <label for="agent_select" class="block text-sm font-medium text-gray-700">Select Agent</label>
+                            <select id="agent_select" 
+                                    class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm" 
+                                    onchange="updateAgentInfo()">
+                                <option value="">Select an agent</option>
+                                {% for user in active_users %}
+                                    {% if user.profile.role in 'Sales Agent,Sales Supervisor,Sales Manager' %}
+                                        <option value="{{ user.id }}" 
+                                                data-name="{{ user.get_full_name }}"
+                                                data-position="{{ user.profile.role }}">
+                                            {{ user.get_full_name }} ({{ user.profile.role }})
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Position -->
+                        <div class="space-y-2">
+                            <label for="position" class="block text-sm font-medium text-gray-700">Position</label>
+                            <input type="text" name="position1[]" id="position_display" readonly
+                                   class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                        </div>
+
+                        <!-- Agent Name -->
+                        <div class="space-y-2">
+                            <label for="sales_agent_name" class="block text-sm font-medium text-gray-700">Name</label>
+                            <input type="text" name="sales_agent_name" id="agent_name_display" readonly
+                                   class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                        </div>
+
+                        <!-- Buyer Name -->
+                        <div class="space-y-2">
+                            <label for="buyer_name" class="block text-sm font-medium text-gray-700">Buyer Name</label>
+                            {{ slip_form.buyer_name|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                        </div>
+
+                        <!-- Project Name -->
+                        <div class="space-y-2">
+                            <label for="project_name" class="block text-sm font-medium text-gray-700">Project Name</label>
+                            {{ slip_form.project_name|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                        </div>
+
+                        <!-- Unit ID -->
+                        <div class="space-y-2">
+                            <label for="unit_id" class="block text-sm font-medium text-gray-700">Unit ID</label>
+                            {{ slip_form.unit_id|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Commission Details Section -->
+                <div class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+                    <div class="flex items-center mb-6">
+                        <div class="h-8 w-1 bg-blue-600 rounded-full mr-3"></div>
+                        <h2 class="text-xl font-semibold text-gray-800">Commission Details</h2>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <!-- Main Commission Details Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Total Selling Price -->
+                            <div class="space-y-2">
+                                <label for="total_selling_price_manager" class="block text-sm font-medium text-gray-700">Total Selling Price</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                    <input type="number" step="0.01" name="total_selling_price_manager" id="total_selling_price_manager"
+                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter amount" required
+                                           onchange="updateCommissionPreview()">
+                                </div>
+                            </div>
+
+                            <!-- Cash Advance -->
+                            <div class="space-y-2">
+                                <label for="cash_advance" class="block text-sm font-medium text-gray-700">Cash Advance</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                    <input type="number" step="0.01" name="cash_advance" id="cash_advance"
+                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter cash advance amount" value="0"
+                                           onchange="updateCommissionPreview()">
+                                </div>
+                            </div>
+
+                            <!-- Commission Rate -->
+                            <div class="space-y-2">
+                                <label for="commission_rate" class="block text-sm font-medium text-gray-700">Commission Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="commission_rate[]" id="commission_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter rate" required
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Particulars -->
+                            <div class="space-y-2">
+                                <label for="particulars" class="block text-sm font-medium text-gray-700">Particulars</label>
+                                <select name="particulars" id="particulars"
+                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                        onchange="updateFieldsVisibility(); updateCommissionPreview();">
+                                    <option value="FULL COMM">FULL COMM</option>
+                                    <option value="PARTIAL COMM">PARTIAL COMM</option>
+                                    <option value="INCENTIVES">INCENTIVES</option>
+                                </select>
+                            </div>
+
+                            <!-- Percentage for Partial Commission -->
+                            <div class="space-y-2 partial-field col-span-2">
+                                <label for="partial_percentage" class="block text-sm font-medium text-gray-700">
+                                    Percentage of Commission Amount
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="partial_percentage" id="partial_percentage" value="100"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter percentage"
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                                <p class="text-sm text-gray-500">This percentage will be applied to all commission amounts</p>
+                            </div>
+                        </div>
+
+                        <!-- Other Position Commission Rates -->
+                        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-700 mb-4">Other Position Commission Rates</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Team Leader</label>
+                                    <div class="relative">
+                                        <input type="number" name="commission_rate[]" id="tl_rate" step="0.01"
+                                               class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                               placeholder="Enter rate" onchange="updateCommissionPreview()">
+                                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Operation Manager</label>
+                                    <div class="relative">
+                                        <input type="number" name="commission_rate[]" id="om_rate" step="0.01"
+                                               class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                               placeholder="Enter rate" onchange="updateCommissionPreview()">
+                                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Co-Founder</label>
+                                    <div class="relative">
+                                        <input type="number" name="commission_rate[]" id="cf_rate" step="0.01"
+                                               class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                               placeholder="Enter rate" onchange="updateCommissionPreview()">
+                                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Founder</label>
+                                    <div class="relative">
+                                        <input type="number" name="commission_rate[]" id="founder_rate" step="0.01"
+                                               class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                               placeholder="Enter rate" onchange="updateCommissionPreview()">
+                                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                    </div>
+                                </div>
+                                <div class="space-y-2">
+                                    <label class="block text-sm font-medium text-gray-700">Funds</label>
+                                    <div class="relative">
+                                        <input type="number" name="commission_rate[]" id="funds_rate" step="0.01"
+                                               class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                               placeholder="Enter rate" onchange="updateCommissionPreview()">
+                                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Row -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Date -->
+                            <div class="space-y-2">
+                                <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                                <input type="date" name="date" id="date"
+                                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                       required>
+                            </div>
+
+                            <!-- Withholding Tax Option -->
+                            <div class="space-y-2">
+                                <label for="withholding_tax_rate" class="block text-sm font-medium text-gray-700">Sales Agent Tax Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="withholding_tax_rate" id="withholding_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()" required>
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Team Leader Tax Rate -->
+                            <div class="space-y-2">
+                                <label for="team_leader_tax_rate" class="block text-sm font-medium text-gray-700">Team Leader Tax Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="team_leader_tax_rate" id="team_leader_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()" required>
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Operation Manager Tax Rate -->
+                            <div class="space-y-2">
+                                <label for="operation_manager_tax_rate" class="block text-sm font-medium text-gray-700">Operation Manager Tax Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="operation_manager_tax_rate" id="operation_manager_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()" required>
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Co-Founder Tax Rate -->
+                            <div class="space-y-2">
+                                <label for="co_founder_tax_rate" class="block text-sm font-medium text-gray-700">Co-Founder Tax Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="co_founder_tax_rate" id="co_founder_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()" required>
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Founder Tax Rate -->
+                            <div class="space-y-2">
+                                <label for="founder_tax_rate" class="block text-sm font-medium text-gray-700">Founder Tax Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="founder_tax_rate" id="founder_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()" required>
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+
+                            <!-- Funds Tax Rate -->
+                            <div class="space-y-2">
+                                <label for="funds_tax_rate" class="block text-sm font-medium text-gray-700">Funds Tax Rate</label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="funds_tax_rate" id="funds_tax_rate"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                           placeholder="Enter tax rate" value="10.00" min="0" max="100"
+                                           onchange="updateCommissionPreview()" required>
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Incentive Amount (Hidden by default) -->
+                        <div id="incentive-field" style="display: none;" class="space-y-2">
+                            <label for="incentive_amount" class="block text-sm font-medium text-gray-700">Incentive Amount</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                <input type="number" name="incentive_amount" id="incentive_amount" value="0"
+                                       class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                       step="0.01" onchange="updateCommissionPreview()">
+                            </div>
+                        </div>
+
+                        <!-- Commission Preview Table -->
+                        <div class="mt-8">
+                            <h3 class="text-lg font-medium text-gray-700 mb-4">Commission Breakdown Preview</h3>
+                            <table class="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Commission</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Commission</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="previewTableBody">
+                                    <!-- Preview rows will be populated by JavaScript -->
+                                </tbody>
+                                <tfoot class="bg-gray-50 font-semibold">
+                                    <tr id="totalRow">
+                                        <td class="px-4 py-2" colspan="3">TOTAL</td>
+                                        <td class="px-4 py-2" id="totalGrossCommission">₱0.00</td>
+                                        <td class="px-4 py-2" id="totalTax">₱0.00</td>
+                                        <td class="px-4 py-2" id="totalNetCommission">₱0.00</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit and Back Buttons -->
+                <div class="flex justify-center space-x-4">
+                    <a href="{% url 'commission_history' %}" 
+                       class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-lg transform transition hover:-translate-y-0.5">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Go Back
+                    </a>
+                    <button type="submit" 
+                            class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg transform transition hover:-translate-y-0.5">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        </svg>
+                        Save Commission Slip
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function formatCurrency(amount) {
+        return amount.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function updateFieldsVisibility() {
+        const particularsSelect = document.getElementById('particulars');
+        const incentiveField = document.getElementById('incentive-field');
+        const partialField = document.querySelector('.partial-field');
+        const selectedValue = particularsSelect.value;
+        
+        incentiveField.style.display = selectedValue === 'INCENTIVES' ? 'block' : 'none';
+        partialField.style.display = selectedValue === 'PARTIAL COMM' ? 'block' : 'none';
+        
+        // Reset percentage to 100% if not PARTIAL COMM
+        if (selectedValue !== 'PARTIAL COMM') {
+            document.getElementById('partial_percentage').value = '100';
+        }
+        
+        updateCommissionPreview();
+    }
+
+    function updateCommissionPreview() {
+        const totalSellingPrice = parseFloat(document.getElementById('total_selling_price_manager').value) || 0;
+        const cashAdvance = parseFloat(document.getElementById('cash_advance').value) || 0;
+        const particularsSelect = document.getElementById('particulars');
+        const partialPercentageInput = document.getElementById('partial_percentage');
+        const incentiveAmount = parseFloat(document.getElementById('incentive_amount').value) || 0;
+        let partialPercentage = 100;
+
+        // Initialize totals
+        let totalGrossCommission = 0;
+        let totalTax = 0;
+        let totalNetCommission = 0;
+
+        // Get the partial percentage if PARTIAL COMM is selected
+        if (particularsSelect.value === 'PARTIAL COMM') {
+            partialPercentage = parseFloat(partialPercentageInput.value) || 100;
+        }
+
+        // Get tax rates for each position
+        const agentTaxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10.00;
+        const teamLeaderTaxRate = parseFloat(document.getElementById('team_leader_tax_rate').value) || 10.00;
+        const operationManagerTaxRate = parseFloat(document.getElementById('operation_manager_tax_rate').value) || 10.00;
+        const coFounderTaxRate = parseFloat(document.getElementById('co_founder_tax_rate').value) || 10.00;
+        const founderTaxRate = parseFloat(document.getElementById('founder_tax_rate').value) || 10.00;
+        const fundsTaxRate = parseFloat(document.getElementById('funds_tax_rate').value) || 10.00;
+
+        // Calculate cash advance after tax (10% tax)
+        const cashAdvanceTax = cashAdvance * 0.10;
+        const netCashAdvance = cashAdvance - cashAdvanceTax;
+
+        // Calculate adjusted total selling price
+        const adjustedTotal = totalSellingPrice - netCashAdvance;
+
+        // Get the selected user's position
+        const selectedPosition = document.getElementById('position_display').value || 'Sales Agent';
+
+        // Define positions with their input IDs and tax rates
+        const positions = [
+            { id: 'commission_rate', name: selectedPosition, taxRate: agentTaxRate },
+            { id: 'tl_rate', name: 'Team Leader', taxRate: teamLeaderTaxRate },
+            { id: 'om_rate', name: 'Operation Manager', taxRate: operationManagerTaxRate },
+            { id: 'cf_rate', name: 'Co-Founder', taxRate: coFounderTaxRate },
+            { id: 'founder_rate', name: 'Founder', taxRate: founderTaxRate },
+            { id: 'funds_rate', name: 'Funds', taxRate: fundsTaxRate } // Funds now have a tax rate
+        ];
+
+        // Clear existing preview rows
+        const tableBody = document.getElementById('previewTableBody');
+        tableBody.innerHTML = '';
+
+        // Create hidden inputs container
+        const hiddenInputsContainer = document.createElement('div');
+        hiddenInputsContainer.style.display = 'none';
+        tableBody.appendChild(hiddenInputsContainer);
+
+        // Process each position in order
+        positions.forEach(position => {
+            const rate = parseFloat(document.getElementById(position.id).value) || 0;
+            
+            // Always create hidden inputs to maintain position order
+            const hiddenInputs = document.createElement('div');
+            hiddenInputs.innerHTML = `
+                <input type="hidden" name="position[]" value="${position.name}">
+                <input type="hidden" name="commission_rate[]" value="${rate}">
+                <input type="hidden" name="partial_percentage[]" value="${partialPercentage}">
+            `;
+            hiddenInputsContainer.appendChild(hiddenInputs);
+
+            // Only create visible row if rate > 0
+            if (rate > 0) {
+                // Calculate commissions
+                const fullCommission = adjustedTotal * rate;
+                const baseCommission = fullCommission * (partialPercentage / 100);
+                let grossCommission = baseCommission;
+
+                // Add incentive only to the agent's position
+                if (particularsSelect.value === 'INCENTIVES' && position.name === selectedPosition) {
+                    grossCommission = baseCommission + incentiveAmount;
+                }
+
+                // Calculate tax and net commission based on position's tax rate
+                const withholdingTax = grossCommission * (position.taxRate / 100);
+                const netCommission = grossCommission - withholdingTax;
+
+                // Add to totals
+                totalGrossCommission += grossCommission;
+                totalTax += withholdingTax;
+                totalNetCommission += netCommission;
+
+                // Create table row
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-2">${position.name}</td>
+                    <td class="px-4 py-2">${rate}%</td>
+                    <td class="px-4 py-2">${partialPercentage}%</td>
+                    <td class="px-4 py-2">₱${formatCurrency(grossCommission)}</td>
+                    <td class="px-4 py-2">₱${formatCurrency(withholdingTax)}</td>
+                    <td class="px-4 py-2">₱${formatCurrency(netCommission)}</td>
+                `;
+                tableBody.appendChild(row);
+
+                // Add commission values to hidden inputs
+                hiddenInputs.innerHTML += `
+                    <input type="hidden" name="gross_commission[]" value="${grossCommission}">
+                    <input type="hidden" name="withholding_tax[]" value="${withholdingTax}">
+                    <input type="hidden" name="net_commission[]" value="${netCommission}">
+                `;
+            }
+        });
+
+        // Update totals in the footer
+        document.getElementById('totalGrossCommission').textContent = `₱${formatCurrency(totalGrossCommission)}`;
+        document.getElementById('totalTax').textContent = `₱${formatCurrency(totalTax)}`;
+        document.getElementById('totalNetCommission').textContent = `₱${formatCurrency(totalNetCommission)}`;
+
+        // Show calculation breakdown
+        let breakdown = `Calculation: `;
+        if (cashAdvance > 0) {
+            breakdown += `(₱${formatCurrency(totalSellingPrice)} - ₱${formatCurrency(netCashAdvance)} = ₱${formatCurrency(adjustedTotal)})`;
+        } else {
+            breakdown += `₱${formatCurrency(totalSellingPrice)}`;
+        }
+        breakdown += ` × Commission Rate`;
+        if (particularsSelect.value === 'PARTIAL COMM') {
+            breakdown += ` × ${partialPercentage}% (Partial Commission)`;
+        }
+        document.getElementById('calculationBreakdown').textContent = breakdown;
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listeners to all inputs that affect the calculation
+        const inputs = [
+            'total_selling_price_manager',
+            'cash_advance',
+            'commission_rate',
+            'partial_percentage',
+            'tl_rate',
+            'om_rate',
+            'cf_rate',
+            'founder_rate',
+            'funds_rate'
+        ];
+        
+        inputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', updateCommissionPreview);
+            }
+        });
+
+        // Add event listeners to select elements
+        document.getElementById('particulars').addEventListener('change', updateFieldsVisibility);
+        document.getElementById('withholding_tax_rate').addEventListener('change', updateCommissionPreview);
+        
+        // Initial update
+        updateFieldsVisibility();
+        updateCommissionPreview();
+    });
+
+    function updateAgentInfo() {
+        const select = document.getElementById('agent_select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        document.getElementById('position_display').value = selectedOption.dataset.position || '';
+        document.getElementById('agent_name_display').value = selectedOption.dataset.name || '';
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,324 @@
+{% extends "index.html" %}
+
+{% block title %}Tranche History{% endblock %}
+
+{% load static %}
+
+{% block content %}
+{% load humanize %}
+
+<!-- Consistent Header -->
+<div class="w-full flex flex-col items-center justify-center mt-8 mb-8">
+  <div class="flex flex-col items-center">
+    <h1 class="text-2xl font-bold text-blue-800 font-medium mt-1">Tranches History Overview</h1>
+  </div>
+ <br> 
+    {% if user.is_superuser or user.is_staff %}
+    <a href="{% url 'tranches' %}" 
+        class="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg">
+        <i class="fas fa-plus-circle mr-3 text-lg"></i>
+        Create Tranche
+    </a>
+    {% endif %}
+</div>
+
+<!-- Modernized Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 px-2">
+  <div class="bg-green-50 p-6 rounded-2xl shadow-lg border-t-4 border-green-500 flex flex-col items-start group">
+    <span class="text-lg font-semibold text-green-800 mb-1">Total Value</span>
+    <span class="text-3xl font-bold text-green-900">₱{{ total_contract_value|floatformat:2|intcomma }}</span>
+  </div>
+  <div class="bg-orange-50 p-6 rounded-2xl shadow-lg border-t-4 border-orange-500 flex flex-col items-start group">
+    <span class="text-lg font-semibold text-orange-800 mb-1">Total Tranche</span>
+    <span class="text-3xl font-bold text-orange-900"> {{ total_records }}</span>
+  </div>
+  <div class="bg-blue-50 p-6 rounded-2xl shadow-lg border-t-4 border-blue-500 flex flex-col items-start group">
+    <span class="text-lg font-semibold text-blue-800 mb-1">Active Tranches</span>
+    <span class="text-3xl font-bold text-blue-900">{{ active_tranches }}</span>
+  </div>
+</div>
+
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div class="p-12">
+    
+            <div class="mb-6">
+                <div class="flex flex-wrap gap-4 items-center">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <input type="text" id="searchInput" placeholder="Search by project, agent, or buyer..." 
+                                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Status</option>
+                            <option value="active_pending">Active / Pending</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                        <select id="dateFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                            <option value="year">This Year</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tranche Records Table -->
+            <div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr class="bg-gray-50">
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Buyer Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Contract Price</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reservation Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="trancheTableBody">
+                        {% for stats in page_obj %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-200">
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex space-x-3 justify-end">
+                                    <a href="{% url 'view_tranche' stats.record.id %}" 
+                                       class="tooltip">
+                                        <div class="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-colors duration-200">
+                                            <i class="fas fa-eye text-sm"></i>
+                                        </div>
+                                        <span class="tooltiptext">View Details</span>
+                                    </a>
+                                    {% if user.is_superuser or user.is_staff %}
+                                    <a href="{% url 'edit_tranche' stats.record.id %}" 
+                                       class="tooltip">
+                                        <div class="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors duration-200">
+                                            <i class="fas fa-edit text-sm"></i>
+                                        </div>
+                                        <span class="tooltiptext">Edit Tranche</span>
+                                    </a>
+                                    <form method="POST" action="{% url 'delete_tranche' stats.record.id %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" onclick="return confirm('Are you sure you want to delete this tranche record?')" 
+                                                class="tooltip">
+                                            <div class="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors duration-200">
+                                                <i class="fas fa-trash-alt text-sm"></i>
+                                            </div>
+                                            <span class="tooltiptext">Delete Tranche</span>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900">{{ stats.record.project_name }}</div>
+                                <div class="text-xs text-gray-500">Phase {{ stats.record.phase }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+                                        {{ stats.record.agent_name|first }}
+                                    </div>
+                                    <div class="ml-3">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ stats.record.agent_name }}
+                                            {% if stats.record.created_by == user %}
+                                                <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Created by you</span>
+                                            {% elif stats.record.agent_name == user_full_name %}
+                                                <span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Your Record</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            Unit {{ stats.record.unit_id }}
+                                            {% if stats.record.created_by and stats.record.created_by != user %}
+                                                <span class="ml-2">Created by: {{ stats.record.created_by.get_full_name }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">{{ stats.record.buyer_name }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900">₱ {{ stats.record.total_contract_price|floatformat:2|intcomma }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">{{ stats.record.reservation_date|date:"M d, Y" }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2 overflow-hidden">
+                                        <div class="h-full rounded-full {% if stats.status == 'Completed' %}bg-green-500{% elif stats.status == 'In Progress' %}bg-yellow-500{% else %}bg-red-500{% endif %}" 
+                                             style="width: {{ stats.completion_percentage }}%"></div>
+                                    </div>
+                                    <span class="text-xs font-medium whitespace-nowrap {% if stats.status == 'Completed' %}text-green-600{% elif stats.status == 'In Progress' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                        {{ stats.received_payments }}/{{ stats.total_payments }}
+                                    </span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    {{ stats.status }}
+                                </div>
+                            </td>
+                       
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                No tranche records found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            <!-- Pagination controls -->
+<div class="mt-6 flex justify-center">
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 mx-1 bg-gray-200 rounded">Prev</a>
+    {% endif %}
+    <span class="px-3 py-1 mx-1">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 mx-1 bg-gray-200 rounded">Next</a>
+    {% endif %}
+</div>
+</div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Search and Filter -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const dateFilter = document.getElementById('dateFilter');
+    const tableBody = document.getElementById('trancheTableBody');
+    const rows = tableBody.getElementsByTagName('tr');
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusTerm = statusFilter.value.toLowerCase();
+        const dateTerm = dateFilter.value.toLowerCase();
+
+        Array.from(rows).forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const statusCell = row.querySelector('td:nth-child(7)');
+            const dateCell = row.querySelector('td:nth-child(6)');
+            
+            let showRow = text.includes(searchTerm);
+            
+            if (statusTerm) {
+                const status = statusCell ? statusCell.textContent.toLowerCase() : '';
+                if (statusTerm === 'active_pending') {
+                    showRow = showRow && (status.includes('active') || status.includes('pending'));
+                } else {
+                    showRow = showRow && status.includes(statusTerm);
+                }
+            }
+            
+            if (dateTerm) {
+                const date = dateCell ? new Date(dateCell.textContent) : null;
+                const now = new Date();
+                
+                switch(dateTerm) {
+                    case 'today':
+                        showRow = showRow && date && date.toDateString() === now.toDateString();
+                        break;
+                    case 'week':
+                        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+                        showRow = showRow && date && date >= weekAgo;
+                        break;
+                    case 'month':
+                        showRow = showRow && date && date.getMonth() === now.getMonth() && 
+                                date.getFullYear() === now.getFullYear();
+                        break;
+                    case 'year':
+                        showRow = showRow && date && date.getFullYear() === now.getFullYear();
+                        break;
+                }
+            }
+            
+            row.style.display = showRow ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+    dateFilter.addEventListener('change', filterTable);
+});
+</script>
+
+<!-- Add Tippy.js for tooltips -->
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
+
+<!-- Enhance Table Rows and Progress Bars -->
+<style>
+  tr[data-row] {
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  tr[data-row]:hover {
+    background: #f0f6ff;
+  }
+  .progress-outer {
+    background: #e5e7eb;
+    border-radius: 9999px;
+    height: 8px;
+    overflow: hidden;
+    margin-right: 0.5rem;
+    flex: 1;
+  }
+  .progress-inner {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+</style>
+
+<!-- Modal for View Details (optional, for future expansion) -->
+<div id="viewModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+  <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full relative animate-fade-in">
+    <button onclick="closeViewModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl">&times;</button>
+    <div id="viewModalContent"></div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+  tippy('[data-tippy-content]', {
+    animation: 'scale',
+    theme: 'light-border',
+    delay: [100, 50],
+    arrow: true,
+    placement: 'top',
+  });
+  // Animate progress bars
+  document.querySelectorAll('.progress-inner').forEach(function(bar) {
+    setTimeout(function() {
+      bar.style.width = bar.getAttribute('data-width');
+    }, 200);
+  });
+});
+// Modal logic for view details (future expansion)
+function openViewModal(html) {
+  document.getElementById('viewModalContent').innerHTML = html;
+  document.getElementById('viewModal').classList.remove('hidden');
+}
+function closeViewModal() {
+  document.getElementById('viewModal').classList.add('hidden');
+}
+</script>
+
+
+{% endblock %} 
