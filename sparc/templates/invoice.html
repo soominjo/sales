@@ -1,0 +1,535 @@
+{% extends "index.html" %}
+
+{% block content %}
+
+{% load static %}
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice {{ invoice.invoice_no }} - Inner Sparc Realty</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1d4ed8',
+            accent: '#0e7490',
+            dark: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @media print {
+      .no-print {
+        display: none;
+      }
+      body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .page-break {
+        page-break-after: always;
+      }
+    }
+    .btn-sig {
+      background-color: #e0e7ff;
+      color: #3730a3;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      transition: background-color 0.2s;
+    }
+    .btn-sig:hover {
+      background-color: #c7d2fe;
+    }
+    .btn-sig-clear {
+      background-color: #fee2e2;
+      color: #991b1b;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      transition: background-color 0.2s;
+    }
+    .btn-sig-clear:hover {
+      background-color: #fecaca;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div class="max-w-4xl mx-auto my-10 p-8 bg-white rounded-lg shadow-2xl">
+    <!-- Header -->
+    <header class="flex justify-between items-start pb-6 border-b-2 border-gray-200">
+      <div class="flex items-center">
+        <img src="{% static 'media/LOGO.png' %}" alt="Inner Sparc Realty Logo" class="h-16 mr-4">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-800">INNER SPARC REALTY CORPORATION</h1>
+          <p class="text-sm text-blue-600 font-semibold">Professional Real Estate Services</p>
+          <div class="mt-4 text-xs text-gray-500">
+            <p class="flex items-center"><i class="fas fa-map-marker-alt w-4 mr-1"></i> BLK 26 LOT 4 PH 3 AVIDA RESIDENCES STA CATALINA SALAWAG, <br> DASMARIÑAS CITY, CAVITE 4114</p> <br>
+            <p class="flex items-center"><i class="fas fa-id-card w-4 mr-1"></i> TIN 625-453-930-00000</p>
+          </div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="px-6 py-2 bg-blue-600 text-white font-bold text-lg rounded-md shadow-md no-print">
+          BILLING INVOICE
+        </div>
+        <div class="mt-4 p-3 bg-gray-50 border border-gray-300 rounded-md">
+          <p class="text-xs font-semibold text-gray-500">INVOICE #</p>
+          <p class="text-xl font-bold text-gray-800">{{ invoice.invoice_no }}</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Bill To & Details -->
+    <section class="grid grid-cols-2 gap-8 mt-6 pb-6">
+      <div class="border-l-4 border-blue-600 pl-4">
+        <h2 class="text-sm font-bold text-gray-500 mb-2">BILL TO</h2>
+        <p class="font-bold text-gray-800">{{ invoice.client_name }}</p>
+        <p class="text-xs text-gray-600 whitespace-pre-line">{{ invoice.client_address }}</p>
+        <p class="mt-2 text-xs text-gray-600"><span class="font-semibold">VAT-REG TIN:</span> {{ invoice.client_tin }}</p>
+        <p class="text-xs text-gray-600"><span class="font-semibold">Business Style:</span> {{ invoice.client_name }}</p>
+      </div>
+      <div class="grid grid-cols-2 gap-4 text-xs">
+        <div>
+          <h3 class="font-bold text-gray-500 mb-2">INVOICE DETAILS</h3>
+          <p><span class="font-semibold">Date Started:</span> {{ invoice.issue_date|date:'M d, Y' }}</p>
+          <p><span class="font-semibold">Due Date:</span> {{ invoice.due_date|date:'M d, Y' }}</p>
+          <p><span class="font-semibold">Terms:</span> {{ payment_terms }}</p>
+        </div>
+        <div>
+          <h3 class="font-bold text-gray-500 mb-2">REFERENCE</h3>
+          <p>{{ invoice.reference_no }}</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Items Table -->
+    <section class="mb-8">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="p-3 text-left font-semibold text-gray-600 border-b-2 border-gray-200">Item Code</th>
+            <th class="p-3 text-left font-semibold text-gray-600 border-b-2 border-gray-200">Description</th>
+            <th class="p-3 text-center font-semibold text-gray-600 border-b-2 border-gray-200">Quantity</th>
+            <th class="p-3 text-right font-semibold text-gray-600 border-b-2 border-gray-200">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="bg-white">
+            <td class="p-3 border-b border-gray-200">{% if is_lto_invoice %}LTO{% else %}SC{% endif %}</td>
+            <td class="p-3 border-b border-gray-200">Seller's Commission – {{ invoice.due_date|date:'F Y' }}</td>
+            <td class="p-3 text-center border-b border-gray-200">{{ invoice.qty }}</td>
+            <td class="p-3 text-right font-semibold text-gray-800 border-b border-gray-200">₱ {{ subtotal|floatformat:2|intcomma }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- History & Summary -->
+    <section class="grid grid-cols-5 gap-8 mb-8">
+      <div class="col-span-3">
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+          <div class="bg-gray-50 p-3 border-b border-gray-200">
+            <h3 class="font-bold text-sm text-gray-600">INVOICE HISTORY</h3>
+          </div>
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left">
+                <th class="p-2 font-semibold text-gray-500 border-b">Date Received</th>
+                <th class="p-2 font-semibold text-gray-500 border-b text-right">Amount</th>
+                <th class="p-2 font-semibold text-gray-500 border-b text-center">Status</th>
+                <th class="p-2 font-semibold text-gray-500 border-b text-center">Percentage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in billing_statement_items %}
+              <tr>
+                <td class="p-2 border-b border-gray-100">{{ item.date_received|date:"M d, Y" }}</td>
+                <td class="p-2 text-right border-b border-gray-100">₱ {{ item.amount|floatformat:2|intcomma }}</td>
+                <td class="p-2 text-center border-b border-gray-100">
+                  <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">{{ item.status }}</span>
+                </td>
+                <td class="p-2 text-center font-medium border-b border-gray-100">{{ item.percentage|floatformat:2 }}%</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="p-4 text-center text-gray-400">No history available.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="col-span-2">
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+          <div class="bg-gray-50 p-3 border-b border-gray-200">
+            <h3 class="font-bold text-sm text-gray-600">SUMMARY</h3>
+          </div>
+          <div class="p-4 space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-600">Net Commission:</span>
+              <span class="font-medium text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
+              <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
+            </div>
+            <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
+              <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+              <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notes Section -->
+    <section class="mb-8 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-md">
+      <h4 class="font-bold text-sm text-gray-800 mb-2 flex items-center">
+        <i class="fas fa-sticky-note mr-2 text-amber-500"></i> Notes on Previous Commissions
+      </h4>
+      {% if previous_invoices %}
+      <div class="text-xs text-gray-700 space-y-2">
+        {% for prev_invoice in previous_invoices %}
+        <p>A commission for <strong>{{ prev_invoice.tranche_name }}</strong> ({{ prev_invoice.percentage|floatformat:0 }}%) was released on <strong>{{ prev_invoice.release_date|date:'M d, Y' }}</strong> with a value of <strong>₱{{ prev_invoice.amount|floatformat:2|intcomma }}</strong>. (Ref. Invoice #{{ prev_invoice.invoice_no }})</p>
+        {% endfor %}
+      </div>
+      <p class="mt-3 text-xs text-amber-800 italic">This is a historical record and not part of the current billing. For inquiries, please contact <a href="mailto:innersparcrealtyservices@gmail.com" class="hover:underline">innersparcrealtyservices@gmail.com</a>.</p>
+      {% else %}
+      <p class="text-xs text-gray-500 italic">No previous commission notes.</p>
+      {% endif %}
+    </section>
+
+    <!-- Signatures -->
+    <section class="grid grid-cols-3 gap-6 text-center text-xs pt-6 border-t-2 border-gray-200">
+      <div class="signature-container" data-role="prepared_by">
+        <img id="signature-prepared_by" src="{% if invoice.prepared_by_signature %}{{ invoice.prepared_by_signature.url }}{% else %}{% static 'media/placeholder.png' %}{% endif %}" alt="Signature" class="h-16 w-auto mx-auto mb-2 border-b pb-2">
+        <p class="font-bold">Prepared By</p>
+        <p class="text-gray-600">{{ invoice.prepared_by.get_full_name }}</p>
+        <p class="text-gray-500">{{ invoice.created_at|date:"m/d/Y" }}</p>
+        {% if can_prepare %}
+        <div class="mt-2 space-x-1 no-print">
+          <button onclick="document.getElementById('signature-upload-prepared_by').click()" class="btn-sig">Attach Signature</button>
+          <button class="btn-sig-clear clear-signature-btn">Clear</button>
+          <input type="file" id="signature-upload-prepared_by" class="hidden" accept="image/*">
+        </div>
+        {% endif %}
+      </div>
+      <div class="signature-container" data-role="checked_by">
+        <img id="signature-checked_by" src="{% if invoice.checked_by_signature %}{{ invoice.checked_by_signature.url }}{% else %}{% static 'media/placeholder.png' %}{% endif %}" alt="Signature" class="h-16 w-auto mx-auto mb-2 border-b pb-2">
+        <p class="font-bold">Checked By</p>
+        {% if invoice.checked_by %}
+        <p class="text-gray-600">{{ invoice.checked_by.get_full_name }}</p>
+        <p class="text-gray-500">{{ invoice.checked_by_date|date:"m/d/Y" }}</p>
+        {% else %}
+        <p class="text-gray-400 italic">(Not yet checked)</p>
+        {% endif %}
+        {% if can_check %}
+        <div class="mt-2 space-x-1 no-print">
+          <button onclick="document.getElementById('signature-upload-checked_by').click()" class="btn-sig">Attach Signature</button>
+          <button class="btn-sig-clear clear-signature-btn">Clear</button>
+          <input type="file" id="signature-upload-checked_by" class="hidden" accept="image/*">
+        </div>
+        {% endif %}
+      </div>
+      <div class="signature-container" data-role="approved_by">
+        <img id="signature-approved_by" src="{% if invoice.approved_by_signature %}{{ invoice.approved_by_signature.url }}{% else %}{% static 'media/placeholder.png' %}{% endif %}" alt="Signature" class="h-16 w-auto mx-auto mb-2 border-b pb-2">
+        <p class="font-bold">Approved By</p>
+        {% if invoice.approved_by %}
+        <p class="text-gray-600">{{ invoice.approved_by.get_full_name }}</p>
+        <p class="text-gray-500">{{ invoice.approved_by_date|date:"m/d/Y" }}</p>
+        {% else %}
+        <p class="text-gray-400 italic">(Not yet approved)</p>
+        {% endif %}
+        {% if can_approve %}
+        <div class="mt-2 space-x-1 no-print">
+          <button onclick="document.getElementById('signature-upload-approved_by').click()" class="btn-sig">Attach Signature</button>
+          <button class="btn-sig-clear clear-signature-btn">Clear</button>
+          <input type="file" id="signature-upload-approved_by" class="hidden" accept="image/*">
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-gray-500 mt-8 pt-6 border-t-2 border-gray-200">
+      <p>Thank you for your business! • Payment due by {{ invoice.due_date|date:'M d, Y' }}</p>
+      <div class="flex justify-center items-center space-x-4 mt-2">
+        <p><i class="fas fa-phone-alt mr-1"></i>(046) 458-0706</p>
+        <p><i class="fas fa-envelope mr-1"></i>innersparcrealtyservices@gmail.com</p>
+        <p><i class="fas fa-globe mr-1"></i>https://www.innersparcrealty.com/</p>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Edit Bill To Modal -->
+  <div id="edit-bill-to-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+      <div class="mt-3">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">Edit Billing Information</h3>
+          <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <form id="bill-to-form" action="{% url 'update_bill_to' invoice.id %}" method="POST">
+          {% csrf_token %}
+          <div class="space-y-4">
+            <div>
+              <label for="client_name" class="block text-sm font-medium text-gray-700 text-left">Client Name</label>
+              <input type="text" name="client_name" id="client_name" value="{{ invoice.client_name }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+            <div>
+              <label for="client_address" class="block text-sm font-medium text-gray-700 text-left">Address</label>
+              <textarea name="client_address" id="client_address" rows="4" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">{{ invoice.client_address }}</textarea>
+            </div>
+            <div>
+              <label for="client_tin" class="block text-sm font-medium text-gray-700 text-left">VAT-REG TIN</label>
+              <input type="text" name="client_tin" id="client_tin" value="{{ invoice.client_tin }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+            </div>
+          </div>
+        </form>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button id="cancel-edit-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">
+            Cancel
+          </button>
+          <button id="save-changes-btn" class="px-4 py-2 bg-primary text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <div id="alert-container" class="max-w-5xl mx-auto mt-4"></div>
+  <div class="max-w-5xl mx-auto mt-6 flex justify-center space-x-4 no-print">
+    <button onclick="window.print()" class="px-6 py-3 bg-primary hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition flex items-center">
+      <i class="fas fa-print mr-2"></i> Print Invoice
+    </button>
+    <button id="downloadPdf" onclick="printInvoice()" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition flex items-center no-print">
+      <i class="fas fa-download mr-2"></i> Download PDF
+    </button>
+    <button id="edit-bill-to-btn" class="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition flex items-center">
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function showAlert(message, type = 'success') {
+        const alertContainer = document.getElementById('alert-container');
+        const alert = document.createElement('div');
+        alert.className = `p-4 mb-4 text-sm rounded-lg ${type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+        alert.textContent = message;
+        alertContainer.innerHTML = '';
+        alertContainer.appendChild(alert);
+        setTimeout(() => alert.remove(), 5000);
+    }
+
+    document.querySelectorAll('.signature-container').forEach(container => {
+        const role = container.dataset.role;
+        const uploadInput = document.getElementById(`signature-upload-${role}`);
+        const clearButton = container.querySelector('.clear-signature-btn');
+
+        if (uploadInput) {
+            uploadInput.addEventListener('change', function() {
+                if (this.files && this.files[0]) {
+                    const formData = new FormData();
+                    formData.append('signature_image', this.files[0]);
+
+                    fetch(`{% url 'upload_signature' invoice.id 'role_placeholder' %}`.replace('role_placeholder', role), {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById(`signature-${role}`).src = data.signature_url;
+                            showAlert('Signature uploaded successfully.');
+                        } else {
+                            showAlert(data.error, 'error');
+                        }
+                    })
+                    .catch(error => showAlert('An error occurred.', 'error'));
+                }
+            });
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener('click', function() {
+                fetch(`{% url 'upload_signature' invoice.id 'role_placeholder' %}`.replace('role_placeholder', role), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ action: 'clear' })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`signature-${role}`).src = "{% static 'media/placeholder.png' %}";
+                        showAlert('Signature cleared.');
+                    } else {
+                        showAlert(data.error, 'error');
+                    }
+                })
+                .catch(error => showAlert('An error occurred.', 'error'));
+            });
+        }
+    });
+});
+</script>
+      <i class="fas fa-edit mr-2"></i> Edit Bill To
+    </button>
+    <button id="emailInvoiceBtn" class="px-6 py-3 bg-accent hover:bg-cyan-700 text-white font-semibold rounded-lg shadow-md transition flex items-center">
+      <i class="fas fa-paper-plane mr-2"></i> Email Invoice
+    </button>
+  </div>
+
+  <script>
+    // --- Add interactivity & PDF download ---
+    document.addEventListener('DOMContentLoaded', function () {
+      // Fade-in animation for invoice container
+      const invoiceElem = document.querySelector('.max-w-5xl');
+      if (invoiceElem) {
+        invoiceElem.style.opacity = '0';
+        invoiceElem.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, fill: 'forwards' });
+      }
+
+      // Hover scale effect for action buttons/links
+      document.querySelectorAll('.no-print button, .no-print a').forEach(btn => {
+        btn.addEventListener('mouseover', () => btn.classList.add('scale-105'));
+        btn.addEventListener('mouseout', () => btn.classList.remove('scale-105'));
+      });
+
+      // Download PDF via html2pdf
+      window.printInvoice = function printInvoice(){
+        const elem = document.querySelector('.max-w-5xl');
+        if(!elem) return;
+        const originalOpacity = elem.style.opacity;
+        elem.style.opacity = '1'; // ensure visible to renderer
+        html2pdf().set({
+          margin:       0.4,
+          filename:     `invoice_{{ invoice.invoice_no }}.pdf`,
+          html2canvas:  { scale: 2, useCORS: true, allowTaint: true },
+          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        }).from(elem).save().then(()=>{
+          elem.style.opacity = originalOpacity;
+        });
+      };
+
+      // --- Edit Bill To Modal Logic ---
+      const editBtn = document.getElementById('edit-bill-to-btn');
+      const modal = document.getElementById('edit-bill-to-modal');
+      const cancelBtn = document.getElementById('cancel-edit-btn');
+      const closeBtn = document.getElementById('close-modal-btn');
+      const saveBtn = document.getElementById('save-changes-btn');
+      const form = document.getElementById('bill-to-form');
+
+      if (editBtn && modal && cancelBtn && closeBtn && saveBtn && form) {
+        const openModal = () => modal.classList.remove('hidden');
+        const closeModal = () => modal.classList.add('hidden');
+
+        editBtn.addEventListener('click', openModal);
+        cancelBtn.addEventListener('click', closeModal);
+        closeBtn.addEventListener('click', closeModal);
+        
+        window.addEventListener('click', (event) => {
+          if (event.target === modal) {
+            closeModal();
+          }
+        });
+
+        saveBtn.addEventListener('click', () => {
+          form.submit();
+        });
+      }
+      
+    });
+    
+  </script>
+</body>
+</html>
+<script>
+  function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                  break;
+              }
+          }
+      }
+      return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+
+  document.getElementById('emailInvoiceBtn').addEventListener('click', function() {
+      const recipientEmail = prompt("Please enter the recipient's email address:", "");
+      if (recipientEmail) {
+          if (!/^\S+@\S+\.\S+$/.test(recipientEmail)) {
+              showAlert('Invalid email address format.', 'error');
+              return;
+          }
+
+          const url = `{% url 'email_invoice' invoice.id %}`;
+          
+          fetch(url, {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'X-CSRFToken': csrftoken
+              },
+              body: 'email=' + encodeURIComponent(recipientEmail)
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.status === 'success') {
+                  showAlert(data.message, 'success');
+              } else {
+                  showAlert(data.message, 'error');
+              }
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              showAlert('An unexpected error occurred. Please try again.', 'error');
+          });
+      }
+  });
+
+  function showAlert(message, type) {
+      const container = document.getElementById('alert-container');
+      const bgColor = type === 'success' ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700';
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `border px-4 py-3 rounded relative ${bgColor}`;
+      alertDiv.setAttribute('role', 'alert');
+      alertDiv.innerHTML = `<span class="block sm:inline">${message}</span>`;
+      
+      container.innerHTML = ''; // Clear previous alerts
+      container.appendChild(alertDiv);
+
+      setTimeout(() => {
+          alertDiv.remove();
+      }, 5000);
+  }
+</script>
+{% endblock %}

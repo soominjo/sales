@@ -181,6 +181,8 @@
             <p><strong>Project Name:</strong> {{ slip.project_name }}</p>
             <p><strong>Unit ID:</strong> {{ slip.unit_id }}</p>
             <p><strong>Commission Rate:</strong> {{ details.0.commission_rate|floatformat:0 }}%</p>
+            <p><strong>Total Selling Price:</strong> ₱{{ slip.total_selling_price|floatformat:0|intcomma }}</p>  
+
             {% with cash_advance_after_tax=slip.cash_advance|multiply:90 %}
             <p><strong>Cash Advance (less 10% tax):</strong> ₱{{ cash_advance_after_tax|floatformat:0|intcomma }}</p>
             {% endwith %}

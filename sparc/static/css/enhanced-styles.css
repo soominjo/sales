@@ -1,0 +1,229 @@
+/* Additional CSS file for enhanced styles - include this in your static files */
+
+/* Enhanced gradient backgrounds */
+.gradient-bg {
+    background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #eef2ff 100%);
+    min-height: 100vh;
+  }
+  
+  /* Card hover effects */
+  .card-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  /* Enhanced stats cards */
+  .stats-card {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border-top: 4px solid;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .stats-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, currentColor, transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .stats-card:hover::before {
+    opacity: 1;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Performer cards */
+  .performer-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+  
+  .performer-card:hover {
+    transform: scale(1.05) translateY(-8px);
+  }
+  
+  .performer-avatar {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .performer-avatar::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+    border-radius: 50%;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .performer-card:hover .performer-avatar::before {
+    opacity: 1;
+  }
+  
+  /* Rank badges with animation */
+  .rank-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 1.5rem;
+    z-index: 10;
+    animation: bounce 2s infinite;
+  }
+  
+  @keyframes bounce {
+    0%,
+    20%,
+    53%,
+    80%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    40%,
+    43% {
+      transform: translate3d(0, -8px, 0);
+    }
+    70% {
+      transform: translate3d(0, -4px, 0);
+    }
+    90% {
+      transform: translate3d(0, -2px, 0);
+    }
+  }
+  
+  /* Enhanced buttons */
+  .btn-enhanced {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+  
+  .btn-enhanced:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  }
+  
+  /* Enhanced form controls */
+  .form-control-enhanced {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: #475569;
+    transition: all 0.2s ease;
+  }
+  
+  .form-control-enhanced:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+  
+  .form-control-enhanced:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: #eff6ff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  /* Mobile responsive improvements */
+  @media (max-width: 768px) {
+    .desktop-performers {
+      display: none;
+    }
+    .mobile-performers {
+      display: block;
+    }
+  
+    .stats-card {
+      margin-bottom: 1rem;
+    }
+  
+    .performer-card {
+      margin-bottom: 1rem;
+    }
+  }
+  
+  @media (min-width: 769px) {
+    .desktop-performers {
+      display: flex;
+    }
+    .mobile-performers {
+      display: none;
+    }
+  }
+  
+  /* Enhanced modal */
+  .modal-enhanced {
+    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.5);
+  }
+  
+  .modal-content-enhanced {
+    background: white;
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    transform: scale(0.95);
+    transition: all 0.3s ease;
+  }
+  
+  .modal-content-enhanced.show {
+    transform: scale(1);
+  }
+  
+  /* Loading states */
+  .loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+  
+    .card-hover {
+      box-shadow: none !important;
+      transform: none !important;
+    }
+  
+    .gradient-bg {
+      background: white !important;
+    }
+  }
+  

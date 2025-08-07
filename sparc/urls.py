@@ -1,10 +1,19 @@
 from django.urls import path
-from . import views, staff_views
+from . import views, staff_views, invoice_views
 from django.conf import settings
+from django.contrib.auth import views as auth_views
 from django.conf.urls.static import static
 from .views import CustomPasswordResetView, CustomPasswordResetDoneView, CustomPasswordResetConfirmView, CustomPasswordResetCompleteView
 
 urlpatterns = [
+    path('create-invoice/<int:tranche_id>/', invoice_views.create_invoice, name='create_invoice'),
+    path('invoice/<int:invoice_id>/', invoice_views.invoice_view, name='invoice_view'),
+    path('invoice/<int:invoice_id>/email/', invoice_views.email_invoice, name='email_invoice'),
+    path('invoice/<int:invoice_id>/pdf/', invoice_views.invoice_pdf, name='invoice_pdf'),
+    path('invoice/<int:invoice_id>/excel/', invoice_views.invoice_csv, name='invoice_csv'),
+    path('invoice/<int:invoice_id>/update-bill-to/', invoice_views.update_bill_to, name='update_bill_to'),
+    path('invoice/<int:invoice_id>/sign/<str:role>/', invoice_views.sign_invoice, name='sign_invoice'),
+    path('invoice/<int:invoice_id>/upload-signature/<str:role>/', invoice_views.upload_signature, name='upload_signature'),
     path('sales/export/', views.export_sales_excel, name='export_sales_excel'),
     path('top5/export/', views.export_top5_excel, name='export_top5_excel'),
     path('', views.home, name='home'),  
@@ -36,6 +45,7 @@ urlpatterns = [
     path('tranches/', views.tranches_view, name='tranches'),
     path('tranche-history/', views.tranche_history, name='tranche_history'),
     path('tranche/<int:tranche_id>/', views.view_tranche, name='view_tranche'),
+    path('tranche-voucher/<int:tranche_id>/', views.view_tranche_voucher, name='view_tranche_voucher'),
     path('tranche/<int:tranche_id>/edit/', views.edit_tranche, name='edit_tranche'),
     path('tranche/<int:tranche_id>/delete/', views.delete_tranche, name='delete_tranche'),
     path('update-tranche/', views.update_tranche, name='update_tranche'),
@@ -47,10 +57,14 @@ urlpatterns = [
     path('edit-sale/<int:sale_id>/', views.edit_sale, name='edit_sale'),
     path('delete-sale/<int:sale_id>/', views.delete_sale, name='delete_sale'),
     path('receivables/', views.receivables, name='receivables'),
+    path('receivable-voucher/<str:release_number>/', views.view_receivable_voucher, name='view_receivable_voucher'),
     path('password_reset/', CustomPasswordResetView.as_view(), name='password_reset'),
     path('password_reset/done/', CustomPasswordResetDoneView.as_view(), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', CustomPasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', CustomPasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    path('password_change/', auth_views.PasswordChangeView.as_view(template_name='password_change.html'), name='password_change'),
+    path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='password_change_done.html'), name='password_change_done'),
+    path('activate/<uidb64>/<token>/', views.activate_account, name='activate_account'),
     path('commission-history/', views.commission_history, name='commission_history'),
     path('team-dashboard/<str:team_name>/', views.team_dashboard, name='team_dashboard'),
     path('add-property/', views.add_property, name='add_property'),
@@ -60,6 +74,8 @@ urlpatterns = [
     path('manage-teams/', views.manage_teams, name='manage_teams'),
     path('add-team/', views.add_team, name='add_team'),
     path('delete-team/<int:team_id>/', views.delete_team, name='delete_team'),
+    # Superuser edit other user profile
+    path('edit-user/<int:profile_id>/', views.edit_user_profile, name='edit_user_profile'),
     path('team/<int:pk>/edit/', staff_views.edit_team, name='edit_team'),
     path('commission/<int:pk>/edit/', staff_views.edit_commission, name='edit_commission'),
 ]

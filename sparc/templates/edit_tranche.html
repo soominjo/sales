@@ -81,7 +81,9 @@
                                     <tr class="hover:bg-blue-50 transition-colors duration-150">
                                         <td class="px-4 py-3">{{ payment.tranche_number }}</td>
                                         <td class="px-4 py-3">{{ payment.expected_date|date:"M d, Y" }}</td>
-                                        <td class="px-4 py-3">₱ {{ payment.expected_amount|floatformat:2|intcomma }}</td>
+                                        <td class="px-4 py-3">
+                                            ₱ {{ payment.expected_amount|floatformat:2|intcomma }}
+                                        </td>                                        
                                         <td class="px-4 py-3">
                                             <input type="number" 
                                                    name="received_amount_{{ payment.id }}" 
@@ -134,7 +136,7 @@
                                     {% if payment.is_lto %}
                                     <tr class="hover:bg-blue-50 transition-colors duration-150">
                                         <td class="px-4 py-3">{{ payment.expected_date|date:"M d, Y" }}</td>
-                                        <td class="px-4 py-3">₱ {{ payment.expected_amount|floatformat:2|intcomma }}</td>
+                                        <td class="px-4 py-3">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</td>
                                         <td class="px-4 py-3">
                                             <input type="number" 
                                                    name="received_amount_{{ payment.id }}" 

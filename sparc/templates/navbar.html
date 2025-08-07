@@ -278,9 +278,7 @@
     </div>
 
     <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-      <!-- Dashboard -->
-      <!-- Dashboard link -->
-      {% if user.is_authenticated %}
+   <!--
       <a href="{% url 'dashboard' %}" 
          class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'dashboard' %}active-nav-item{% endif %}">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -291,20 +289,7 @@
           </svg>
           <span class="nav-label transition-all duration-200 font-medium">Dashboard</span>
       </a>
-      {% else %}
-      <a href="{% url 'signin' %}" 
-         class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="14" y="14" width="7" height="7"></rect>
-            <rect x="3" y="14" width="7" height="7"></rect>
-          </svg>
-          <span class="nav-label transition-all duration-200 font-medium">Dashboard</span>
-      </a>
-      {% endif %}
-
-              
+-->
        <!-- Profile link -->
        {% if user.is_authenticated %}
        <a href="{% url 'profile' %}" 
@@ -339,30 +324,6 @@
               {% endif %}
             </a>
             {% endif %}
-
-            
-      
-
- 
-
-       
-
-   
-        <!-- Commission History -->
-      <a href="{% url 'commission_history' %}" 
-      class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'commission_history' %}active-nav-item{% endif %}">
-     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-       <path d="M12 8v4l3 3"/>
-       <circle cx="12" cy="12" r="10"/>
-     </svg>
-     <span class="nav-label transition-all duration-200 font-medium">Commission Record</span>
-      {% if new_commissions_count %}<span class="badge">{{ new_commissions_count }}</span>{% endif %}
-   </a>
-
-      
-
-
-
      
       <!-- Tranche History -->
       <a href="{% url 'tranche_history' %}" 
@@ -371,7 +332,7 @@
           <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
           <line x1="2" y1="10" x2="22" y2="10"/>
         </svg>
-        <span class="nav-label transition-all duration-200 font-medium">Tranche Record</span>
+        <span class="nav-label transition-all duration-200 font-medium">Tranches</span>
         {% if new_tranches_count %}<span class="badge">{{ new_tranches_count }}</span>{% endif %}
       </a>
 
@@ -390,6 +351,18 @@
       </a>
 
     
+   
+        <!-- Commission History -->
+        <a href="{% url 'commission_history' %}" 
+        class="nav-item flex items-center gap-4 p-3 rounded-xl transition-all hover:bg-blue-700/30 active:bg-blue-800/30 focus:outline-none focus:ring-2 focus:ring-white/30 {% if request.resolver_match.url_name == 'commission_history' %}active-nav-item{% endif %}">
+       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+         <path d="M12 8v4l3 3"/>
+         <circle cx="12" cy="12" r="10"/>
+       </svg>
+       <span class="nav-label transition-all duration-200 font-medium">Commissions</span>
+        {% if new_commissions_count %}<span class="badge">{{ new_commissions_count }}</span>{% endif %}
+     </a>
+  
 
 
    

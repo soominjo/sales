@@ -29,6 +29,7 @@ class Team(models.Model):
 
 class Developer(models.Model):
     name = models.CharField(max_length=200, unique=True)
+    image = models.ImageField(upload_to='developer_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -37,6 +38,7 @@ class Developer(models.Model):
 class Property(models.Model):
     name = models.CharField(max_length=200)
     developer = models.ForeignKey(Developer, on_delete=models.SET_NULL, null=True, blank=True)
+    image = models.ImageField(upload_to='property_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -141,6 +143,8 @@ class CommissionSlip(models.Model):
     operation_manager_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Operation Manager tax rate
     co_founder_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Co-Founder tax rate
     founder_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Founder tax rate
+    sales_manager_name = models.CharField(max_length=100, null=True, blank=True)
+    manager_commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     def __str__(self):
         return f"Commission Slip for {self.sales_agent_name}"
@@ -207,7 +211,7 @@ class TrancheRecord(models.Model):
     reservation_date = models.DateField()
     total_contract_price = models.DecimalField(max_digits=12, decimal_places=2)
     commission_rate = models.DecimalField(max_digits=5, decimal_places=2)
-    process_fee_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    process_fee_percentage = models.DecimalField(max_digits=8, decimal_places=5, default=0)
     withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
     option1_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     option2_percentage = models.DecimalField(max_digits=5, decimal_places=2)
@@ -216,6 +220,7 @@ class TrancheRecord(models.Model):
     tranche_option = models.CharField(max_length=20)
     number_months = models.IntegerField()
     vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=12.00)
+    net_of_vat_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     deduction_type = models.CharField(max_length=50, null=True, blank=True)
     other_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     deduction_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
@@ -242,6 +247,43 @@ class TranchePayment(models.Model):
     class Meta:
         ordering = ['tranche_number']
 
+
+class BillingInvoice(models.Model):
+    """Invoice generated for each TranchePayment to request commission release."""
+    tranche = models.ForeignKey('TranchePayment', on_delete=models.CASCADE, related_name='invoices')
+    invoice_no = models.CharField(max_length=20, unique=True)
+    reference_no = models.CharField(max_length=100, blank=True, null=True)  # To store dynamic reference
+    issue_date = models.DateField(default=now)
+    due_date = models.DateField()  # should mirror tranche.expected_date
+    qty = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    vat_rate = models.DecimalField(max_digits=5, decimal_places=2, default=12)
+    notes = models.TextField(blank=True)
+    prepared_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='prepared_invoices')
+    prepared_by_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # E-signature fields
+    checked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='checked_invoices')
+    checked_by_date = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_invoices')
+    approved_by_date = models.DateTimeField(null=True, blank=True)
+    prepared_by_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    checked_by_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    approved_by_signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+
+    # Fields for editable 'Bill To' section
+    client_name = models.CharField(max_length=255, default='650 ALLIED INC.')
+    client_address = models.TextField(default='2nd Flr B and S Bldg 1644 Evangelista St. Bangkal\nMakati City, Metro Manila 1233')
+    client_tin = models.CharField(max_length=50, default='755-023-386-000')
+
+    class Meta:
+        ordering = ['-issue_date']
+
+    def __str__(self):
+        return f"Invoice {self.invoice_no} – {self.tranche}"
+
+
 class CommissionSlip3(models.Model):
     sales_agent_name = models.CharField(max_length=100)    
     supervisor_name = models.CharField(max_length=100)
@@ -254,6 +296,11 @@ class CommissionSlip3(models.Model):
     cash_advance_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     date = models.DateField(null=True, blank=True)
+    # --- Sales Manager additions ---
+    manager_name = models.CharField(max_length=100, null=True, blank=True)
+    manager_commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    manager_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
+    # --------------------------------
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_slips3')
     created_at = models.DateTimeField(null=True, blank=True)
     withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Agent tax rate
@@ -278,8 +325,3 @@ class CommissionDetail3(models.Model):
 
     def __str__(self):
         return f"{self.position} - {self.particulars}"
-
-
-
-
-    

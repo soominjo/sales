@@ -22,8 +22,20 @@ TEAM_CHOICES = [
 
 # forms.py
 class SignUpForm(forms.ModelForm):
-    password1 = forms.CharField(widget=forms.PasswordInput, label="Password")
-    password2 = forms.CharField(widget=forms.PasswordInput, label="Confirm Password")
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={'minlength': 5}),
+        min_length=5,
+        max_length=150,
+        label="Username",
+        help_text="Required. 5-150 characters. Letters, digits and @/./+/-/_ only."
+    )
+    email = forms.EmailField(required=True, label="Email Address")
+    password1 = forms.CharField(
+        widget=forms.PasswordInput(attrs={"minlength": 8}),
+        label="Password",
+        help_text="Must contain at least 8 characters."
+    )
+    password2 = forms.CharField(widget=forms.PasswordInput(attrs={"minlength": 8}), label="Confirm Password")
     role = forms.ChoiceField(choices=ROLE_CHOICES, required=True, label="Select Role")
     team = forms.ModelChoiceField(
         queryset=Team.objects.filter(is_active=True),
@@ -31,7 +43,14 @@ class SignUpForm(forms.ModelForm):
         label="Select Team",
         empty_label="Choose a team"
     )
-    phone_number = forms.CharField(max_length=15, required=False, label="Phone Number")
+    phone_number = forms.RegexField(
+        regex=r'^09\d{9}$',
+        max_length=11,
+        required=False,
+        label="Phone Number",
+        error_messages={'invalid': 'Enter a valid Philippine number e.g. 09123456789'},
+        widget=forms.TextInput(attrs={'placeholder': '09123456789', 'maxlength': '11', 'pattern': '09\\d{9}'})
+    )
     first_name = forms.CharField(max_length=100, required=False, label="First Name")
     last_name = forms.CharField(max_length=100, required=False, label="Last Name")
 
@@ -42,11 +61,20 @@ class SignUpForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['team'].queryset = Team.objects.filter(is_active=True).order_by('name')
+        # Ensure email is required in UI as well
+        self.fields['email'].required = True
 
     def clean(self):
         cleaned_data = super().clean()
+        username = cleaned_data.get("username")
         password1 = cleaned_data.get("password1")
         password2 = cleaned_data.get("password2")
+
+        if password1 and len(password1) < 8:
+            self.add_error('password1', "Password must be at least 8 characters long")
+
+        if username and len(username) < 5:
+            self.add_error('username', "Username must be at least 5 characters long")
         
         if password1 and password2 and password1 != password2:
             raise forms.ValidationError("Passwords do not match")
@@ -139,7 +167,7 @@ class CommissionSlipForm(forms.ModelForm):
             'total_selling_price', 'commission_rate', 'particulars',
             'incentive_amount', 'cash_advance', 'fee', 'date',
             'withholding_tax_rate', 'team_leader_tax_rate', 'operation_manager_tax_rate',
-            'co_founder_tax_rate', 'founder_tax_rate'
+            'co_founder_tax_rate', 'founder_tax_rate', 'sales_manager_name', 'manager_commission_rate'
         ]
 
 
@@ -156,7 +184,7 @@ class CommissionForm(forms.Form):
         to_field_name="id",
         label="Agent's Name"
     )
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Update the agent_name queryset to include only approved users
@@ -164,11 +192,11 @@ class CommissionForm(forms.Form):
             profile__is_approved=True,
             profile__role__in=['Sales Agent', 'Sales Supervisor', 'Sales Manager']
         ).select_related('profile')
-        
+
         # Customize the display of agent names in the dropdown
         self.fields['agent_name'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.profile.role})"
 
-    phase = forms.IntegerField()
+    phase = forms.IntegerField(required=False, initial=0)
     reservation_date = forms.DateField(
     required=True,
     widget=DateInput(attrs={
@@ -183,7 +211,17 @@ class CommissionForm(forms.Form):
         decimal_places=2,
         widget=forms.TextInput(attrs={'class': 'comma-format'})
     )
-    commission_rate = forms.DecimalField(max_digits=5, decimal_places=2)
+
+    # Net of VAT amount that will be deducted from the Total Contract Price to derive the Total Selling Price
+    net_of_vat_amount = forms.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        initial=1.12,
+        widget=forms.TextInput(attrs={'class': 'comma-format'}),
+        label="Net of VAT Amount (₱)"
+    )
+    commission_rate = forms.DecimalField(max_digits=5, decimal_places=2, initial=7)
     # VAT rate field allows users to specify VAT percentage (default 12%)
     vat_rate = forms.DecimalField(
         max_digits=5,
@@ -210,10 +248,17 @@ class CommissionForm(forms.Form):
         widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'}),
         label="Withholding Tax Rate (%)"
     )
-    process_fee_percentage = forms.DecimalField(max_digits=5, decimal_places=3, required=False, label="Miscellaneous/Processing Fee (%)")
-    
+    process_fee_percentage = forms.DecimalField(
+        max_digits=8,
+        decimal_places=5,
+        required=False,
+        initial=0,
+        widget=forms.NumberInput(attrs={'step': '0.00001'}),
+        label="LMF/PF (%)"
+    )
+
     # New fields for "Condition for Commission Rate"
-    option1_percentage = forms.DecimalField(max_digits=5, decimal_places=2, label="Within Down Payment Period (%)")
+    option1_percentage = forms.DecimalField(max_digits=5, decimal_places=2, initial=50, label="Within Down Payment Period (%)")
     option1_tax_rate = forms.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -223,7 +268,7 @@ class CommissionForm(forms.Form):
         label="Tax Rate for DP Period (%)"
     )
 
-    option2_percentage = forms.DecimalField(max_digits=5, decimal_places=2, label="Upon Loan Take Out (%)")
+    option2_percentage = forms.DecimalField(max_digits=5, decimal_places=2, initial=50, label="Upon Loan Take Out (%)")
     option2_tax_rate = forms.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -256,7 +301,9 @@ class CommissionForm(forms.Form):
         max_digits=12,
         decimal_places=2,
         required=False,
-        label="Other Deductions (₱)"
+        initial=0,
+        label="Other Deductions (₱)",
+        widget=forms.TextInput(attrs={'class': 'comma-format'})
     )
 
 
@@ -289,12 +336,26 @@ class CommissionSlipForm3(forms.ModelForm):
         initial=10.00,
         widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'})
     )
+    # --- Sales Manager additions ---
+    manager_commission_rate = forms.DecimalField(
+        required=False,
+        initial=0,
+        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0'})
+    )
+    manager_tax_rate = forms.DecimalField(
+        required=False,
+        initial=10.00,
+        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'})
+    )
+    manager_name = forms.CharField(required=False, max_length=150)
+    # --------------------------------
 
     class Meta:
         model = CommissionSlip3
         fields = [
             'sales_agent_name',
             'supervisor_name',
+            'manager_name',
             'buyer_name',
             'project_name',
             'unit_id',
@@ -304,8 +365,7 @@ class CommissionSlipForm3(forms.ModelForm):
             'fee',
             'date',
             'withholding_tax_rate',
-            'supervisor_withholding_tax_rate'
+            'supervisor_withholding_tax_rate',
+            'manager_commission_rate',
+            'manager_tax_rate'
         ]
-
-
-

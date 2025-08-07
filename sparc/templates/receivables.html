@@ -5,6 +5,8 @@
 {% block content %}
 {% load humanize %}
 {% load static %}
+{% load custom_filters %}
+
 
 <!-- Consistent Header -->
 <div class="w-full flex flex-col items-center justify-center mt-8 mb-8">
@@ -90,29 +92,15 @@
                         {% for commission in page_obj %}
                         <tr class="hover:bg-gray-50 transition-colors duration-200" data-type="{{ commission.payment_type|slugify }}" data-date="{{ commission.date_released|date:'Y-m-d' }}">
                             <td class="px-6 py-4">
-                                {% if commission.payment_type == 'Down Payment' %}
-                                    {% with tranche_id=commission.release_number|slice:"3:-2" %}
-                                    <a href="{% url 'view_tranche' tranche_id=tranche_id %}" 
-                                       class="tooltip p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-colors duration-200">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                                        </svg>
-
-                                    </a>
-                                    {% endwith %}
-                                {% else %}
-                                    {% with tranche_id=commission.release_number|slice:"4:-2" %}
-                                    <a href="{% url 'view_tranche' tranche_id=tranche_id %}" 
-                                       class="tooltip p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200 transition-colors duration-200">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                                        </svg>
-
-                                    </a>
-                                    {% endwith %}
-                                {% endif %}
+                                <a href="{% url 'view_receivable_voucher' release_number=commission.release_number %}" 
+                                   class="tooltip p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors duration-200"
+                                   data-tippy-content="View Commission Voucher">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clip-rule="evenodd"/>
+                                        <path d="M9 8a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                                        <path d="M7 10a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z"/>
+                                    </svg>
+                                </a>
                             </td>
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900">{{ commission.date_released|date:"M d, Y" }}</div>

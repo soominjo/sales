@@ -38,5 +38,13 @@ def index(lst, i):
         return None
 
 @register.filter
+def abs_val(value):
+    """Return the absolute value of the number."""
+    try:
+        return abs(Decimal(str(value)))
+    except (ValueError, TypeError):
+        return value
+
+@register.filter
 def get_item(dictionary, key):
-    return dictionary.get(key) 
+    return dictionary.get(key)

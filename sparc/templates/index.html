@@ -9,6 +9,8 @@
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+
     
     <!-- Custom CSS for tooltips -->
     <style>
@@ -58,8 +60,14 @@
 </head>
 <body>
 
-    {% include 'navbar.html' %}  <!-- Move navbar outside of content block -->
+    {% if user.is_authenticated %}
+    {% include 'navbar.html' %}
+    {% endif %}
+    {% if user.is_authenticated %}
     <div class="max-w-[calc(100%-1rem)] ml-60 mr-6 mt-5 px-5 sm:px-3 lg:px-14">
+    {% else %}
+    <div>
+    {% endif %}
         {% block content %}{% endblock %}
     </div>
 

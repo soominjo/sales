@@ -61,26 +61,12 @@
                             <!-- Agent Selection -->
                             <div class="space-y-2">
                                 <label for="agent_select" class="block text-sm font-medium text-gray-700">Select Agent</label>
-                                <select id="agent_select" 
-                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm" 
+                                <select name="sales_agent_name" id="sales_agent_name"
+                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
                                         onchange="updateAgentInfo()">
-                                    <option value="">Select an agent</option>
-                                    {% for user in active_users %}
-                                        {% if user_is_superuser or user_is_staff %}
-                                            <option value="{{ user.id }}" 
-                                                    data-name="{{ user.get_full_name }}"
-                                                    data-position="{{ user.profile.role }}"
-                                                    data-team="{{ user.profile.team.name }}">
-                                                {{ user.get_full_name }} ({{ user.profile.role }} - {{ user.profile.team.name }})
-                                            </option>
-                                        {% elif user.profile.team == request.user.profile.team %}
-                                            <option value="{{ user.id }}" 
-                                                    data-name="{{ user.get_full_name }}"
-                                                    data-position="{{ user.profile.role }}"
-                                                    data-team="{{ user.profile.team.name }}">
-                                                {{ user.get_full_name }} ({{ user.profile.role }} - {{ user.profile.team.name }})
-                                            </option>
-                                        {% endif %}
+                                    <option value="">Select Agent</option>
+                                    {% for user in sales_agents %}
+                                        <option value="{{ user.username }}" data-position="{{ user.profile.role }}">{{ user.first_name }} {{ user.last_name }}  ({{ user.profile.team }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -96,6 +82,26 @@
                             <div class="space-y-2">
                                 <label for="sales_agent_name" class="block text-sm font-medium text-gray-700">Name</label>
                                 <input type="text" name="sales_agent_name" id="agent_name_display" readonly
+                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                            </div>
+
+                            <!-- Sales Manager Selection -->
+                            <div class="space-y-2">
+                                <label for="manager_select" class="block text-sm font-medium text-gray-700">Select Sales Manager</label>
+                                <select name="sales_manager_name" id="sales_manager_name"
+                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                        onchange="updateManagerInfo()">
+                                    <option value="">Select Sales Manager</option>
+                                    {% for user in sales_managers %}
+                                        <option value="{{ user.username }}" data-position="{{ user.profile.role }}">{{ user.first_name }} {{ user.last_name }} ({{ user.profile.team }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Sales Manager Name -->
+                            <div class="space-y-2">
+                                <label for="sales_manager_name" class="block text-sm font-medium text-gray-700">Sales Manager Name</label>
+                                <input type="text" name="sales_manager_name" id="manager_name_display" readonly
                                        class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
                             </div>
 
@@ -141,14 +147,20 @@
 
                             <!-- Commission Rate -->
                             <div class="space-y-2">
-                                <label for="commission_rate" class="block text-sm font-medium text-gray-700">Commission Rate</label>
-                                <div class="relative">
-                                    <input type="number" step="0.01" name="commission_rate" id="commission_rate"
-                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-                                           placeholder="Enter rate" required
-                                           onchange="updateCommissionPreview()">
-                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
-                                </div>
+                                <label for="commission_rate" class="block text-sm font-medium text-gray-700">Commission Rate (%)</label>
+                                <input type="number" step="0.01" name="commission_rate" id="commission_rate" 
+                                       value="3.00" min="0" max="100"
+                                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+                                       oninput="updateCommissionPreview()">
+                            </div>
+
+                            <!-- Sales Manager Commission Rate -->
+                            <div class="space-y-2">
+                                <label for="manager_commission_rate" class="block text-sm font-medium text-gray-700">Sales Manager Commission Rate (%)</label>
+                                <input type="number" step="0.01" name="manager_commission_rate" id="manager_commission_rate" 
+                                       value="0.50" min="0" max="100"
+                                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
+                                       oninput="updateCommissionPreview()">
                             </div>
 
                             <!-- Particulars -->
@@ -160,6 +172,7 @@
                                     <option value="FULL COMM">FULL COMM</option>
                                     <option value="PARTIAL COMM">PARTIAL COMM</option>
                                     <option value="INCENTIVES">INCENTIVES</option>
+                                    <option value="CASH ADVANCE">CASH ADVANCE</option>
                                 </select>
                             </div>
 
@@ -189,7 +202,7 @@
                             </div>
 
                             <!-- Cash Advance -->
-                            <div class="space-y-2">
+                            <div class="space-y-2 cash-advance-field" style="display: none;">
                                 <label for="cash_advance" class="block text-sm font-medium text-gray-700">Cash Advance</label>
                                 <div class="relative">
                                     <span class="absolute left-3 top-3 text-gray-500">₱</span>
@@ -248,7 +261,28 @@
                                             <td class="px-4 py-2" id="previewTax">₱0.00</td>
                                             <td class="px-4 py-2" id="previewNetCommission">₱0.00</td>
                                         </tr>
+                                        <tr id="managerRow" style="display: none;">
+                                            <td class="px-4 py-2">Sales Manager</td>
+                                            <td class="px-4 py-2" id="previewManagerParticulars">-</td>
+                                            <td class="px-4 py-2">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewManagerPercentage">100%</td>
+                                            <td class="px-4 py-2" id="previewManagerBaseCommission">₱0.00</td>
+                                            <td class="px-4 py-2 incentive-column" style="display: none;">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewManagerGrossCommission">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewManagerTax">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewManagerNetCommission">₱0.00</td>
+                                        </tr>
                                     </tbody>
+                                    <tfoot class="bg-gray-100 font-bold">
+                                        <tr>
+                                            <td class="px-4 py-2 text-right" colspan="4">Total</td>
+                                            <td class="px-4 py-2" id="previewTotalBaseCommission">₱0.00</td>
+                                            <td class="px-4 py-2 incentive-column" style="display: none;"></td>
+                                            <td class="px-4 py-2" id="previewTotalGrossCommission">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewTotalTax">₱0.00</td>
+                                            <td class="px-4 py-2" id="previewTotalNetCommission">₱0.00</td>
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
 
@@ -309,30 +343,46 @@
 
     <script>
         function updateAgentInfo() {
-            const select = document.getElementById('agent_select');
+            const select = document.getElementById('sales_agent_name');
             const selectedOption = select.options[select.selectedIndex];
-            
-            document.getElementById('position_display').value = selectedOption.dataset.position || '';
-            document.getElementById('agent_name_display').value = selectedOption.dataset.name || '';
+            const agentName = selectedOption.value ? selectedOption.text : '';
+            const agentPosition = selectedOption.getAttribute('data-position') || '';
+
+            document.getElementById('agent_name_display').value = agentName;
+            document.getElementById('position_display').value = agentPosition;
+            updateCommissionPreview(); // Update preview when agent changes
+        }
+
+        function updateManagerInfo() {
+            const select = document.getElementById('sales_manager_name');
+            const selectedOption = select.options[select.selectedIndex];
+            const managerName = selectedOption.value ? selectedOption.text : '';
+
+            document.getElementById('manager_name_display').value = managerName;
         }
 
         function updateFieldsVisibility() {
             const particularsSelect = document.getElementById('particulars');
             const incentiveField = document.querySelector('.incentive-field');
             const partialField = document.querySelector('.partial-field');
+            const cashAdvanceField = document.querySelector('.cash-advance-field');
             const incentiveColumns = document.querySelectorAll('.incentive-column');
             const selectedValue = particularsSelect.value;
             
-            // Hide both fields first
+            // Hide all conditional fields first
             incentiveField.style.display = 'none';
             partialField.style.display = 'none';
+            cashAdvanceField.style.display = 'none';
             
             // Show appropriate field based on selection
             if (selectedValue === 'INCENTIVES') {
                 incentiveField.style.display = 'block';
-                incentiveColumns.forEach(col => col.style.display = 'table-cell');
+                incentiveColumns.forEach(col => col.style.display = '');
             } else if (selectedValue === 'PARTIAL COMM') {
                 partialField.style.display = 'block';
+                incentiveColumns.forEach(col => col.style.display = 'none');
+            } else if (selectedValue === 'CASH ADVANCE') {
+                cashAdvanceField.style.display = 'block';
                 incentiveColumns.forEach(col => col.style.display = 'none');
             } else {
                 incentiveColumns.forEach(col => col.style.display = 'none');
@@ -344,6 +394,9 @@
             }
             if (selectedValue !== 'INCENTIVES') {
                 document.getElementById('incentive_amount').value = '0';
+            }
+            if (selectedValue !== 'CASH ADVANCE') {
+                document.getElementById('cash_advance').value = '0';
             }
             
             updateCommissionPreview();
@@ -357,50 +410,84 @@
         }
 
         function updateCommissionPreview() {
+            // Get all the necessary values
             const totalSellingPrice = parseFloat(document.getElementById('total_selling_price').value) || 0;
             const commissionRate = parseFloat(document.getElementById('commission_rate').value) || 0;
-            const cashAdvance = parseFloat(document.getElementById('cash_advance').value) || 0;
-            const particularsSelect = document.getElementById('particulars');
+            const managerCommissionRate = parseFloat(document.getElementById('manager_commission_rate').value) || 0;
+            const particulars = document.getElementById('particulars').value;
             const partialPercentage = parseFloat(document.getElementById('partial_percentage').value) || 100;
             const incentiveAmount = parseFloat(document.getElementById('incentive_amount').value) || 0;
-            const withholdingTaxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10.00;
-            const taxRate = withholdingTaxRate / 100;
+            const cashAdvance = parseFloat(document.getElementById('cash_advance').value) || 0;
+            const withholdingTaxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10;
+            const position = document.getElementById('position_display').value || '-';
 
-            // Calculate cash advance tax and adjusted total
+            // Update the agent preview table
+            document.getElementById('previewPosition').textContent = position;
+
+            // Agent Calculations
             const cashAdvanceTax = cashAdvance * 0.10;
             const netCashAdvance = cashAdvance - cashAdvanceTax;
             const adjustedTotal = totalSellingPrice - netCashAdvance;
+            let agentBaseCommission = adjustedTotal * (commissionRate / 100);
 
-            // Calculate base commission
-            let baseCommission = (adjustedTotal * commissionRate);
-            
-            // Apply partial percentage if applicable
-            if (particularsSelect.value === 'PARTIAL COMM') {
-                baseCommission = baseCommission * (partialPercentage / 100);
+            if (particulars === 'PARTIAL COMM') {
+                agentBaseCommission *= (partialPercentage / 100);
             }
 
-            // Calculate gross commission (base + incentive if applicable)
-            let grossCommission = baseCommission;
-            if (particularsSelect.value === 'INCENTIVES') {
-                grossCommission = baseCommission + incentiveAmount;
+            let agentGrossCommission = agentBaseCommission;
+            if (particulars === 'INCENTIVES') {
+                agentGrossCommission += incentiveAmount;
             }
 
-            // Calculate tax and net commission
-            const withholdingTax = grossCommission * taxRate;
-            const netCommission = grossCommission - withholdingTax;
+            const agentWithholdingTax = agentGrossCommission * (withholdingTaxRate / 100);
+            const agentNetCommission = agentGrossCommission - agentWithholdingTax;
 
-            // Update preview table
-            document.getElementById('previewPosition').textContent = document.getElementById('position_display')?.value || '-';
-            document.getElementById('previewParticulars').textContent = particularsSelect.value;
-            document.getElementById('previewCashAdvance').textContent = `₱${formatCurrency(netCashAdvance)}`;
-            document.getElementById('previewPercentage').textContent = particularsSelect.value === 'PARTIAL COMM' ? `${partialPercentage}%` : '100%';
-            document.getElementById('previewBaseCommission').textContent = `₱${formatCurrency(baseCommission)}`;
-            if (particularsSelect.value === 'INCENTIVES') {
-                document.getElementById('previewIncentive').textContent = `₱${formatCurrency(incentiveAmount)}`;
+
+            document.getElementById('previewParticulars').textContent = particulars;
+            document.getElementById('previewCashAdvance').textContent = formatCurrency(cashAdvance);
+            document.getElementById('previewPercentage').textContent = partialPercentage + '%';
+            document.getElementById('previewBaseCommission').textContent = formatCurrency(agentBaseCommission);
+            document.getElementById('previewIncentive').textContent = formatCurrency(incentiveAmount);
+            document.getElementById('previewGrossCommission').textContent = formatCurrency(agentGrossCommission);
+            document.getElementById('previewTax').textContent = formatCurrency(agentWithholdingTax);
+            document.getElementById('previewNetCommission').textContent = formatCurrency(agentNetCommission);
+
+            // Manager and Total Calculations
+            const managerRow = document.getElementById('managerRow');
+            let managerBaseCommission = 0, managerGrossCommission = 0, managerWithholdingTax = 0, managerNetCommission = 0;
+
+            if (managerCommissionRate > 0) {
+                managerRow.style.display = 'table-row';
+                managerBaseCommission = totalSellingPrice * (managerCommissionRate / 100);
+                if (particulars === 'PARTIAL COMM') {
+                    managerBaseCommission *= (partialPercentage / 100);
+                }
+                managerGrossCommission = managerBaseCommission;
+                managerWithholdingTax = managerGrossCommission * (withholdingTaxRate / 100); // Assuming same tax rate for now
+                managerNetCommission = managerGrossCommission - managerWithholdingTax;
+
+                // Update manager preview row
+                document.getElementById('previewManagerParticulars').textContent = particulars;
+                document.getElementById('previewManagerPercentage').textContent = partialPercentage + '%';
+                document.getElementById('previewManagerBaseCommission').textContent = formatCurrency(managerBaseCommission);
+                document.getElementById('previewManagerGrossCommission').textContent = formatCurrency(managerGrossCommission);
+                document.getElementById('previewManagerTax').textContent = formatCurrency(managerWithholdingTax);
+                document.getElementById('previewManagerNetCommission').textContent = formatCurrency(managerNetCommission);
+            } else {
+                managerRow.style.display = 'none';
             }
-            document.getElementById('previewGrossCommission').textContent = `₱${formatCurrency(grossCommission)}`;
-            document.getElementById('previewTax').textContent = `₱${formatCurrency(withholdingTax)}`;
-            document.getElementById('previewNetCommission').textContent = `₱${formatCurrency(netCommission)}`;
+
+            // Total Calculations
+            const totalBaseCommission = agentBaseCommission + managerBaseCommission;
+            const totalGrossCommission = agentGrossCommission + managerGrossCommission;
+            const totalTax = agentWithholdingTax + managerWithholdingTax;
+            const totalNetCommission = agentNetCommission + managerNetCommission;
+
+            // Update total preview row
+            document.getElementById('previewTotalBaseCommission').textContent = formatCurrency(totalBaseCommission);
+            document.getElementById('previewTotalGrossCommission').textContent = formatCurrency(totalGrossCommission);
+            document.getElementById('previewTotalTax').textContent = formatCurrency(totalTax);
+            document.getElementById('previewTotalNetCommission').textContent = formatCurrency(totalNetCommission);
 
             // Show calculation breakdown
             let breakdown = `Calculation: `;
@@ -410,14 +497,14 @@
                 breakdown += `₱${formatCurrency(totalSellingPrice)} × `;
             }
             breakdown += `${commissionRate}%`;
-            if (particularsSelect.value === 'PARTIAL COMM') {
+            if (particulars === 'PARTIAL COMM') {
                 breakdown += ` × ${partialPercentage}%`;
             }
-            breakdown += ` = ₱${formatCurrency(baseCommission)} (Base Commission)`;
-            if (particularsSelect.value === 'INCENTIVES') {
-                breakdown += ` + ₱${formatCurrency(incentiveAmount)} (Incentive) = ₱${formatCurrency(grossCommission)} (Gross)`;
+            breakdown += ` = ₱${formatCurrency(agentBaseCommission)} (Base Commission)`;
+            if (particulars === 'INCENTIVES') {
+                breakdown += ` + ₱${formatCurrency(incentiveAmount)} (Incentive) = ₱${formatCurrency(agentGrossCommission)} (Gross)`;
             }
-            breakdown += ` - ${withholdingTaxRate}% tax (₱${formatCurrency(withholdingTax)}) = ₱${formatCurrency(netCommission)} (Net)`;
+            breakdown += ` - ${withholdingTaxRate}% tax (₱${formatCurrency(agentWithholdingTax)}) = ₱${formatCurrency(agentNetCommission)} (Net)`;
             document.getElementById('calculationBreakdown').textContent = breakdown;
         }
 
@@ -425,6 +512,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             updateFieldsVisibility();
             updateCommissionPreview();
+            updateManagerInfo();
+
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date').value = today;
         });
     </script>
 </body>

@@ -98,6 +98,13 @@
                                         </div>
                                         <span class="tooltiptext">View Details</span>
                                     </a>
+                                    <a href="{% url 'view_tranche_voucher' stats.record.id %}" 
+                                       class="tooltip">
+                                        <div class="p-2 bg-purple-100 text-purple-600 rounded-full hover:bg-purple-200 transition-colors duration-200">
+                                            <i class="fas fa-receipt text-sm"></i>
+                                        </div>
+                                        <span class="tooltiptext">View Commission Voucher</span>
+                                    </a>
                                     {% if user.is_superuser or user.is_staff %}
                                     <a href="{% url 'edit_tranche' stats.record.id %}" 
                                        class="tooltip">

@@ -19,7 +19,17 @@ def notification_counts(request):
     # Import models lazily to avoid circular imports / missing models
     try:
         from .models import Profile
-        unapproved_users_count = Profile.objects.filter(is_approved=False).count()
+        from django.utils.dateparse import parse_datetime
+        ts_str = request.session.get('last_seen_unapproved')
+        ts = parse_datetime(ts_str) if ts_str else None
+        base_qs = Profile.objects.filter(is_approved=False)
+        if ts:
+            # Fallback to user.date_joined if Profile has no created_at field
+            if hasattr(Profile, 'created_at'):
+                base_qs = base_qs.filter(created_at__gt=ts)
+            else:
+                base_qs = base_qs.filter(user__date_joined__gt=ts)
+        unapproved_users_count = base_qs.count()
     except Exception:
         pass
 
@@ -77,6 +87,17 @@ def notification_counts(request):
                 new_tranches_count = TrancheRecord.objects.count()
         except Exception:
             pass
+
+    # Mark notifications as seen for future requests
+    now_iso = timezone.now().isoformat()
+    if unapproved_users_count:
+        request.session['last_seen_unapproved'] = now_iso
+    if new_commissions_count:
+        request.session['last_seen_commissions'] = now_iso
+    if pending_receivables_count:
+        request.session['last_seen_receivables'] = now_iso
+    if new_tranches_count:
+        request.session['last_seen_tranches'] = now_iso
 
     return {
         "unapproved_users_count": unapproved_users_count if current_name != "approve" else 0,

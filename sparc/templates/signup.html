@@ -10,7 +10,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: url('{% static "media/INNERSPARC_BG.jpg" %}') center/cover no-repeat;
+  background: url('{% static "media/innerss.jpg" %}') center/cover no-repeat;
   filter: blur(8px) brightness(0.7);
   pointer-events: none;
   z-index: 0;
@@ -19,25 +19,32 @@
 .bg-hero > * { position: relative; z-index: 10; }
 </style>
 <!-- Background watermark added via bg-logo utility -->
-<div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8 relative bg-hero">
-    <!-- Logo Section -->
-    <div class="text-center mb-8">
-      <img src="/static/media/LOGO.png" alt="Inner SPARC Logo" class="mx-auto h-24 w-24 object-contain bg-white rounded-full shadow-xl border-4 border-white/50">
-    </div>
+<div class="min-h-screen flex items-center justify-center relative bg-hero py-4 px-2 sm:px-6 lg:px-8">
+  <div class="max-w-6xl w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden">
+    <div class="grid md:grid-cols-2">
+      <!-- Left welcome panel -->
+      <div class="hidden md:flex flex-col justify-center items-center bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6] text-white p-10 space-y-6">
+        <img src="{% static 'media/LOGO.png' %}" alt="Inner SPARC Collage" class="w-48 mx-auto">
+        <h2 class="text-2xl font-bold leading-snug text-center">Welcome to Inner SPARC<br>Realty Corporation</h2>
+        <p class="text-sm text-center">Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina Salawag, Dasmariñas, Cavite 4114 <br> 0917-853-4875 / 0999-994-3304 / (046)458-0706</p>
+
+        <p class="text-sm opacity-90 text-center">Join our sales monitoring system to easily track client transactions, monitor tranche progress, and manage commission slips — all in one place.</p>
+      </div>
+
 
     <!-- Main Form Container -->
-    <div class="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border border-white/20">
+    <div class="px-6 py-6 bg-white">
       <div class="text-center mb-8">
-        <h2 class="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+        <h2 class="text-2xl font-extrabold text-gray-900 mb-4 tracking-tight">
           <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Inner SPARC Realty Corporation</span>
         </h2>
-        <p class="text-gray-600 text-lg font-medium">Create your account in just a few steps</p>
+        <p class="text-gray-600 text-base font-medium">Create your account in just a few steps</p>
       </div>
 
       <form method="post" class="space-y-6">
         {% csrf_token %}
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Username and Email -->
           {% for field in form %}
             {% if field.name == 'username' or field.name == 'email' %}
@@ -49,7 +56,7 @@
                       <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
                       </svg>
-                      <div class="hidden group-hover:block absolute z-10 w-48 p-2 mt-1 text-sm text-gray-500 bg-white rounded-lg shadow-lg border border-gray-200">
+                      <div class="hidden group-hover:block absolute z-10 w-48 p-2 mb-2 bottom-full text-sm text-gray-500 bg-white rounded-lg shadow-lg border border-gray-200">
                         {{ field.help_text }}
                       </div>
                     </div>
@@ -79,6 +86,27 @@
             {% endif %}
           {% endfor %}
 
+          <!-- First and Last Name -->
+          {% for field in form %}
+            {% if field.name == 'first_name' or field.name == 'last_name' %}
+              <div class="relative group">
+                <label class="block text-sm font-semibold text-gray-700 mb-2 ml-1 flex items-center">
+                  {{ field.label }}
+                </label>
+                <div class="relative">
+                  {{ field|add_class:"w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-white/70 backdrop-blur-sm shadow-sm placeholder-gray-400/80" }}
+                </div>
+                {% if field.errors %}
+                  <div class="mt-1 flex items-center space-x-1">
+                    <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="text-sm text-red-500">{{ field.errors|striptags }}</p>
+                  </div>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
           <!-- Role and Team Selection -->
           {% for field in form %}
             {% if field.name == 'role' or field.name == 'team' %}
@@ -110,9 +138,7 @@
                 </label>
                 <div class="relative">
                   {{ field|add_class:"w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 bg-white/70 backdrop-blur-sm shadow-sm placeholder-gray-400/80" }}
-                  <svg class="w-5 h-5 absolute right-4 top-3.5 text-gray-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                  </svg>
+                 
                 </div>
                 {% if field.errors %}
                   <div class="mt-1 flex items-center space-x-1">
@@ -164,11 +190,13 @@
             </div>
           </button>
         </div>
+        
       </form>
 
       <!-- Divider -->
       <div class="mt-8">
         <div class="relative">
+          
           <div class="absolute inset-0 flex items-center">
             <div class="w-full border-t border-gray-300/50"></div>
           </div>
@@ -192,8 +220,13 @@
         </a>
       </div>
 
+      <div class="mt-6 text-center text-sm text-gray-500">
+        <p>By creating an account, you agree to our Terms of Service and Privacy Policy</p>
+      </div>
+
+    
       {% if error %}
-        <div class="mt-6 p-4 bg-red-50 rounded-xl border border-red-200">
+        <div class="mt-4 p-4 bg-red-50 rounded-xl border border-red-200">
           <div class="flex items-center">
             <svg class="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
@@ -205,10 +238,37 @@
       {% endif %}
     </div>
 
-    <!-- Footer Text -->
-    <div class="mt-8 text-center text-sm text-gray-500">
-      <p>By creating an account, you agree to our Terms of Service and Privacy Policy</p>
+    </div>
     </div>
   </div>
+  <!-- Footer Text -->
+   
+  </div>
 </div>
+
+<script>
+function togglePwVisibility(btn){
+  const input = btn.parentElement.querySelector('input');
+  if(!input) return;
+  if(input.type === 'password'){
+    input.type = 'text';
+    btn.classList.add('text-blue-500');
+  } else {
+    input.type = 'password';
+    btn.classList.remove('text-blue-500');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('input[type="password"]').forEach(input => {
+    const wrapper = input.parentElement;
+    if(wrapper.querySelector('.pw-toggle')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pw-toggle absolute right-4 top-2.5 text-gray-400/80 focus:outline-none';
+    btn.innerHTML = `<svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.522 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.478 0-8.268-2.943-9.542-7z" /></svg>`;
+    btn.addEventListener('click', () => togglePwVisibility(btn));
+    wrapper.appendChild(btn);
+  });
+});
+</script>
 {% endblock %}

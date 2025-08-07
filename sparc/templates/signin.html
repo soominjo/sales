@@ -9,19 +9,31 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: url('{% static "media/INNERSPARC_BG.jpg" %}') center/cover no-repeat;
+  background: url('{% if bg_image %}{{ bg_image }}{% else %}{% static "media/innerss.jpg" %}{% endif %}') center/cover no-repeat;
   filter: blur(8px) brightness(0.7);
   z-index: 0;
   pointer-events: none;
 }
 .bg-hero > * { position: relative; z-index: 10; }
+.fade-in{animation:fade-in 0.6s ease forwards;opacity:0;}
+@keyframes fade-in{to{opacity:1;transform:none;}}
 </style>
-<div class="min-h-screen flex items-center justify-center relative bg-hero py-12 px-4 sm:px-6 lg:px-8">
-  <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden">
+<div class="min-h-screen flex items-center justify-center relative bg-hero py-8 px-2 sm:px-6 lg:px-8">
+  <div class="max-w-4xl w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden">
 
-    <!-- Card Header with wave design -->
+    <!-- Sign-in Content -->
+    <div class="grid md:grid-cols-2">
+      <!-- Left welcome panel -->
+      <div class="hidden md:flex flex-col justify-center items-center bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6] text-white p-10 space-y-6">
+        <img src="{% static 'media/LOGO.png' %}" alt="Inner SPARC Collage" class="w-48 mx-auto">
+        <h2 class="text-2xl font-bold leading-snug text-center">Welcome to Inner SPARC<br>Realty Corporation</h2>
+        <p class="text-sm text-center">Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina Salawag, Dasmariñas, Cavite 4114 <br> 0917-853-4875 / 0999-994-3304 / (046)458-0706</p>
+        <p class="text-sm opacity-90 text-center">Access your sales monitoring system to easily track client transactions, monitor tranche progress, and manage commission slips — all in one place to streamline your real estate business growth..</p>
+      </div>
+      <!-- Right sign-in panel -->
+      <div class="px-8 py-10 bg-white">
     <div class="relative">
-      <div class="h-24 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+      <div class="h-24 bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6]"></div>
       <div class="absolute -bottom-6 w-full">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" class="w-full">
           <path fill="#ffffff" fill-opacity="1" d="M0,128L48,144C96,160,192,192,288,186.7C384,181,480,139,576,149.3C672,160,768,224,864,218.7C960,213,1056,139,1152,133.3C1248,128,1344,192,1392,224L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
@@ -36,28 +48,15 @@
       </div>
     </div>
 
-    <!-- Card Body -->
-    <div class="px-8 py-10 pt-6">
-      {% if messages %}
-        {% for message in messages %}
-          <div class="mb-4 p-4 rounded-lg flex items-center {% if message.tags == 'success' %}bg-green-50 text-green-700 border-l-4 border-green-500{% elif message.tags == 'error' %}bg-red-50 text-red-700 border-l-4 border-red-500{% elif message.tags == 'warning' %}bg-yellow-50 text-yellow-700 border-l-4 border-yellow-500{% endif %}">
-            {% if message.tags == 'success' %}
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-              </svg>
-            {% elif message.tags == 'error' %}
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-            {% elif message.tags == 'warning' %}
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-            {% endif %}
-            {{ message }}
-          </div>
-        {% endfor %}
-      {% endif %}
+    <!-- Branded Header -->
+<div class="flex items-center space-x-3 mb-10 fade-in"> &nbsp;&nbsp;&nbsp;&nbsp;
+  <div class="bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6] p-2 rounded-xl text-white">
+    <i class="fa-solid fa-house text-lg"></i>
+  </div>
+  <h1 class="text-xl font-semibold text-gray-800">Inner SPARC Realty Corporation</h1>
+</div>
+
+
 
       {% if user.is_authenticated %}
         <div class="text-center">
@@ -78,30 +77,34 @@
           </div>
         </div>
       {% else %}
+        {% if messages %}
+        <div class="space-y-4 mb-6">
+          {% for message in messages %}
+            <div class="p-4 rounded-xl border {% if message.tags == 'success' %}border-green-300 bg-green-50 text-green-800{% elif message.tags == 'warning' %}border-yellow-300 bg-yellow-50 text-yellow-800{% else %}border-red-300 bg-red-50 text-red-800{% endif %}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+        {% endif %}
         <h2 class="text-center text-3xl font-extrabold text-gray-900 mb-8">Sign In</h2>
         <form method="POST" class="space-y-6">
           {% csrf_token %}
           <div>
-            <label for="username_or_email" class="block text-sm font-medium text-gray-700">Username or Email</label>
-            <div class="mt-1 relative rounded-md shadow-sm">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <input type="text" name="username_or_email" id="username_or_email" required class="focus:ring-blue-500 focus:border-green-500 block w-full pl-10 pr-3 py-3 border-gray-300 rounded-lg shadow-sm text-gray-900" placeholder="Enter your username or email">
+            <div class="relative">
+              <input type="text" name="username_or_email" id="username_or_email" placeholder="Username" required class="peer w-full pl-10 pr-4 py-3 rounded-md border border-gray-300 bg-transparent placeholder-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <label for="username_or_email" class="absolute left-10 -top-2 text-xs bg-white px-1 text-gray-600 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-placeholder-shown:text-gray-400 peer-focus:-top-2 peer-focus:text-xs peer-focus:text-gray-600">Username</label>
+              <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
             </div>
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-            <div class="mt-1 relative rounded-md shadow-sm">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <input type="password" name="password" id="password" required class="focus:ring-blue-500 focus:border-green-500 block w-full pl-10 pr-3 py-3 border-gray-300 rounded-lg shadow-sm text-gray-900" placeholder="Enter your password">
+            <div class="relative">
+              <input type="password" name="password" id="password" placeholder="Password" required class="peer w-full pl-10 pr-4 py-3 rounded-md border border-gray-300 bg-transparent placeholder-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+              <label for="password" class="absolute left-10 -top-2 text-xs bg-white px-1 text-gray-600 transition-all peer-placeholder-shown:top-3 peer-placeholder-shown:text-sm peer-placeholder-shown:text-gray-400 peer-focus:-top-2 peer-focus:text-xs peer-focus:text-gray-600">Password</label>
+              <i class="fa-solid fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <button type="button" id="togglePwd" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                <i class="fa-solid fa-eye"></i>
+              </button>
             </div>
           </div>
 
@@ -116,11 +119,9 @@
           </div>
 
           <div>
-            <button type="submit" class="group relative w-full flex justify-center py-3 px-4 border border-transparent rounded-lg text-lg font-medium text-white bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 shadow-md transition duration-150 ease-in-out">
+            <button type="submit" class="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6] text-white hover:brightness-110 hover:-translate-y-0.5 transition shadow-lg shadow-violet-300/30">
               <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-100 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                </svg>
+              
               </span>
               Sign In
             </button>
@@ -144,17 +145,30 @@
 
         <div class="mt-8 text-center">
           <p class="text-sm text-gray-600">Don't have an account?</p>
-          <a href="{% url 'signup' %}" class="mt-2 inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-br from-blue-400 to-blue-500 hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+          <a href="{% url 'signup' %}" class="mt-2 inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6] hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
             Create Account
           </a>
         </div>
       {% endif %}
     </div>
     
-    <!-- Card Footer -->
-    <div class="px-8 py-4 bg-gray-50 border-t border-gray-100 text-center text-xs text-gray-500">
-      &copy; {% now "Y" %} Inner SPARC Realty Corporation. All rights reserved.
     </div>
+    </div>
+    <!-- Card Footer -->
+    
   </div>
 </div>
+<script>
+  document.getElementById('togglePwd')?.addEventListener('click', function(){
+    const pwd = document.getElementById('password');
+    const icon = this.querySelector('i');
+    if(pwd.type === 'password'){
+      pwd.type = 'text';
+      icon.classList.replace('fa-eye','fa-eye-slash');
+    } else {
+      pwd.type = 'password';
+      icon.classList.replace('fa-eye-slash','fa-eye');
+    }
+  });
+</script>
 {% endblock %}

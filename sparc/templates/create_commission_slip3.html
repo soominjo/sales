@@ -70,6 +70,14 @@
                                 </select>
                             </div>
 
+                                <!-- Agent Name -->
+                                <div class="space-y-2">
+                                    <label for="sales_agent_name" class="block text-sm font-medium text-gray-700">Agent Name</label>
+                                    <input type="text" name="sales_agent_name" id="agent_name_display" readonly
+                                           class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                                </div>
+    
+
                             <!-- Supervisor Selection -->
                             <div class="space-y-2">
                                 <label for="supervisor_id" class="block text-sm font-medium text-gray-700">Select Supervisor</label>
@@ -88,17 +96,37 @@
                                 </select>
                             </div>
 
-                            <!-- Agent Name -->
-                            <div class="space-y-2">
-                                <label for="sales_agent_name" class="block text-sm font-medium text-gray-700">Agent Name</label>
-                                <input type="text" name="sales_agent_name" id="agent_name_display" readonly
-                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
-                            </div>
-
+                            
                             <!-- Supervisor Name -->
                             <div class="space-y-2">
                                 <label for="supervisor_name" class="block text-sm font-medium text-gray-700">Supervisor Name</label>
                                 <input type="text" name="supervisor_name" id="supervisor_name_display" readonly
+                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                            </div>
+
+
+
+                            <!-- Sales Manager Selection -->
+<div class="space-y-2">
+    <label for="manager_id" class="block text-sm font-medium text-gray-700">
+        Select Sales Manager
+    </label>
+    <select id="manager_id" name="manager_id"
+            class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+            onchange="updateManagerDetails()">
+        <option value="">Select a manager</option>
+        {% for user in active_managers %}
+            <option value="{{ user.id }}" data-name="{{ user.get_full_name }}">
+                {{ user.get_full_name }} ({{ user.profile.team.display_name }})
+            </option>
+        {% endfor %}
+    </select>
+  </div>
+
+                            <!-- Sales Manager Name -->
+                            <div class="space-y-2">
+                                <label for="sales_manager_name" class="block text-sm font-medium text-gray-700">Sales Manager Name</label>
+                                <input type="text" name="sales_manager_name" id="sales_manager_name_display" readonly
                                        class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
                             </div>
 
@@ -146,7 +174,7 @@
                             <div class="space-y-2">
                                 <label for="agent_commission_rate" class="block text-sm font-medium text-gray-700">Agent Commission Rate</label>
                                 <div class="relative">
-                                    <input type="number" step="0.01" name="agent_commission_rate" id="agent_commission_rate"
+                                    <input type="number" step="0.01" name="agent_commission_rate" id="agent_commission_rate" value="3.00"
                                            class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                                            placeholder="Enter rate" required
                                            onchange="updateCommissionPreview()">
@@ -158,7 +186,7 @@
                             <div class="space-y-2">
                                 <label for="supervisor_commission_rate" class="block text-sm font-medium text-gray-700">Supervisor Commission Rate</label>
                                 <div class="relative">
-                                    <input type="number" step="0.01" name="supervisor_commission_rate" id="supervisor_commission_rate"
+                                    <input type="number" step="0.01" name="supervisor_commission_rate" id="supervisor_commission_rate" value="0.50"
                                            class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                                            placeholder="Enter rate" required
                                            onchange="updateCommissionPreview()">
@@ -166,6 +194,19 @@
                                 </div>
                             </div>
 
+
+<!-- Sales Manager Commission Rate -->
+<div class="space-y-2">
+    <label for="manager_commission_rate" class="block text-sm font-medium text-gray-700">
+        Sales Manager Commission Rate (%)
+    </label>
+    <div class="relative">
+        <input type="number" step="0.01" id="manager_commission_rate" name="manager_commission_rate" value="0.50"
+               class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+               onchange="updateCommissionPreview()">
+        <span class="absolute right-3 top-3 text-gray-500">%</span>
+    </div>
+  </div>
                             <!-- Particulars -->
                             <div class="space-y-2">
                                 <label for="particulars" class="block text-sm font-medium text-gray-700">Particulars</label>
@@ -175,6 +216,7 @@
                                     <option value="FULL COMM">FULL COMM</option>
                                     <option value="PARTIAL COMM">PARTIAL COMM</option>
                                     <option value="INCENTIVES">INCENTIVES</option>
+                                    <option value="CASH ADVANCE">CASH ADVANCE</option>
                                 </select>
                             </div>
 
@@ -204,7 +246,7 @@
                             </div>
 
                             <!-- Cash Advance -->
-                            <div class="space-y-2">
+                            <div class="space-y-2 cash-advance-field" style="display: none;">
                                 <label for="cash_advance" class="block text-sm font-medium text-gray-700">Cash Advance</label>
                                 <div class="relative">
                                     <span class="absolute left-3 top-3 text-gray-500">₱</span>
@@ -241,6 +283,19 @@
                                 </div>
                                 <p class="text-sm text-gray-500">Enter the withholding tax rate for supervisor as a percentage</p>
                             </div>
+
+                            <!-- Sales Manager Withholding Tax -->
+<div class="space-y-2">
+    <label for="manager_tax_rate" class="block text-sm font-medium text-gray-700">
+        Sales Manager Withholding Tax (%)
+    </label>
+    <div class="relative">
+        <input type="number" step="0.01" id="manager_tax_rate" name="manager_tax_rate"
+               value="10.00" class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+               onchange="updateCommissionPreview()">
+        <span class="absolute right-3 top-3 text-gray-500">%</span>
+    </div>
+  </div>
 
                             <!-- Date -->
                             <div class="space-y-2">
@@ -315,9 +370,11 @@
             const incentiveField = document.querySelector('.incentive-field');
             const partialField = document.querySelector('.partial-field');
             const selectedValue = particularsSelect.value;
+    const cashAdvanceField = document.querySelector('.cash-advance-field');
             
             incentiveField.style.display = selectedValue === 'INCENTIVES' ? 'block' : 'none';
             partialField.style.display = selectedValue === 'PARTIAL COMM' ? 'block' : 'none';
+    cashAdvanceField.style.display = selectedValue === 'CASH ADVANCE' ? 'block' : 'none';
             
             // Reset percentage to 100% if not PARTIAL COMM
             if (selectedValue !== 'PARTIAL COMM') {
@@ -335,6 +392,7 @@
             const incentiveAmount = parseFloat(document.getElementById('incentive_amount').value) || 0;
             const agentCommissionRate = parseFloat(document.getElementById('agent_commission_rate').value) || 0;
             const supervisorCommissionRate = parseFloat(document.getElementById('supervisor_commission_rate').value) || 0;
+            const managerCommissionRate = parseFloat(document.getElementById('manager_commission_rate').value) || 0;
             let partialPercentage = 100;
 
             // Get the partial percentage if PARTIAL COMM is selected
@@ -345,6 +403,7 @@
             // Get separate tax rates for agent and supervisor
             const agentTaxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10.00;
             const supervisorTaxRate = parseFloat(document.getElementById('supervisor_withholding_tax_rate').value) || 10.00;
+            const managerTaxRate = parseFloat(document.getElementById('manager_tax_rate').value) || 10.00;
 
             // Calculate cash advance after tax (10% tax)
             const cashAdvanceTax = cashAdvance * 0.10;
@@ -364,7 +423,7 @@
 
             // Process agent commission with agent tax rate
             if (agentCommissionRate > 0) {
-                const fullCommission = adjustedTotal * agentCommissionRate;
+                const fullCommission = adjustedTotal * agentCommissionRate / 100;
                 const baseCommission = fullCommission * (partialPercentage / 100);
                 let grossCommission = baseCommission;
 
@@ -394,7 +453,7 @@
 
             // Process supervisor commission with supervisor tax rate
             if (supervisorCommissionRate > 0) {
-                const fullCommission = adjustedTotal * supervisorCommissionRate;
+                const fullCommission = adjustedTotal * supervisorCommissionRate / 100;
                 const baseCommission = fullCommission * (partialPercentage / 100);
                 let grossCommission = baseCommission;
 
@@ -422,6 +481,36 @@
                 tableBody.appendChild(row);
             }
 
+            // Process manager commission with manager tax rate
+            if (managerCommissionRate > 0) {
+                const fullCommission = adjustedTotal * managerCommissionRate / 100;
+                const baseCommission = fullCommission * (partialPercentage / 100);
+                let grossCommission = baseCommission;
+
+                if (particularsSelect.value === 'INCENTIVES') {
+                    grossCommission = baseCommission + incentiveAmount;
+                }
+
+                const withholdingTax = grossCommission * (managerTaxRate / 100);
+                const netCommission = grossCommission - withholdingTax;
+
+                // Add to totals
+                totalGrossCommission += grossCommission;
+                totalTax += withholdingTax;
+                totalNetCommission += netCommission;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-2">Sales Manager</td>
+                    <td class="px-4 py-2">${managerCommissionRate}%</td>
+                    <td class="px-4 py-2">${partialPercentage}%</td>
+                    <td class="px-4 py-2">₱${formatCurrency(grossCommission)}</td>
+                    <td class="px-4 py-2">₱${formatCurrency(withholdingTax)} (${managerTaxRate}%)</td>
+                    <td class="px-4 py-2">₱${formatCurrency(netCommission)}</td>
+                `;
+                tableBody.appendChild(row);
+            }
+
             // Update totals in the footer
             document.getElementById('totalGrossCommission').textContent = `₱${formatCurrency(totalGrossCommission)}`;
             document.getElementById('totalTax').textContent = `₱${formatCurrency(totalTax)}`;
@@ -440,10 +529,17 @@
             document.getElementById('supervisor_name_display').value = selectedOption.dataset.name || '';
         }
 
+        function updateManagerDetails() {
+            const select = document.getElementById('manager_id');
+            const selectedOption = select.options[select.selectedIndex];
+            document.getElementById('sales_manager_name_display').value = selectedOption?.dataset.name || '';
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateFieldsVisibility();
             updateCommissionPreview();
+            updateManagerDetails();
         });
     </script>
 {% endblock %}

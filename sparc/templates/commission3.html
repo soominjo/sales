@@ -171,12 +171,16 @@
 
     <div class="grid grid-cols-2 gap-4 text-gray-700">
         <p><strong>Sales Agent:</strong> {{ slip.sales_agent_name }}</p>
-        {% if user.is_staff or user.is_superuser or user.profile.role in 'Sales Manager' or user.profile.role in 'Sales Supervisor' %}
-        <p><strong>Sales Supervisor:</strong> {{ slip.supervisor_name }}</p>
+        {% if slip.supervisor_name %}
+            <p><strong>Sales Supervisor:</strong> {{ slip.supervisor_name }}</p>
+        {% endif %}
+        {% if slip.manager_name %}
+            <p><strong>Sales Manager:</strong> {{ slip.manager_name }}</p>
         {% endif %}
         <p><strong>Buyer:</strong> {{ slip.buyer_name }}</p>
         <p><strong>Project Name:</strong> {{ slip.project_name }}</p>
-        <p><strong>Unit ID:</strong> {{ slip.unit_id }}</p>    
+        <p><strong>Unit ID:</strong> {{ slip.unit_id }}</p>
+        <p><strong>Total Selling Price:</strong> ₱{{ slip.total_selling_price|floatformat:0|intcomma }}</p>    
         {% with cash_advance_after_tax=slip.cash_advance|multiply:90 %}
         <p><strong>Cash Advance (less 10% tax):</strong> ₱{{ cash_advance_after_tax|floatformat:0|intcomma }}</p>
         {% endwith %}
@@ -218,9 +222,11 @@
                         Sales Agent
                     {% elif detail.agent_name == slip.supervisor_name %}
                         Sales Supervisor
+                    {% elif detail.agent_name == slip.manager_name %}
+                        Sales Manager
                     {% else %}
                         {{ detail.role }}
-                    {% endif %} 
+                    {% endif %}
                 </td>
                 <td class="p-2 border">{{ detail.agent_name }}</td>
 
@@ -232,7 +238,7 @@
             </tr>
             {% endfor %}
             
-            {% if user.is_staff or user.is_superuser or user.profile.role in 'Sales Manager' or user.profile.role in 'Sales Supervisor' %}
+            {% if user.is_staff or user.is_superuser %}
             <tr class="bg-gray-50 font-semibold">
                 <td colspan="3" class="p-2 border text-right">Total:</td>
                 <td class="p-2 border">₱{{ total_gross|floatformat:2|intcomma }}</td>
