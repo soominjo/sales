@@ -3,6 +3,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from .forms import *
+from .models import TrancheRecord
+from decimal import Decimal
 from .models import *
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
@@ -332,6 +334,28 @@ def profile(request):
     # Add properties and developers to context
     properties = Property.objects.all().order_by('name')
     developers = Developer.objects.all().order_by('name')
+    # Get commission data from receivables
+    # Get commission data from receivables
+    if request.user.is_superuser:
+        commissions = Commission.objects.all().order_by('-date_released')
+        tranche_records = TrancheRecord.objects.all()
+    else:
+        commissions = Commission.objects.filter(agent=request.user).order_by('-date_released')
+        tranche_records = TrancheRecord.objects.filter(agent_name=request.user.get_full_name())
+
+    total_commission_received = commissions.aggregate(Sum('commission_amount'))['commission_amount__sum'] or Decimal('0')
+
+    # Calculate total expected commission from all tranches
+    total_expected = Decimal('0')
+    for record in tranche_records:
+        total_expected += record.payments.aggregate(Sum('expected_amount'))['expected_amount__sum'] or Decimal('0')
+
+    total_commission_remaining = total_expected - total_commission_received
+    commission_count = commissions.count()
+
+    # Get recent commissions for the table
+    recent_commissions = commissions[:10]  # Get the 10 most recent
+
     context = {
         'sales': paginated_sales,
         'properties': properties,
@@ -345,6 +369,10 @@ def profile(request):
         'active_count': active_count,
         'properties': properties,
         'developers': developers,  # Add developers to context
+        'total_commission_received': total_commission_received,
+        'total_commission_remaining': total_commission_remaining,
+        'commission_count': commission_count,
+        'recent_commissions': recent_commissions,
     }
     return render(request, 'profile.html', context)
 

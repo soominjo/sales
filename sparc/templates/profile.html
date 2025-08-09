@@ -256,24 +256,9 @@
                     <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                         <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-chart-line mr-2 text-blue-500"></i>Commission Received Summary</h3>
                         <div class="space-y-4">
-                            <div class="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
-                                <div class="flex justify-between items-center"><p class="font-semibold text-blue-900">Total Commission Received</p><span class="text-2xl font-bold text-blue-700">₱{{ total_active|add:total_cancelled|floatformat:2|intcomma }}</span></div>
-                                <p class="text-sm text-blue-600 mt-1">Lifetime total</p>
-                            </div>
-
-                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-green-50 transition-colors"><div><p class="font-medium text-gray-800">Active Commission Received</p><p class="text-sm text-green-600">{{ active_percentage|default:0|floatformat:1 }}% of total</p></div><span class="text-xl font-bold text-green-600">₱{{ total_active|floatformat:2|intcomma }}</span></div>
-
-                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-red-50 transition-colors"><div><p class="font-medium text-gray-800">Cancelled Commission Received</p><p class="text-sm text-orange-600">{{ cancelled_percentage|default:0|floatformat:1 }}% of total</p></div><span class="text-xl font-bold text-orange-600">₱{{ total_cancelled|floatformat:2|intcomma }}</span></div>
-
-                            <!-- Add Unit Sold Section -->
-                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-indigo-50 transition-colors"><div><p class="font-medium text-gray-800">Units Sold</p><p class="text-sm text-indigo-600">Active properties</p></div><div class="flex items-center"><i class="fas fa-home text-indigo-500 mr-2"></i><span class="text-xl font-bold text-indigo-600">{{ active_count|default:0 }}</span></div></div>
-                            
-                            
-                            {% if cancelled_percentage > 30 %}
-                            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg animate-pulse">
-                                <div class="flex items-start"><div class="flex-shrink-0"><i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i></div><div class="ml-3"><h3 class="text-sm font-medium text-yellow-800">Performance Review Required</h3><div class="mt-1 text-sm text-yellow-700"><p>Your cancelled sales rate is above 30%. A meeting with your manager is recommended for performance review and additional training.</p></div>{% if user.profile.role != 'Sales Manager' %}<div class="mt-2"><a href="#" class="text-sm font-medium text-yellow-800 hover:text-yellow-900 flex items-center"><i class="fas fa-calendar-plus mr-1"></i>Schedule Meeting</a></div>{% endif %}</div></div>
-                            </div>
-                            {% endif %}
+                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-green-50 transition-colors"><div><p class="font-medium text-gray-800">Total Commission Received</p></div><span class="text-xl font-bold text-green-600">₱{{ total_commission_received|floatformat:2|intcomma }}</span></div>
+                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-orange-50 transition-colors"><div><p class="font-medium text-gray-800">Total Remaining Commission</p></div><span class="text-xl font-bold text-orange-600">₱{{ total_commission_remaining|floatformat:2|intcomma }}</span></div>
+                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-blue-50 transition-colors"><div><p class="font-medium text-gray-800">Total Number of Entries</p></div><span class="text-xl font-bold text-blue-600">{{ commission_count }}</span></div>
                         </div>
                     </div>
 
@@ -286,75 +271,73 @@
                     </div>
                 </div>
 
-                  <!-- Commission Transactions Table -->
+                  <!-- Recent Commission Received Table -->
                   <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                    <div class="p-6 border-b">
-                        <div class="flex justify-between items-center">
-                            <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-history mr-2 text-blue-500"></i>Recent Commission Recieved</h3>
-                            <div class="flex space-x-2">
-                                    <a href="{% url 'export_sales_excel' %}" class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center" title="Export to Excel">
-                                        <i class="fas fa-file-excel mr-1"></i><span class="hidden sm:inline">Export</span>
-                                    </a>
-                                    <button onclick="printSection('sales-table')" class="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center" title="Print Table">
-                                        <i class="fas fa-print mr-1"></i><span class="hidden sm:inline">Print</span>
-                                    </button>
-                                    <button onclick="openModal()" class="add-sales-button hover:scale-105 flex items-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors" title="Add New Sale">
-                                        <i class="fas fa-plus-circle text-xl"></i><span class="hidden sm:inline ml-1">Add</span>
-                                    </button>
-                                </div>
-                        </div>
-                    </div>
-
-                    <div id="sales-table" class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="table-header">
-                                <tr>
-                                    <th class="px-6 py-4 text-left">Date</th>
-                                    <th class="px-6 py-4 text-left">Property</th>
-                                    <th class="px-6 py-4 text-left hidden md:table-cell">Developer</th>
-                                    <th class="px-6 py-4 text-left whitespace-nowrap">Amount</th>
-                                    <th class="px-6 py-4 text-left">Status</th>
-{% if user.is_superuser %}
-                                     <th class="px-6 py-4 text-left hidden md:table-cell">Created By</th>
-{% endif %}
-                                     <th class="px-6 py-4 text-left">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                {% for sale in sales %}
-                                <tr class="table-row hover:bg-blue-50 transition-colors cursor-pointer">
-                                    <td class="px-6 py-4">{{ sale.date|date:"Y-m-d" }}</td>
-                                    <td class="px-6 py-4">{{ sale.property_name }}</td>
-                                    <td class="px-6 py-4 hidden md:table-cell">{{ sale.developer }}</td>
-                                    <td class="px-6 py-4 font-semibold whitespace-nowrap">₱{{ sale.amount|floatformat:2|intcomma }}</td>
-                                    <td class="px-6 py-4"><span class="status-badge {% if sale.status == 'Active' %}status-active{% elif sale.status == 'Cancelled' %}status-cancelled{% else %}status-reserved{% endif %}">{{ sale.status }}</span></td>
-{% if user.is_superuser %}
-                                     <td class="px-6 py-4 hidden md:table-cell">{{ sale.user.get_full_name|default:sale.user.username }}</td>
-{% endif %}
-                                     <td class="px-6 py-4">
-                                        <div class="flex space-x-3">
-                                            <button onclick="openEditModal('{{ sale.id }}')" class="text-blue-600 hover:text-blue-800 transition-colors"><i class="fas fa-edit"></i></button>
-                                            <button onclick="deleteSale('{{ sale.id }}')" class="text-orange-400 hover:text-orange-800 transition-colors"><i class="fas fa-trash"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <!-- Pagination Controls -->
-                        {% if sales.paginator.num_pages > 1 %}
-                        <div class="flex justify-center items-center space-x-2 mt-4 pb-4">
-                            {% if sales.has_previous %}
-                            <a href="?page={{ sales.previous_page_number }}" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"><i class="fas fa-chevron-left"></i></a>
-                            {% endif %}
-                            <span class="px-3 py-2">Page {{ sales.number }} of {{ sales.paginator.num_pages }}</span>
-                            {% if sales.has_next %}
-                            <a href="?page={{ sales.next_page_number }}" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"><i class="fas fa-chevron-right"></i></a>
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
+                      <div class="p-6 border-b">
+                          <div class="flex justify-between items-center">
+                              <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-history mr-2 text-blue-500"></i>Recent Commission Received</h3>
+                              <a href="{% url 'receivables' %}" class="text-sm text-blue-600 hover:text-blue-800">View All</a>
+                          </div>
+                      </div>
+                      <div class="overflow-x-auto">
+                          <table class="min-w-full divide-y divide-gray-200">
+                              <thead class="table-header">
+                                  <tr>
+                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Released</th>
+                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
+                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission Amount</th>
+                                      {% if user.is_superuser %}
+                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                                      {% endif %}
+                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                  </tr>
+                              </thead>
+                              <tbody class="bg-white divide-y divide-gray-200">
+                                  {% for commission in recent_commissions %}
+                                  <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                      <td class="px-6 py-4">
+                                          <div class="text-sm text-gray-900">{{ commission.date_released|date:"M d, Y" }}</div>
+                                      </td>
+                                      <td class="px-6 py-4">
+                                          <div class="text-sm font-medium text-gray-900">{{ commission.project_name }}</div>
+                                      </td>
+                                      <td class="px-6 py-4">
+                                          <div class="font-medium text-green-700">₱{{ commission.commission_amount|floatformat:2|intcomma }}</div>
+                                      </td>
+                                      {% if user.is_superuser %}
+                                      <td class="px-6 py-4">{{ commission.agent_name }}</td>
+                                      {% endif %}
+                                      <td class="px-6 py-4">
+                                          <div class="flex items-center space-x-2">
+                                              <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2 overflow-hidden">
+                                                  <div class="h-full rounded-full {% if commission.completion_percentage >= 100 %}bg-green-500{% elif commission.completion_percentage > 0 %}bg-yellow-500{% else %}bg-red-500{% endif %}" 
+                                                       style="width: {{ commission.completion_percentage }}%"></div>
+                                              </div>
+                                              <span class="text-xs font-medium whitespace-nowrap {% if commission.completion_percentage >= 100 %}text-green-600{% elif commission.completion_percentage > 0 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                                  {{ commission.completion_percentage|floatformat:0 }}%
+                                              </span>
+                                          </div>
+                                      </td>
+                                      <td class="px-6 py-4">
+                                          <a href="{% url 'view_receivable_voucher' release_number=commission.release_number %}" 
+                                             class="tooltip p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors duration-200"
+                                             data-tippy-content="View Commission Voucher">
+                                              <i class="fas fa-eye"></i>
+                                          </a>
+                                      </td>
+                                  </tr>
+                                  {% empty %}
+                                  <tr>
+                                      <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                          No commission records found.
+                                      </td>
+                                  </tr>
+                                  {% endfor %}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
             </div>
         </div>
     </div>
