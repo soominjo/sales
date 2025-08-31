@@ -1,0 +1,239 @@
+{% extends "index.html" %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                        Problem Report #{{ problem.id }}
+                    </h1>
+                    <p class="text-gray-600 mt-2">Reported on {{ problem.created_at|date:"F d, Y \a\t H:i" }}</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="{% url 'problem_dashboard' %}" 
+                       class="inline-flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Problem Details -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Reporter Information -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-user text-blue-500 mr-2"></i>
+                        Reporter Information
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Full Name</label>
+                            <p class="text-gray-900 font-medium">{{ problem.name }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Email Address</label>
+                            <p class="text-gray-900">
+                                <a href="mailto:{{ problem.email }}" class="text-blue-600 hover:text-blue-800">
+                                    {{ problem.email }}
+                                </a>
+                            </p>
+                        </div>
+                        {% if problem.phone %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Phone Number</label>
+                            <p class="text-gray-900">
+                                <a href="tel:{{ problem.phone }}" class="text-blue-600 hover:text-blue-800">
+                                    {{ problem.phone }}
+                                </a>
+                            </p>
+                        </div>
+                        {% endif %}
+                        {% if problem.ip_address %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">IP Address</label>
+                            <p class="text-gray-900 font-mono text-sm">{{ problem.ip_address }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Problem Details -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-bug text-red-500 mr-2"></i>
+                        Problem Details
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Category</label>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                {{ problem.get_category_display }}
+                            </span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Subject</label>
+                            <p class="text-gray-900 font-medium">{{ problem.subject }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Description</label>
+                            <div class="mt-1 p-4 bg-gray-50 rounded-lg">
+                                <p class="text-gray-900 whitespace-pre-wrap">{{ problem.description }}</p>
+                            </div>
+                        </div>
+                        {% if problem.user_agent %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Browser Information</label>
+                            <p class="text-gray-700 text-sm font-mono bg-gray-50 p-2 rounded">{{ problem.user_agent }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Admin Notes -->
+                {% if problem.admin_notes %}
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-sticky-note text-yellow-500 mr-2"></i>
+                        Admin Notes
+                    </h2>
+                    <div class="p-4 bg-yellow-50 rounded-lg">
+                        <p class="text-gray-900 whitespace-pre-wrap">{{ problem.admin_notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Status and Actions -->
+            <div class="space-y-6">
+                <!-- Current Status -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        Current Status
+                    </h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Status</label>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                                {% if problem.status == 'open' %}bg-green-100 text-green-800
+                                {% elif problem.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                                {% elif problem.status == 'resolved' %}bg-purple-100 text-purple-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ problem.get_status_display }}
+                            </span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Priority</label>
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                                {% if problem.priority == 'urgent' %}bg-red-100 text-red-800
+                                {% elif problem.priority == 'high' %}bg-orange-100 text-orange-800
+                                {% elif problem.priority == 'medium' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ problem.get_priority_display }}
+                            </span>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Last Updated</label>
+                            <p class="text-gray-900">{{ problem.updated_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        {% if problem.resolved_by %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Resolved By</label>
+                            <p class="text-gray-900">{{ problem.resolved_by.get_full_name|default:problem.resolved_by.username }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-500">Resolved At</label>
+                            <p class="text-gray-900">{{ problem.resolved_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Update Form -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-edit text-green-500 mr-2"></i>
+                        Update Problem
+                    </h2>
+                    
+                    {% if messages %}
+                        <div class="mb-4">
+                            {% for message in messages %}
+                                <div class="p-3 rounded-lg border {% if message.tags == 'success' %}border-green-300 bg-green-50 text-green-800{% else %}border-red-300 bg-red-50 text-red-800{% endif %}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" class="space-y-4">
+                        {% csrf_token %}
+                        
+                        <div>
+                            <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                            <select name="status" id="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if problem.status == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                            <select name="priority" id="priority" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                {% for value, label in priority_choices %}
+                                    <option value="{{ value }}" {% if problem.priority == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="admin_notes" class="block text-sm font-medium text-gray-700 mb-2">Admin Notes</label>
+                            <textarea name="admin_notes" id="admin_notes" rows="4" 
+                                      placeholder="Add notes about the resolution, actions taken, or follow-up required..."
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none">{{ problem.admin_notes }}</textarea>
+                        </div>
+
+                        <button type="submit" 
+                                class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i>
+                            Update Problem Report
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <i class="fas fa-bolt text-yellow-500 mr-2"></i>
+                        Quick Actions
+                    </h2>
+                    <div class="space-y-3">
+                        <a href="mailto:{{ problem.email }}?subject=Re: {{ problem.subject }}" 
+                           class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                            <i class="fas fa-envelope mr-2"></i>
+                            Email Reporter
+                        </a>
+                        {% if problem.phone %}
+                        <a href="tel:{{ problem.phone }}" 
+                           class="w-full inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                            <i class="fas fa-phone mr-2"></i>
+                            Call Reporter
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

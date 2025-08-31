@@ -48,11 +48,10 @@
       <div class="grid grid-cols-2 gap-8 mb-8">
         <div class="border-l-4 border-primary pl-4">
           <h2 class="text-lg font-bold text-dark mb-3">BILL TO</h2>
-          <p class="font-semibold">650 ALLIED INC.</p>
-          <p class="text-sm">2nd Flr B and S Bldg 1644 Evangelista St. Bangkal</p>
-          <p class="text-sm">Makati City, Metro Manila 1233</p>
-          <p class="mt-2"><span class="font-medium">VAT-REG TIN:</span> 755-023-386-000</p>
-          <p><span class="font-medium">Business Style:</span> 650 ALLIED INC.</p>
+          <p class="font-semibold">{{ invoice.client_name }}</p>
+          <p class="text-sm">{{ invoice.client_address|linebreaksbr }}</p>
+          <p class="mt-2"><span class="font-medium">VAT-REG TIN:</span> {{ invoice.client_tin }}</p>
+          <p><span class="font-medium">Business Style:</span> {{ invoice.client_name }}</p>
         </div>
         
         <div class="grid grid-cols-2 gap-4">
@@ -85,20 +84,26 @@
             </tr>
           </thead>
           <tbody>
+            {% for item in stored_items %}
             <tr>
-              <td class="py-3 px-4 border-b">{% if is_lto_invoice %}LTO{% else %}SC{% endif %}</td>
+              <td class="py-3 px-4 border-b">{{ item.item_code }}</td>
               <td class="py-3 px-4 border-b">
-                {% if is_lto_invoice %}
-                  Loan Take Out Commission – {{ invoice.due_date|date:'F Y' }}
-                {% else %}
-                  Seller's Commission – {{ invoice.due_date|date:'F Y' }}
+                {{ item.description|linebreaksbr }}
+                {% if is_combined_invoice %}
+                  <div class="text-xs text-gray-500 mt-1">
+                    Commission: 
+                    {% for tranche in combined_tranches %}
+                      #{{ tranche.tranche_number }}{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                  </div>
                 {% endif %}
               </td>
-              <td class="py-3 px-4 border-b text-center">{{ invoice.qty }}</td>
+              <td class="py-3 px-4 border-b text-center">{{ item.quantity }}</td>
               <td class="py-3 px-4 border-b text-right">₱ {{ net_price|floatformat:2|intcomma }}</td>
-              <td class="py-3 px-4 border-b text-right">₱{{ vat_amount|floatformat:2|intcomma }}</td>
-              <td class="py-3 px-4 border-b text-right font-medium text-primary">₱ {{ subtotal|floatformat:2|intcomma }}</td>
+              <td class="py-3 px-4 border-b text-right">₱ {{ vat_amount|floatformat:2|intcomma }}</td>
+              <td class="py-3 px-4 border-b text-right font-medium text-primary">₱ {{ item.amount|floatformat:2|intcomma }}</td>
             </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
@@ -157,22 +162,41 @@
             <h3 class="font-bold text-dark">SUMMARY</h3>
           </div>
           <div class="p-4 space-y-2">
-            <div class="flex justify-between">
-              <span>Total Selling Price:</span>
-              <span class="font-medium">₱ {{ summary_total_selling_price|floatformat:2|intcomma }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Net of VAT:</span>
-              <span class="font-medium">₱ {{ summary_net_of_vat|floatformat:2|intcomma }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span>Withholding Tax:</span>
-              <span class="font-medium">₱ {{ summary_withholding_tax|floatformat:2|intcomma }}</span>
-            </div>
-            <div class="flex justify-between pt-3 border-t border-gray-300 mt-2">
-              <span class="font-bold text-lg">TOTAL AMOUNT DUE:</span>
-              <span class="font-bold text-lg text-primary">₱ {{ total_due|floatformat:2|intcomma }}</span>
-            </div>
+            {% if is_combined_invoice and combined_commission_breakdown %}
+              <!-- Combined Invoice Summary with Individual Breakdown -->
+              {% for tranche, net_commission, tax_amount in combined_commission_breakdown %}
+              <div class="flex justify-between">
+                <span class="text-gray-600">Commission #{{ tranche.tranche_number }}:</span>
+                <span class="font-medium text-gray-800">₱ {{ net_commission|floatformat:2|intcomma }}</span>
+              </div>
+              {% endfor %}
+              <div class="flex justify-between pt-2 mt-2 border-t border-gray-300">
+                <span class="font-semibold text-gray-700">Total Commission:</span>
+                <span class="font-semibold text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Less Tax:</span>
+                <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
+              </div>
+              <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
+                <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
+              </div>
+            {% else %}
+              <!-- Single Invoice Summary -->
+              <div class="flex justify-between">
+                <span class="text-gray-600">Commission:</span>
+                <span class="font-medium text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
+                <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
+              </div>
+              <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
+                <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
+              </div>
+            {% endif %}
           </div>
         </div>
       </div>

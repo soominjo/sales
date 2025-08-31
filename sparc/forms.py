@@ -101,18 +101,11 @@ class ProfileForm(forms.ModelForm):
         model = Profile
         fields = ['phone_number', 'bio', 'role']  # Include bio here
 
-
-
-
-
-class SaleForm(forms.ModelForm):
-    class Meta:
-        model = Sale
-        fields = ['property', 'developer', 'total_sales', 'status', 'date']  # Use the correct fields from the Sale model
-
         
 
 class CommissionSlipForm(forms.ModelForm):
+    sales_agent_name = forms.CharField(required=False)
+
     date = forms.DateField(
         required=True,
         widget=DateInput(attrs={
@@ -139,11 +132,6 @@ class CommissionSlipForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'}),
         label="Withholding Tax Rate (%)"
     )
-    team_leader_tax_rate = forms.DecimalField(
-        required=False,
-        initial=10.00,
-        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'})
-    )
     operation_manager_tax_rate = forms.DecimalField(
         required=False,
         initial=10.00,
@@ -159,6 +147,16 @@ class CommissionSlipForm(forms.ModelForm):
         initial=10.00,
         widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'})
     )
+    funds_tax_rate = forms.DecimalField(
+        required=False,
+        initial=10.00,
+        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'})
+    )
+    partial_percentage = forms.DecimalField(
+        required=False,
+        initial=100.00,
+        widget=forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'max': '100'})
+    )
 
     class Meta:
         model = CommissionSlip
@@ -166,8 +164,9 @@ class CommissionSlipForm(forms.ModelForm):
             'sales_agent_name', 'buyer_name', 'project_name', 'unit_id',
             'total_selling_price', 'commission_rate', 'particulars',
             'incentive_amount', 'cash_advance', 'fee', 'date',
-            'withholding_tax_rate', 'team_leader_tax_rate', 'operation_manager_tax_rate',
-            'co_founder_tax_rate', 'founder_tax_rate', 'sales_manager_name', 'manager_commission_rate'
+            'withholding_tax_rate', 'operation_manager_tax_rate',
+            'co_founder_tax_rate', 'founder_tax_rate', 'sales_manager_name', 'manager_commission_rate',
+            'funds_tax_rate', 'partial_percentage'
         ]
 
 
@@ -369,3 +368,37 @@ class CommissionSlipForm3(forms.ModelForm):
             'manager_commission_rate',
             'manager_tax_rate'
         ]
+
+
+class ExcelUploadForm(forms.Form):
+    """Form for uploading Excel files for tranche calculations"""
+    excel_file = forms.FileField(
+        label="Upload Excel File",
+        help_text="Upload an Excel file (.xlsx) containing tranche data for processing",
+        widget=forms.FileInput(attrs={
+            'class': 'w-full p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-colors duration-200',
+            'accept': '.xlsx,.xls',
+            'id': 'excel-file-input'
+        })
+    )
+
+    def clean_excel_file(self):
+        """Validate the uploaded Excel file"""
+        file = self.cleaned_data.get('excel_file')
+        
+        if not file:
+            raise forms.ValidationError("Please select a file to upload.")
+        
+        # Check file extension
+        if not file.name.lower().endswith(('.xlsx', '.xls')):
+            raise forms.ValidationError("Please upload a valid Excel file (.xlsx or .xls).")
+        
+        # Check file size (limit to 10MB)
+        if file.size > 10 * 1024 * 1024:
+            raise forms.ValidationError("File size must be less than 10MB.")
+        
+        # Check if file is empty
+        if file.size == 0:
+            raise forms.ValidationError("The uploaded file is empty.")
+        
+        return file

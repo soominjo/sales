@@ -1,220 +1,330 @@
 {% extends "index.html" %}
-
-{% block title %}Receivables{% endblock %}
-
+{% block title %}Receivables Dashboard{% endblock %}
 {% block content %}
 {% load humanize %}
 {% load static %}
 {% load custom_filters %}
 
-
-<!-- Consistent Header -->
-<div class="w-full flex flex-col items-center justify-center mt-8 mb-8">
-  <div class="flex flex-col items-center">
-    <h1 class="text-2xl font-bold text-blue-800 font-medium mt-1 flex items-center">Receivables Overview
-      {% if pending_receivables_count %}
-      <span class="badge">{{ pending_receivables_count }}</span>
-      {% endif %}
-    </h1>
-
-  </div>
+<div class="flex justify-between items-center mb-6 mt-14">
+    <div class="flex items-center gap-4">
+        <div class="text-blue-600">
+            <i class="fas fa-file-invoice-dollar fa-2x"></i>
+        </div>
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Receivables Records</h1>
+            <p class="text-gray-500">Track and manage all payment tranches</p>
+        </div>
+    </div>
+    <div class="text-right">
+        <p class="text-lg font-semibold text-gray-700">Total Records</p>
+        <p class="text-3xl font-bold text-blue-600">{{ page_obj.paginator.count }}</p>
+    </div>
 </div>
 
-<!-- Modernized Stats Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 px-2">
-  <div class="bg-green-50 p-6 rounded-2xl shadow-lg border-t-4 border-green-500 flex flex-col items-start group">
-    <span class="text-lg font-semibold text-green-700 mb-1">Total Commission Received</span>
-    <span class="text-3xl font-bold text-green-900">₱{{ total_commission|floatformat:2|intcomma }}</span>
-  </div>
-  <div class="bg-orange-50 p-6 rounded-2xl shadow-lg border-t-4 border-orange-500 flex flex-col items-start group">
-    <span class="text-lg font-semibold text-orange-700 mb-1">Total Remaining Commission</span>
-    <span class="text-3xl font-bold text-orange-900">₱{{ total_remaining|floatformat:2|intcomma }}</span>
-  </div>
-  <div class="bg-blue-50 p-6 rounded-2xl shadow-lg border-t-4 border-blue-500 flex flex-col items-start group">
-    <span class="text-lg font-semibold text-blue-700 mb-1">Total Number of Entries</span>
-    <span class="text-3xl font-bold text-blue-900">{{ commission_count }}</span>
-  </div>
-</div>
-
-<div class="bg-white rounded-lg shadow-lg overflow-hidden">
-    <div class="p-12">
-            <!-- Search and Filter Section -->
-            <div class="mb-6">
-                <div class="flex flex-wrap gap-4 items-center">
-                    <div class="flex-1">
-                        <div class="relative">
-                            <input type="text" id="searchInput" placeholder="Search by project, developer, or release code..." 
-                                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <select id="typeFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">All Types</option>
-                            <option value="down-payment">Down Payment</option>
-                            <option value="loan-take-out">Loan Take Out</option>
-                        </select>
-                        <select id="dateFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">All Time</option>
-                            <option value="today">Today</option>
-                            <option value="week">This Week</option>
-                            <option value="month">This Month</option>
-                            <option value="year">This Year</option>
-                        </select>
-                    </div>
+<!-- Enhanced Stats Cards with Charts -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <!-- Total Received Card -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">Total Received</p>
+                <p class="text-2xl font-bold text-green-600">₱{{ total_commission|floatformat:2|intcomma }}</p>
+                <div class="flex items-center mt-2">
+                    <svg class="w-4 h-4 text-green-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-green-600 font-medium">Completed</span>
                 </div>
             </div>
+            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                </svg>
+            </div>
+        </div>
+    </div>
 
-            <!-- Commission Table -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+    <!-- Total Remaining Card -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 hover:shadow-xl transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">Total Remaining</p>
+                <p class="text-2xl font-bold text-orange-600">₱{{ total_remaining|floatformat:2|intcomma }}</p>
+                <div class="flex items-center mt-2">
+                    <svg class="w-4 h-4 text-orange-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-orange-600 font-medium">Pending</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
 
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Released</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release Code</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Buyer</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission Amount</th>
-{% if user.is_superuser %}
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
-{% endif %}
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200" id="commissionTableBody">
-                        {% for commission in page_obj %}
-                        <tr class="hover:bg-gray-50 transition-colors duration-200" data-type="{{ commission.payment_type|slugify }}" data-date="{{ commission.date_released|date:'Y-m-d' }}">
-                            <td class="px-6 py-4">
-                                <a href="{% url 'view_receivable_voucher' release_number=commission.release_number %}" 
-                                   class="tooltip p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors duration-200"
-                                   data-tippy-content="View Commission Voucher">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clip-rule="evenodd"/>
-                                        <path d="M9 8a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                                        <path d="M7 10a1 1 0 011-1h4a1 1 0 110 2H8a1 1 0 01-1-1z"/>
-                                    </svg>
-                                </a>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm text-gray-900">{{ commission.date_released|date:"M d, Y" }}</div>
-                                <div class="text-xs text-gray-500">{{ commission.date_released|date:"l" }}</div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm font-medium text-blue-600">{{ commission.release_number }}</div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm font-medium text-gray-900">{{ commission.project_name }}</div>
-                                <div class="text-xs text-gray-500">Total Expected: ₱{{ commission.total_expected|floatformat:2|intcomma }}</div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="text-sm text-gray-900">{{ commission.buyer }}</div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="font-medium text-green-700">₱{{ commission.commission_amount|floatformat:2|intcomma }}</div>
-                                <div class="text-xs text-gray-500">Total Received: ₱{{ commission.total_received|floatformat:2|intcomma }}</div>
-                            </td>
-{% if user.is_superuser %}
-                            <td class="px-6 py-4">{{ commission.agent_name }}</td>
-{% endif %}
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
-                                    {% if commission.payment_type == 'Down Payment' %}
-                                        bg-green-100 text-green-800
-                                    {% else %}
-                                        bg-blue-100 text-blue-800
-                                    {% endif %}">
-                                    {{ commission.payment_type }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center space-x-2">
-                                    <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2 overflow-hidden">
-                                        <div class="h-full rounded-full {% if commission.completion_percentage >= 100 %}bg-green-500{% elif commission.completion_percentage > 0 %}bg-yellow-500{% else %}bg-red-500{% endif %}" 
-                                             style="width: {{ commission.completion_percentage }}%"></div>
-                                    </div>
-                                    <span class="text-xs font-medium whitespace-nowrap {% if commission.completion_percentage >= 100 %}text-green-600{% elif commission.completion_percentage > 0 %}text-yellow-600{% else %}text-red-600{% endif %}">
-                                        {{ commission.completion_percentage|floatformat:0 }}%
-                                    </span>
-                                </div>
-                            </td>
-                         
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">
-                                No commission records found. Commission records will appear here when payments are recorded in the tranche system.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            <!-- Pagination controls -->
-<div class="mt-6 flex justify-center">
-    {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 mx-1 bg-gray-200 rounded">Prev</a>
-    {% endif %}
-    <span class="px-3 py-1 mx-1">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 mx-1 bg-gray-200 rounded">Next</a>
-    {% endif %}
-</div>
-</div>
+    <!-- Collection Rate Card with Mini Chart -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">Collection Rate</p>
+                {% widthratio total_commission total_commission|add:total_remaining 100 as collection_rate %}
+                <p class="text-2xl font-bold text-blue-600">{{ collection_rate|floatformat:1 }}%</p>
+                <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                    <div id="collectionRateBar" class="bg-blue-600 h-2 rounded-full transition-all duration-500"></div>
+                </div>
+            </div>
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript for Search and Filter -->
+<!-- Chart Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Received vs Remaining Distribution -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Commission Status Distribution</h3>
+        <div class="h-64 flex items-center justify-center">
+            <canvas id="statusChart" class="max-w-full max-h-full"></canvas>
+        </div>
+    </div>
+    
+    <!-- Monthly Receivables Trend -->
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Monthly Collection Progress</h3>
+        <div class="h-64">
+            <canvas id="monthlyTrendChart" class="max-w-full max-h-full"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Search and Filter -->
+<div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+    <div class="flex flex-col lg:flex-row gap-4 items-center">
+        <div class="flex-1">
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search by project, buyer, or release code..." 
+                       class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <select id="typeFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                <option value="">All Types</option>
+                <option value="down-payment">Down Payment</option>
+                <option value="loan-take-out">Loan Take Out</option>
+            </select>
+            <select id="statusFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                <option value="">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="partial">Partial</option>
+                <option value="pending">Pending</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Modern Data Table -->
+<div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release Info</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Details</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
+                    {% if user.is_superuser %}
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                    {% endif %}
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="commissionTableBody">
+                {% for commission in page_obj %}
+                <tr class="hover:bg-gray-50 transition-colors duration-200" 
+                    data-type="{{ commission.payment_type|slugify }}" 
+                    data-date="{{ commission.date_released|date:'Y-m-d' }}"
+                    data-status="{% if commission.completion_percentage >= 100 %}completed{% elif commission.completion_percentage > 0 %}partial{% else %}pending{% endif %}">
+                    
+                    <td class="px-6 py-4">
+                        <a href="{% url 'view_receivable_voucher' release_number=commission.release_number %}" 
+                           class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            View
+                        </a>
+                    </td>
+                    
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <div class="text-sm font-medium text-gray-900">{{ commission.release_number }}</div>
+                            <div class="text-sm text-gray-500">{{ commission.date_released|date:"M d, Y" }}</div>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1
+                                {% if commission.payment_type == 'Down Payment' %}
+                                    bg-green-100 text-green-800
+                                {% else %}
+                                    bg-blue-100 text-blue-800
+                                {% endif %}">
+                                {{ commission.payment_type }}
+                            </span>
+                        </div>
+                    </td>
+                    
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <div class="text-sm font-medium text-gray-900">{{ commission.project_name }}</div>
+                            <div class="text-sm text-gray-500">{{ commission.buyer }}</div>
+                            <div class="text-xs text-gray-400 mt-1">Expected: ₱{{ commission.total_expected|floatformat:2|intcomma }}</div>
+                        </div>
+                    </td>
+                    
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col">
+                            <div class="text-lg font-bold text-green-600">₱{{ commission.commission_amount|floatformat:2|intcomma }}</div>
+                            <div class="text-xs text-gray-500">Received: ₱{{ commission.total_received|floatformat:2|intcomma }}</div>
+                        </div>
+                    </td>
+                    
+                    {% if user.is_superuser %}
+                    <td class="px-6 py-4">
+                        <div class="text-sm text-gray-900">{{ commission.agent_name }}</div>
+                    </td>
+                    {% endif %}
+                    
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col space-y-2">
+                            <div class="flex items-center">
+                                <div class="flex-1 bg-gray-200 rounded-full h-2 mr-3">
+                                    <div id="commission-progress-{{ forloop.counter }}" 
+                                         class="h-2 rounded-full transition-all duration-500 
+                                        {% if commission.completion_percentage >= 100 %}bg-green-500
+                                        {% elif commission.completion_percentage > 0 %}bg-yellow-500
+                                        {% else %}bg-red-500{% endif %}" 
+                                         data-percentage="{{ commission.completion_percentage }}"></div>
+                                </div>
+                                <span class="text-sm font-medium 
+                                    {% if commission.completion_percentage >= 100 %}text-green-600
+                                    {% elif commission.completion_percentage > 0 %}text-yellow-600
+                                    {% else %}text-red-600{% endif %}">
+                                    {{ commission.completion_percentage|floatformat:0 }}%
+                                </span>
+                            </div>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                {% if commission.completion_percentage >= 100 %}bg-green-100 text-green-800
+                                {% elif commission.completion_percentage > 0 %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {% if commission.completion_percentage >= 100 %}Completed
+                                {% elif commission.completion_percentage > 0 %}Partial
+                                {% else %}Pending{% endif %}
+                            </span>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <p class="text-gray-500 text-lg">No receivables found</p>
+                            <p class="text-gray-400 text-sm">Commission records will appear here when payments are recorded</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Enhanced Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+        <div class="flex items-center justify-between">
+            <div class="text-sm text-gray-700">
+                Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
+            </div>
+            <div class="flex space-x-2">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" 
+                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        Previous
+                    </a>
+                {% endif %}
+                
+                <span class="px-4 py-2 text-sm font-medium text-gray-700 bg-blue-50 border border-blue-200 rounded-lg">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+                
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" 
+                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        Next
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{{ monthly_labels|json_script:"monthly-labels" }}
+{{ monthly_collections|json_script:"monthly-collections" }}
+
+<!-- Chart.js for Data Visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Set dynamic widths for progress bars
+    const collectionRateBar = document.getElementById('collectionRateBar');
+    if (collectionRateBar) {
+        collectionRateBar.style.width = '{{ collection_rate }}%';
+    }
+
+    document.querySelectorAll('[data-percentage]').forEach(bar => {
+        bar.style.width = bar.dataset.percentage + '%';
+    });
+    // Search and Filter Functionality
     const searchInput = document.getElementById('searchInput');
     const typeFilter = document.getElementById('typeFilter');
-    const dateFilter = document.getElementById('dateFilter');
+    const statusFilter = document.getElementById('statusFilter');
     const tableBody = document.getElementById('commissionTableBody');
     const rows = tableBody.getElementsByTagName('tr');
 
     function filterTable() {
         const searchTerm = searchInput.value.toLowerCase();
         const typeTerm = typeFilter.value;
-        const dateTerm = dateFilter.value.toLowerCase();
+        const statusTerm = statusFilter.value;
 
         Array.from(rows).forEach(row => {
+            if (row.cells.length === 1) return; // Skip empty state row
+            
             const text = row.textContent.toLowerCase();
             const rowType = row.dataset.type;
-            const dateStr = row.dataset.date;
+            const rowStatus = row.dataset.status;
             
             let showRow = text.includes(searchTerm);
             
-            if (typeTerm) {
+            if (typeTerm && rowType) {
                 showRow = showRow && rowType === typeTerm;
             }
             
-            if (dateTerm) {
-                const date = dateStr ? new Date(dateStr) : null;
-                const now = new Date();
-                
-                switch(dateTerm) {
-                    case 'today':
-                        showRow = showRow && date && date.toDateString() === now.toDateString();
-                        break;
-                    case 'week':
-                        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-                        showRow = showRow && date && date >= weekAgo;
-                        break;
-                    case 'month':
-                        showRow = showRow && date && date.getMonth() === now.getMonth() && 
-                                date.getFullYear() === now.getFullYear();
-                        break;
-                    case 'year':
-                        showRow = showRow && date && date.getFullYear() === now.getFullYear();
-                        break;
-                }
+            if (statusTerm && rowStatus) {
+                showRow = showRow && rowStatus === statusTerm;
             }
             
             row.style.display = showRow ? '' : 'none';
@@ -223,70 +333,182 @@ document.addEventListener('DOMContentLoaded', function() {
 
     searchInput.addEventListener('input', filterTable);
     typeFilter.addEventListener('change', filterTable);
-    dateFilter.addEventListener('change', filterTable);
+    statusFilter.addEventListener('change', filterTable);
+
+    // Commission Status Distribution Chart (Received vs Remaining)
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        const totalReceived = parseFloat("{{ total_commission|default:0 }}") || 0;
+        const totalRemaining = parseFloat("{{ total_remaining|default:0 }}") || 0;
+        
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Total Received', 'Total Remaining'],
+                datasets: [{
+                    data: [totalReceived, totalRemaining],
+                    backgroundColor: ['#10B981', '#F59E0B'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const total = totalReceived + totalRemaining;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${label}: ₱${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateRotate: true,
+                    duration: 1000
+                }
+            }
+        });
+    }
+
+    // Monthly Collection Progress Chart
+    const monthlyTrendCtx = document.getElementById('monthlyTrendChart');
+    if (monthlyTrendCtx) {
+        // Safely parse data from the DOM
+        const labelsEl = document.getElementById('monthly-labels');
+        const collectionsEl = document.getElementById('monthly-collections');
+
+        const monthlyLabels = labelsEl ? JSON.parse(labelsEl.textContent) : [];
+        const monthlyCollections = collectionsEl ? JSON.parse(collectionsEl.textContent) : [];
+
+        // Create a target line (e.g., average collection)
+        const averageCollection = monthlyCollections.reduce((a, b) => a + b, 0) / (monthlyCollections.length || 1);
+        const targetData = Array(monthlyCollections.length).fill(averageCollection * 1.2); // Target is 20% above average
+
+        new Chart(monthlyTrendCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyLabels,
+                datasets: [
+                    {
+                        label: 'Collections',
+                        data: monthlyCollections,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#3B82F6',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    },
+                    {
+                        label: 'Target',
+                        data: targetData,
+                        borderColor: '#EF4444',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: false,
+                        pointBackgroundColor: '#EF4444',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ₱${context.parsed.y.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1500,
+                    easing: 'easeInOutQuart'
+                }
+            }
+        });
+    }
 });
 </script>
 
-<!-- Add Tippy.js for tooltips -->
-<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
-<script src="https://unpkg.com/@popperjs/core@2"></script>
-<script src="https://unpkg.com/tippy.js@6"></script>
-
-<!-- Enhance Table Rows and Progress Bars -->
 <style>
-  tr[data-row] {
-    transition: background 0.2s;
-    cursor: pointer;
-  }
-  tr[data-row]:hover {
-    background: #f0f6ff;
-  }
-  .progress-outer {
-    background: #e5e7eb;
-    border-radius: 9999px;
-    height: 8px;
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+.hover\:shadow-xl:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Fix chart container scrolling issues */
+canvas {
+    display: block !important;
+    height: auto !important;
+    max-height: 100% !important;
+}
+
+.chart-container {
+    position: relative;
     overflow: hidden;
-    margin-right: 0.5rem;
-    flex: 1;
-  }
-  .progress-inner {
-    height: 100%;
-    border-radius: 9999px;
-    transition: width 1s cubic-bezier(0.4,0,0.2,1);
-  }
+}
 </style>
 
-<!-- Modal for View Details (optional, for future expansion) -->
-<div id="viewModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
-  <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full relative animate-fade-in">
-    <button onclick="closeViewModal()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl">&times;</button>
-    <div id="viewModalContent"></div>
-  </div>
-</div>
-
-<script>
-window.addEventListener('DOMContentLoaded', function() {
-  tippy('[data-tippy-content]', {
-    animation: 'scale',
-    theme: 'light-border',
-    delay: [100, 50],
-    arrow: true,
-    placement: 'top',
-  });
-  // Animate progress bars
-  document.querySelectorAll('.progress-inner').forEach(function(bar) {
-    setTimeout(function() {
-      bar.style.width = bar.getAttribute('data-width');
-    }, 200);
-  });
-});
-// Modal logic for view details (future expansion)
-function openViewModal(html) {
-  document.getElementById('viewModalContent').innerHTML = html;
-  document.getElementById('viewModal').classList.remove('hidden');
-}
-function closeViewModal() {
-  document.getElementById('viewModal').classList.add('hidden');
-}
-</script>
 {% endblock %}

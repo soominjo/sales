@@ -7,465 +7,808 @@
 {% load static %}
 
 <style>
-  .progress-bar-1 {
-    width: {{ percentage_received|default:0 }}%;
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
-  .progress-bar-2 {
-    width: {{ percentage_received2|default:0 }}%;
+  
+  .card-hover {
+    transition: all 0.3s ease;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  }
+  
+  .status-badge {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  
+  .table-row:hover {
+    background: linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%);
   }
 </style>
 
-
-<!-- Consistent Header -->
-<div class="w-full flex flex-col items-center justify-center mt-8 mb-8">
-  <div class="flex flex-col items-center">
-    <h1 class="text-2xl font-bold text-blue-800 font-medium mt-1">Tranches Details Overview</h1>
+<!-- Header -->
+<div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-14">
+  <div>
+    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+      <i class="fas fa-file-invoice-dollar text-blue-500 mr-3"></i>
+      Tranche Details
+    </h1>
+    <p class="text-gray-600 mt-2">{{ record.project_name }} - {{ record.phase }}</p>
   </div>
 </div>
 
-
-<div class="bg-white rounded-lg shadow-lg overflow-hidden">
-    <div class="p-6">
-        <!-- Header Section -->
-        <div class="flex justify-between items-center mb-6">
-            <div class="flex space-x-3">
-                {% if user.is_superuser or user.is_staff %}
-
-                <a href="{% url 'edit_tranche' record.id %}" 
-                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                    Edit Tranche
-                </a>
-                {% endif %}
-
-                <a href="{% url 'tranche_history' %}" 
-                   class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200">
-                    Back to History
-                </a>
-            </div>
-        </div>
-
-        {% if user.is_superuser %}
-<!-- Modernized Financial Summary Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 px-2">
-  <div class="bg-blue-50 p-6 rounded-2xl shadow-lg border-t-4 border-blue-500 flex flex-col items-start group">
-    <span class="text-lg font-semibold text-blue-800 mb-1">Contract Details</span>
-    <span class="text-base text-gray-700">Total Contract Price:</span>
-    <span class="text-2xl font-bold text-blue-900 mb-1">₱ {{ total_contract_price|floatformat:2|intcomma }}</span>
-     <span class="text-base text-gray-700">Net of VAT Amount:</span>
-    <span class="text-lg font-semibold text-blue-700 mb-1">₱ {{ net_of_vat_amount|floatformat:2|intcomma }}</span>
-    <span class="text-base text-gray-700">Less Process Fee ({{ process_fee_percentage }}%):</span>
-    <span class="text-lg font-semibold text-blue-700 mb-1">₱ {{ less_process_fee|floatformat:2|intcomma }}</span>
+<div class="container mx-auto px-6">
+  <!-- Action Buttons -->
+  <div class="flex flex-wrap gap-4 mb-8">
    
-    <span class="text-base text-gray-700">Total Selling Price:</span>
-    <span class="text-lg font-semibold text-blue-700">₱ {{ total_selling_price|floatformat:2|intcomma }}</span>
-    <span class="text-base text-gray-700">Commission Rate:</span>
-    <span class="text-lg font-semibold text-blue-700">{{ commission_rate }}%</span>
-    <span class="text-base text-gray-700">Gross Commission:</span>
-    <span class="text-lg font-semibold text-blue-700">₱ {{ gross_commission|floatformat:2|intcomma }}</span>
-</div>
-  <div class="bg-green-50 p-6 rounded-2xl shadow-lg border-t-4 border-green-500 flex flex-col items-start group">
-    <span class="text-lg font-semibold text-green-800 mb-1">Commission Details</span>
-    <span class="text-base text-gray-700">VAT Rate:</span>
-    <span class="text-lg font-semibold text-green-700">{{ vat_rate }}%</span>
-    <span class="text-base text-gray-700">VAT Amount:</span>
-    <span class="text-lg font-semibold text-green-700">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
-    <span class="text-base text-gray-700">Net of VAT:</span>
-    <span class="text-lg font-semibold text-green-700">₱ {{ net_of_vat|floatformat:2|intcomma }}</span>
-
-    <span class="text-base text-gray-700">Withholding Tax Rate:</span>
-    <span class="text-lg font-semibold text-green-700">{{ withholding_tax_rate }}%</span>
-    <span class="text-base text-gray-700">Withholding Tax Amount:</span>
-    <span class="text-lg font-semibold text-green-700">₱ {{ withholding_tax_amount|floatformat:2|intcomma }}</span>
-
-    <span class="text-base text-gray-700">Net Commission:</span>
-    <span class="text-lg font-semibold text-green-700">₱ {{ net_commission|floatformat:2|intcomma }}</span>
+    
+    <a href="{% url 'tranche_history' %}" 
+       class="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+      </svg>
+      Back to History
+    </a>
   </div>
-  <div class="bg-orange-50 p-6 rounded-2xl shadow-lg border-t-4 border-orange-500 flex flex-col items-start group">
-    <span class="text-lg font-semibold text-orange-800 mb-1">Deductions</span>
-    <span class="text-base text-gray-700">Type:</span>
-    <span class="text-lg font-semibold text-orange-700">{{ deduction_type|default:"None" }}</span>
-    <span class="text-base text-gray-700">Amount:</span>
-    <span class="text-lg font-semibold text-orange-700">₱ {{ other_deductions|floatformat:2|intcomma }}</span>
-    <span class="text-base text-gray-700">Tax Rate:</span>
-    <span class="text-lg font-semibold text-orange-700">{{ deduction_tax_rate }}%</span>
-    <span class="text-base text-gray-700">Net Deduction:</span>
-    <span class="text-lg font-semibold text-orange-700">₱ {{ deduction_net|floatformat:2|intcomma }}</span>
-  </div>
-</div>
-{% endif %}
 
-
-            <!-- Basic Information -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Project Details</h3>
-                    <div class="space-y-3">
-                        <div>
-                            <span class="text-gray-600">Project Name:</span>
-                            <span class="font-medium ml-2">{{ record.project_name }}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-600">Phase:</span>
-                            <span class="font-medium ml-2">{{ record.phase }}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-600">Unit ID:</span>
-                            <span class="font-medium ml-2">{{ record.unit_id }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Agent & Buyer Details</h3>
-                    <div class="space-y-3">
-                        <div>
-                            <span class="text-gray-600">Agent Name:</span>
-                            <span class="font-medium ml-2">{{ record.agent_name }}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-600">Buyer Name:</span>
-                            <span class="font-medium ml-2">{{ record.buyer_name }}</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-600">Reservation Date:</span>
-                            <span class="font-medium ml-2">{{ record.reservation_date|date:"M d, Y" }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-         
-
-            <!-- Commission Release Conditions -->
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8 transform transition-all duration-300 hover:scale-[1.02]">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                        </svg>
-                        Commission Release Conditions
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-blue-50 p-4 rounded-lg transform transition-all duration-300 hover:shadow-lg">
-                            <h4 class="text-sm font-semibold text-blue-800 mb-2 flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                                </svg>
-                                Down Payment Period
-                            </h4>
-                            <div class="space-y-2">
-                                <div>
-                                    <span class="text-gray-600">Percentage:</span>
-                                    <span class="font-medium ml-2">{{ option1_percentage }}%</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Total Expected:</span>
-                                    <span class="font-medium ml-2">₱ {{ total_commission1|floatformat:2|intcomma }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Total Received:</span>
-                                    <span class="font-medium ml-2">₱ {{ total_commission_received|floatformat:2|intcomma }}</span>
-                                </div>
-                                <div class="mt-2 pt-2 border-t border-orange-100">
-                                    <span class="text-gray-600">Completion:</span>
-                                    <div class="mt-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div class="h-full bg-blue-500 rounded-full transition-all duration-500 progress-bar-1"></div>
-                                    </div>
-                                    <div class="flex justify-between text-xs mt-1">
-                                        <span class="text-blue-600">{{ percentage_received|floatformat:1 }}% Received</span>
-                                        <span class="text-gray-500">{{ percentage_remaining|floatformat:1 }}% Remaining</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-orange-50 p-4 rounded-lg transform transition-all duration-300 hover:shadow-lg">
-                            <h4 class="text-sm font-semibold text-orange-800 mb-2 flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                Loan Take Out
-                            </h4>
-                            <div class="space-y-2">
-                                <div>
-                                    <span class="text-gray-600">Percentage:</span>
-                                    <span class="font-medium ml-2">{{ option2_percentage }}%</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Total Expected:</span>
-                                    <span class="font-medium ml-2">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Total Received:</span>
-                                    <span class="font-medium ml-2">₱ {{ total_commission_received2|floatformat:2|intcomma }}</span>
-                                </div>
-                                <div class="mt-2 pt-2 border-t border-green-100">
-                                    <span class="text-gray-600">Completion:</span>
-                                    <div class="mt-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                        <div class="h-full bg-green-500 rounded-full transition-all duration-500 progress-bar-2"></div>
-                                    </div>
-                                    <div class="flex justify-between text-xs mt-1">
-                                        <span class="text-green-600">{{ percentage_received2|floatformat:1 }}% Received</span>
-                                        <span class="text-gray-500">{{ percentage_remaining2|floatformat:1 }}% Remaining</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Schedule Information -->
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8 transform transition-all duration-300 hover:scale-[1.02]">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
-                        <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        Schedule Information
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-green-50 p-4 rounded-lg transform transition-all duration-300 hover:shadow-lg">
-                            <h4 class="text-sm font-semibold text-green-800 mb-2 flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                </svg>
-                                Payment Schedule
-                            </h4>
-                            <div class="space-y-2">
-                                <div>
-                                    <span class="text-gray-600">Schedule Type:</span>
-                                    <span class="font-medium ml-2">{{ tranche_option }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Number of Months:</span>
-                                    <span class="font-medium ml-2">{{ record.number_months }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Start Date:</span>
-                                    <span class="font-medium ml-2">{{ record.reservation_date|date:"M d, Y" }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-blue-50 p-4 rounded-lg transform transition-all duration-300 hover:shadow-lg">
-                            <h4 class="text-sm font-semibold text-blue-800 mb-2">Down Payment Progress</h4>
-                            <div class="space-y-2">
-                                <div>
-                                    <span class="text-gray-600">Completed Tranches:</span>
-                                    <span class="font-medium ml-2">{{ dp_tranches|filter_received|length }} of {{ dp_tranches|length }}</span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Next Due Date:</span>
-                                    <span class="font-medium ml-2">
-                                        {% with next_due=dp_tranches|next_due_tranche %}
-                                            {% if next_due %}
-                                                {{ next_due.expected_date|date:"M d, Y" }}
-                                            {% else %}
-                                                All Completed
-                                            {% endif %}
-                                        {% endwith %}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Last Payment:</span>
-                                    <span class="font-medium ml-2">
-                                        {% with last_paid=dp_tranches|last_paid_tranche %}
-                                            {% if last_paid %}
-                                                {{ last_paid.date_received|date:"M d, Y" }}
-                                            {% else %}
-                                                No payments yet
-                                            {% endif %}
-                                        {% endwith %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        
-
-                        <div class="bg-orange-50 p-4 rounded-lg">
-                            <h4 class="text-sm font-semibold text-orange-800 mb-2">Loan Take Out Status</h4>
-                            <div class="space-y-2">
-                                <div>
-                                    <span class="text-gray-600">Expected Date:</span>
-                                    <span class="font-medium ml-2">
-                                        {% for item in lto_tranches %}
-                                            {{ item.tranche.expected_date|date:"M d, Y" }}
-                                        {% endfor %}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Actual Date:</span>
-                                    <span class="font-medium ml-2">
-                                        {% for item in lto_tranches %}
-                                            {% if item.tranche.date_received %}
-                                                {{ item.tranche.date_received|date:"M d, Y" }}
-                                            {% else %}
-                                                Pending
-                                            {% endif %}
-                                        {% endfor %}
-                                    </span>
-                                </div>
-                                <div>
-                                    <span class="text-gray-600">Status:</span>
-                                    <span class="font-medium ml-2">
-                                        {% for item in lto_tranches %}
-                                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded
-                                                {% if item.tranche.status == 'Received' %}text-green-700 bg-green-100
-                                                {% elif item.tranche.status == 'Partial' %}text-yellow-700 bg-yellow-100
-                                                {% else %}text-red-700 bg-red-100{% endif %}">
-                                                {{ item.tranche.status }}
-                                            </span>
-                                        {% endfor %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-      
-
-            <!-- Down Payment Schedule -->
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Down Payment Schedule ({{ option1_percentage }}%)</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr class="bg-blue-600 text-white">
-                                    <th class="px-4 py-3 text-left">Tranche #</th>
-                                    <th class="px-4 py-3 text-left">Expected Date</th>
-                                    <th class="px-4 py-3 text-left">Net Commission</th>
-                                    <th class="px-4 py-3 text-left">Less Tax</th>
-                                    <th class="px-4 py-3 text-left">Expected Commission</th>
-                                    <th class="px-4 py-3 text-left">Actual Commission</th>
-                                    <th class="px-4 py-3 text-left">Total Balance</th>
-                                    <th class="px-4 py-3 text-left">Commission Status</th>
-                                    {% if user.is_superuser %}
-                                    <th class="px-4 py-3 text-left">Invoice</th>
-                                    {% endif %}
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 bg-white">
-                                {% for item in dp_tranches %}
-                                <tr class="hover:bg-blue-50 transition-colors duration-150">
-                                    <td class="px-4 py-3 text-center">{{ item.tranche.tranche_number }}</td>
-                                    <td class="px-4 py-3 text-center">{{ item.tranche.expected_date|date:"M d, Y" }}</td>
-                                    <td class="px-4 py-3 text-center">₱ {{ item.net_amount|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center">₱{{ item.tax_amount|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center">₱ {{ item.expected_commission|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center font-semibold bg-green-100">
-                                        ₱ {{ item.tranche.received_amount|floatformat:2|intcomma }}
-                                    </td>
-                                    <td class="px-4 py-3 text-center bg-green-50 even:bg-green-100 font-medium">
-                                        ₱ {{ item.balance|floatformat:2|intcomma }}
-                                    </td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span class="inline-block px-2 py-1 text-xs font-semibold rounded
-                                            {% if item.tranche.status == 'Received' %}text-green-700 bg-green-100
-                                            {% elif item.tranche.status == 'Partial' %}text-yellow-700 bg-yellow-100
-                                            {% else %}text-red-700 bg-red-100{% endif %}">
-                                            {{ item.tranche.status }}
-                                        </span>
-                                    </td>
-                                    {% if user.is_superuser %}      
-                                    <td class="px-4 py-3 text-center">
-                                        <a href="{% url 'create_invoice' item.tranche.id %}" class="px-2 py-1 bg-blue-600 text-white rounded text-xs">Invoice</a>
-                                    </td>
-                                    {% endif %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Loan Take Out Schedule -->
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                <div class="p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Loan Take Out Schedule ({{ option2_percentage }}%)</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr class="bg-blue-600 text-white">
-                                    <th class="px-4 py-3 text-left">Expected Date</th>
-                                    <th class="px-4 py-3 text-left">Net Commission</th>
-                                    <th class="px-4 py-3 text-left">Less Tax</th>
-                                    <th class="px-4 py-3 text-left">Expected Commission</th>
-                                    <th class="px-4 py-3 text-left">Actual Commission</th>
-                                    <th class="px-4 py-3 text-left">Total Balance</th>
-                                    <th class="px-4 py-3 text-left">Commission Status</th>
-                                        {% if user.is_superuser %}
-                                    <th class="px-4 py-3 text-left">Invoice</th>
-                                    {% endif %}
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 bg-white">
-                                {% for item in lto_tranches %}
-                                <tr class="hover:bg-blue-50 transition-colors duration-150">
-                                    <td class="px-4 py-3 text-center">{{ item.tranche.expected_date|date:"M d, Y" }}</td>
-                                    <td class="px-4 py-3 text-center">₱ {{ lto_deduction_value|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center">₱ {{ lto_deduction_tax|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center font-semibold bg-green-100">
-                                        ₱ {{ item.tranche.received_amount|floatformat:2|intcomma }}
-                                    </td>
-                                    <td class="px-4 py-3 text-center bg-green-50 even:bg-green-100 font-medium">₱ {{ item.balance|floatformat:2|intcomma }}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span class="inline-block px-2 py-1 text-xs font-semibold rounded
-                                            {% if item.tranche.status == 'Received' %}text-green-700 bg-green-100
-                                            {% elif item.tranche.status == 'Partial' %}text-yellow-700 bg-yellow-100
-                                            {% else %}text-red-700 bg-red-100{% endif %}">
-                                            {{ item.tranche.status }}
-                                        </span>
-                                    </td>
-                                    {% if user.is_superuser %}  
-                                    <td class="px-4 py-3 text-center">
-                                        <a href="{% url 'create_invoice' item.tranche.id %}" class="px-2 py-1 bg-blue-600 text-white rounded text-xs">Invoice</a>
-                                    </td>
-                                    {% endif %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Add Tooltips Script -->
-            <script>
-                // Add hover effects for cards
-                document.querySelectorAll('.rounded-lg').forEach(card => {
-                    card.addEventListener('mouseenter', function() {
-                        this.classList.add('shadow-lg');
-                    });
-                    card.addEventListener('mouseleave', function() {
-                        this.classList.remove('shadow-lg');
-                    });
-                });
-
-                // Animate progress bars on scroll
-                function animateProgressBars() {
-                    const progressBars = document.querySelectorAll('.bg-orange-500, .bg-green-500');
-                    progressBars.forEach(bar => {
-                        const rect = bar.getBoundingClientRect();
-                        if (rect.top <= window.innerHeight && rect.bottom >= 0) {
-                            bar.style.transition = 'width 1s ease-in-out';
-                        }
-                    });
-                }
-
-                // Listen for scroll events
-                window.addEventListener('scroll', animateProgressBars);
-                // Initial check
-                animateProgressBars();
-            </script>
-
+  {% if user.is_superuser %}
+  <!-- Enhanced Financial Summary Cards -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+    <!-- Contract Details Card -->
+    <div class="bg-white rounded-2xl shadow-xl p-8 card-hover border-l-4 border-blue-500">
+      <div class="flex items-center mb-6">
+        <div class="bg-blue-100 rounded-full p-3 mr-4">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
         </div>
+        <h3 class="text-2xl font-bold text-gray-800">Contract Details</h3>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="bg-blue-50 rounded-lg p-4">
+          <p class="text-sm text-gray-600 mb-1">Total Contract Price</p>
+          <p class="text-3xl font-bold text-blue-900">₱ {{ total_contract_price|floatformat:2|intcomma }}</p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-600">Net of VAT</p>
+            <p class="text-lg font-semibold text-gray-800">₱ {{ net_of_vat_amount|floatformat:2|intcomma }}</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Process Fee ({{ process_fee_percentage }}%)</p>
+            <p class="text-lg font-semibold text-gray-800">₱ {{ less_process_fee|floatformat:2|intcomma }}</p>
+          </div>
+        </div>
+        
+        <div class="border-t pt-4">
+          <p class="text-sm text-gray-600">Total Selling Price</p>
+          <p class="text-xl font-bold text-blue-700">₱ {{ total_selling_price|floatformat:2|intcomma }}</p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-600">Commission Rate</p>
+            <p class="text-lg font-semibold text-blue-600">{{ commission_rate }}%</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Gross Commission</p>
+            <p class="text-lg font-semibold text-blue-600">₱ {{ gross_commission|floatformat:2|intcomma }}</p>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Commission Details Card -->
+    <div class="bg-white rounded-2xl shadow-xl p-8 card-hover border-l-4 border-green-500">
+      <div class="flex items-center mb-6">
+        <div class="bg-green-100 rounded-full p-3 mr-4">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+          </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800">Commission Details</h3>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-600">VAT Rate</p>
+            <p class="text-lg font-semibold text-green-600">{{ vat_rate }}%</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">VAT Amount</p>
+            <p class="text-lg font-semibold text-green-600">₱ {{ vat_amount|floatformat:2|intcomma }}</p>
+          </div>
+        </div>
+        
+        <div class="bg-green-50 rounded-lg p-4">
+          <p class="text-sm text-gray-600 mb-1">Net of VAT</p>
+          <p class="text-2xl font-bold text-green-700">₱ {{ net_of_vat|floatformat:2|intcomma }}</p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-600">Withholding Tax Rate</p>
+            <p class="text-lg font-semibold text-green-600">{{ withholding_tax_rate }}%</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Withholding Tax</p>
+            <p class="text-lg font-semibold text-green-600">₱ {{ withholding_tax_amount|floatformat:2|intcomma }}</p>
+          </div>
+        </div>
+        
+        <div class="border-t pt-4">
+          <p class="text-sm text-gray-600">Net Commission</p>
+          <p class="text-xl font-bold text-green-700">₱ {{ net_commission|floatformat:2|intcomma }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deductions Card -->
+    <div class="bg-white rounded-2xl shadow-xl p-8 card-hover border-l-4 border-orange-500">
+      <div class="flex items-center mb-6">
+        <div class="bg-orange-100 rounded-full p-3 mr-4">
+          <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4m16 0l-4 4m4-4l-4-4"></path>
+          </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800">Deductions</h3>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <p class="text-sm text-gray-600">Deduction Type</p>
+          <p class="text-lg font-semibold text-orange-600">{{ deduction_type|default:"None" }}</p>
+        </div>
+        
+        <div class="bg-orange-50 rounded-lg p-4">
+          <p class="text-sm text-gray-600 mb-1">Deduction Amount</p>
+          <p class="text-2xl font-bold text-orange-700">₱ {{ other_deductions|floatformat:2|intcomma }}</p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-sm text-gray-600">Tax Rate</p>
+            <p class="text-lg font-semibold text-orange-600">{{ deduction_tax_rate }}%</p>
+          </div>
+          <div>
+            <p class="text-sm text-gray-600">Net Deduction</p>
+            <p class="text-lg font-semibold text-orange-600">₱ {{ deduction_net|floatformat:2|intcomma }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Project & Agent Information -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+    <div class="bg-white rounded-2xl shadow-xl p-8 card-hover">
+      <div class="flex items-center mb-6">
+        <div class="bg-purple-100 rounded-full p-3 mr-4">
+          <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800">Project Details</h3>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+          <span class="text-gray-600 font-medium">Project Name:</span>
+          <span class="font-bold text-gray-800">{{ record.project_name }}</span>
+        </div>
+        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+          <span class="text-gray-600 font-medium">Phase:</span>
+          <span class="font-bold text-gray-800">{{ record.phase }}</span>
+        </div>
+        <div class="flex justify-between items-center py-3">
+          <span class="text-gray-600 font-medium">Unit ID:</span>
+          <span class="font-bold text-gray-800">{{ record.unit_id }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-xl p-8 card-hover">
+      <div class="flex items-center mb-6">
+        <div class="bg-indigo-100 rounded-full p-3 mr-4">
+          <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800">Agent & Buyer Details</h3>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+          <span class="text-gray-600 font-medium">Agent Name:</span>
+          <span class="font-bold text-gray-800">{{ record.agent_name }}</span>
+        </div>
+        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+          <span class="text-gray-600 font-medium">Buyer Name:</span>
+          <span class="font-bold text-gray-800">{{ record.buyer_name }}</span>
+        </div>
+        <div class="flex justify-between items-center py-3">
+          <span class="text-gray-600 font-medium">Reservation Date:</span>
+          <span class="font-bold text-gray-800">{{ record.reservation_date|date:"M d, Y" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commission Release Progress -->
+  <div class="bg-white rounded-2xl shadow-xl p-8 mb-12 card-hover">
+    <div class="flex items-center mb-8">
+      <div class="bg-green-100 rounded-full p-3 mr-4">
+        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-800">Commission Release Progress</h3>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Down Payment Progress -->
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6">
+        <div class="flex items-center mb-4">
+          <div class="bg-blue-500 rounded-full p-2 mr-3">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+            </svg>
+          </div>
+          <h4 class="text-xl font-bold text-blue-800">Down Payment Period</h4>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="flex justify-between">
+            <span class="text-gray-700">Percentage:</span>
+            <span class="font-bold text-blue-700">{{ option1_percentage }}%</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Expected:</span>
+            <span class="font-bold text-blue-700">₱ {{ total_commission1|floatformat:2|intcomma }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Received:</span>
+            <span class="font-bold text-green-700">₱ {{ total_commission_received|floatformat:2|intcomma }}</span>
+          </div>
+          
+          <div class="mt-6">
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-blue-600 font-medium">{{ percentage_received|floatformat:1 }}% Complete</span>
+              <span class="text-gray-500">{{ percentage_remaining|floatformat:1 }}% Remaining</span>
+            </div>
+            <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-1000" style="width: {{ percentage_received|default:0 }}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loan Take Out Progress -->
+      <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6">
+        <div class="flex items-center mb-4">
+          <div class="bg-orange-500 rounded-full p-2 mr-3">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h4 class="text-xl font-bold text-orange-800">Loan Take Out</h4>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="flex justify-between">
+            <span class="text-gray-700">Percentage:</span>
+            <span class="font-bold text-orange-700">{{ option2_percentage }}%</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Expected:</span>
+            <span class="font-bold text-orange-700">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Received:</span>
+            <span class="font-bold text-green-700">₱ {{ total_commission_received2|floatformat:2|intcomma }}</span>
+          </div>
+          
+          <div class="mt-6">
+            <div class="flex justify-between text-sm mb-2">
+              <span class="text-orange-600 font-medium">{{ percentage_received2|floatformat:1 }}% Complete</span>
+              <span class="text-gray-500">{{ percentage_remaining2|floatformat:1 }}% Remaining</span>
+            </div>
+            <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+              <div class="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-1000" style="width: {{ percentage_received2|default:0 }}%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Overview -->
+  <div class="bg-white rounded-2xl shadow-xl p-8 mb-12 card-hover">
+    <div class="flex items-center mb-8">
+      <div class="bg-purple-100 rounded-full p-3 mr-4">
+        <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+      </div>
+      <h3 class="text-2xl font-bold text-gray-800">Schedule Overview</h3>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6">
+        <h4 class="text-lg font-bold text-green-800 mb-4">Payment Schedule</h4>
+        <div class="space-y-3">
+          <div class="flex justify-between">
+            <span class="text-gray-700">Type:</span>
+            <span class="font-semibold text-green-700">{{ tranche_option }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Duration:</span>
+            <span class="font-semibold text-green-700">{{ record.number_months }} months</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Start Date:</span>
+            <span class="font-semibold text-green-700">{{ record.reservation_date|date:"M d, Y" }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
+        <h4 class="text-lg font-bold text-blue-800 mb-4">Down Payment Status</h4>
+        <div class="space-y-3">
+          <div class="flex justify-between">
+            <span class="text-gray-700">Completed:</span>
+            <span class="font-semibold text-blue-700">{{ dp_tranches|filter_received|length }} of {{ dp_tranches|length }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Next Due:</span>
+            <span class="font-semibold text-blue-700">
+              {% with next_due=dp_tranches|next_due_tranche %}
+                {% if next_due %}
+                  {{ next_due.expected_date|date:"M d, Y" }}
+                {% else %}
+                  All Completed
+                {% endif %}
+              {% endwith %}
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Last Payment:</span>
+            <span class="font-semibold text-blue-700">
+              {% with last_paid=dp_tranches|last_paid_tranche %}
+                {% if last_paid %}
+                  {{ last_paid.date_received|date:"M d, Y" }}
+                {% else %}
+                  No payments yet
+                {% endif %}
+              {% endwith %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6">
+        <h4 class="text-lg font-bold text-orange-800 mb-4">Loan Take Out Status</h4>
+        <div class="space-y-3">
+          <div class="flex justify-between">
+            <span class="text-gray-700">Expected:</span>
+            <span class="font-semibold text-orange-700">
+              {% for item in lto_tranches %}
+                {{ item.tranche.expected_date|date:"M d, Y" }}
+              {% endfor %}
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Actual:</span>
+            <span class="font-semibold text-orange-700">
+              {% for item in lto_tranches %}
+                {% if item.tranche.date_received %}
+                  {{ item.tranche.date_received|date:"M d, Y" }}
+                {% else %}
+                  Pending
+                {% endif %}
+              {% endfor %}
+            </span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-700">Status:</span>
+            <span class="font-semibold">
+              {% for item in lto_tranches %}
+                <span class="inline-block px-3 py-1 text-xs font-bold rounded-full status-badge
+                  {% if item.tranche.status == 'Received' %}text-green-700 bg-green-200
+                  {% elif item.tranche.status == 'Partial' %}text-yellow-700 bg-yellow-200
+                  {% else %}text-red-700 bg-red-200{% endif %}">
+                  {{ item.tranche.status }}
+                </span>
+              {% endfor %}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-4 mb-8 justify-end items-center">
+
+  {% if user.is_superuser or user.is_staff %}
+  <a href="{% url 'edit_tranche' record.id %}" 
+     class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+    </svg>
+    Edit Tranche
+  </a>
+  {% endif %}
+
 </div>
-{% endblock %} 
+
+
+  <!-- Invoice Summary Section -->
+  <div id="invoice-summary" class="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6 mb-8 hidden">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <svg class="w-8 h-8 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+        </svg>
+        <div>
+          <h3 class="text-xl font-bold text-gray-800">Selected Invoices Summary</h3>
+          <p class="text-gray-600">Combined total of <span id="selected-count">0</span> selected invoice(s)</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-sm text-gray-600 mb-1">Total Expected Commission</div>
+          <div class="text-2xl font-bold text-green-600" id="summary-expected">₱ 0.00</div>
+          <div class="text-sm text-gray-600 mt-2">Total Actual Commission</div>
+          <div class="text-xl font-semibold text-blue-600" id="summary-actual">₱ 0.00</div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <form id="generate-invoice-form" method="POST" action="{% url 'create_combined_invoice' %}">
+            {% csrf_token %}
+            <input type="hidden" id="selected-tranche-ids" name="tranche_ids" value="">
+            <button type="submit" id="generate-invoice-btn" class="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Generate Combined Invoice
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Down Payment Schedule Table -->
+  <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-12">
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 flex items-center justify-between">
+      <h3 class="text-2xl font-bold text-white">Down Payment Schedule ({{ option1_percentage }}%)</h3>
+      <div class="flex items-center">
+        <label class="flex items-center text-white cursor-pointer">
+          <input type="checkbox" id="select-all-dp" class="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+          <span class="text-sm font-medium">Select All</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider w-16">Select</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Tranche #</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Date</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Net Commission</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Less Tax</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Commission</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Actual Commission</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Balance</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
+            {% if user.is_superuser %}
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Action</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for item in dp_tranches %}
+          <tr class="table-row">
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <input type="checkbox" class="invoice-checkbox dp-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" 
+                     data-expected="{{ item.expected_commission }}" 
+                     data-actual="{{ item.tranche.received_amount }}" 
+                     data-tranche-id="{{ item.tranche.id }}">
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-gray-900">{{ item.tranche.tranche_number }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center text-gray-700">{{ item.tranche.expected_date|date:"M d, Y" }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-semibold text-gray-900">₱ {{ item.net_amount|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center text-red-600 font-medium">₱ {{ item.tax_amount|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-semibold text-blue-600">₱ {{ item.expected_commission|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-green-600 bg-green-50">₱ {{ item.tranche.received_amount|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-orange-600 bg-orange-50">₱ {{ item.balance|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <span class="inline-flex px-3 py-1 text-xs font-bold rounded-full status-badge
+                {% if item.tranche.status == 'Received' %}text-green-700 bg-green-200
+                {% elif item.tranche.status == 'Partial' %}text-yellow-700 bg-yellow-200
+                {% else %}text-red-700 bg-red-200{% endif %}">
+                {{ item.tranche.status }}
+              </span>
+            </td>
+            {% if user.is_superuser %}
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <a href="{% url 'create_invoice' item.tranche.id %}" 
+                 class="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Invoice
+              </a>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Loan Take Out Schedule Table -->
+  <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-12">
+    <div class="bg-gradient-to-r from-orange-600 to-orange-700 px-8 py-6 flex items-center justify-between">
+      <h3 class="text-2xl font-bold text-white">Loan Take Out Schedule ({{ option2_percentage }}%)</h3>
+      <div class="flex items-center">
+        <label class="flex items-center text-white cursor-pointer">
+          <input type="checkbox" id="select-all-lto" class="mr-2 w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500">
+          <span class="text-sm font-medium">Select All</span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider w-16">Select</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Date</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Net Commission</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Less Tax</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Commission</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Actual Commission</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Balance</th>
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Status</th>
+            {% if user.is_superuser %}
+            <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Action</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          {% for item in lto_tranches %}
+          <tr class="table-row">
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <input type="checkbox" class="invoice-checkbox lto-checkbox w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500" 
+                     data-expected="{{ lto_deduction_net }}" 
+                     data-actual="{{ item.tranche.received_amount }}" 
+                     data-tranche-id="{{ item.tranche.id }}">
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-center text-gray-700">{{ item.tranche.expected_date|date:"M d, Y" }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-semibold text-gray-900">₱ {{ lto_deduction_value|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center text-red-600 font-medium">₱ {{ lto_deduction_tax|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-semibold text-orange-600">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-green-600 bg-green-50">₱ {{ item.tranche.received_amount|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-orange-600 bg-orange-50">₱ {{ item.balance|floatformat:2|intcomma }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <span class="inline-flex px-3 py-1 text-xs font-bold rounded-full status-badge
+                {% if item.tranche.status == 'Received' %}text-green-700 bg-green-200
+                {% elif item.tranche.status == 'Partial' %}text-yellow-700 bg-yellow-200
+                {% else %}text-red-700 bg-red-200{% endif %}">
+                {{ item.tranche.status }}
+              </span>
+            </td>
+            {% if user.is_superuser %}
+            <td class="px-6 py-4 whitespace-nowrap text-center">
+              <a href="{% url 'create_invoice' item.tranche.id %}" 
+                 class="inline-flex items-center px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Invoice
+              </a>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// Enhanced animations and interactions
+document.addEventListener('DOMContentLoaded', function() {
+  // Animate progress bars on load
+  setTimeout(() => {
+    const progressBars = document.querySelectorAll('.progress-bar-1, .progress-bar-2');
+    progressBars.forEach(bar => {
+      bar.style.transition = 'width 2s ease-in-out';
+    });
+  }, 500);
+
+  // Add hover effects to cards
+  const cards = document.querySelectorAll('.card-hover');
+  cards.forEach(card => {
+    card.addEventListener('mouseenter', function() {
+      this.style.transform = 'translateY(-4px)';
+    });
+    card.addEventListener('mouseleave', function() {
+      this.style.transform = 'translateY(0)';
+    });
+  });
+
+  // Animate status badges
+  const statusBadges = document.querySelectorAll('.status-badge');
+  statusBadges.forEach(badge => {
+    if (badge.textContent.trim() === 'Received') {
+      badge.style.animation = 'pulse 2s infinite';
+    }
+  });
+
+  // Add smooth scrolling for better UX
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+      e.preventDefault();
+      document.querySelector(this.getAttribute('href')).scrollIntoView({
+        behavior: 'smooth'
+      });
+    });
+  });
+
+  // Invoice Multi-Select Functionality
+  const invoiceSummary = document.getElementById('invoice-summary');
+  const selectedCountElement = document.getElementById('selected-count');
+  const summaryExpectedElement = document.getElementById('summary-expected');
+  const summaryActualElement = document.getElementById('summary-actual');
+  const selectAllDp = document.getElementById('select-all-dp');
+  const selectAllLto = document.getElementById('select-all-lto');
+
+  // Function to format currency
+  function formatCurrency(amount) {
+    return '₱ ' + parseFloat(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  // Function to update summary
+  function updateSummary() {
+    const checkedBoxes = document.querySelectorAll('.invoice-checkbox:checked');
+    const count = checkedBoxes.length;
+    
+    let totalExpected = 0;
+    let totalActual = 0;
+    let selectedTrancheIds = [];
+
+    checkedBoxes.forEach(checkbox => {
+      const expected = parseFloat(checkbox.dataset.expected) || 0;
+      const actual = parseFloat(checkbox.dataset.actual) || 0;
+      const trancheId = checkbox.dataset.trancheId;
+      
+      totalExpected += expected;
+      totalActual += actual;
+      if (trancheId) {
+        selectedTrancheIds.push(trancheId);
+      }
+    });
+
+    selectedCountElement.textContent = count;
+    summaryExpectedElement.textContent = formatCurrency(totalExpected);
+    summaryActualElement.textContent = formatCurrency(totalActual);
+
+    // Update hidden form field with selected tranche IDs
+    const selectedTrancheIdsInput = document.getElementById('selected-tranche-ids');
+    const generateInvoiceBtn = document.getElementById('generate-invoice-btn');
+    
+    if (selectedTrancheIdsInput) {
+      selectedTrancheIdsInput.value = selectedTrancheIds.join(',');
+    }
+    
+    // Enable/disable generate invoice button based on selection
+    if (generateInvoiceBtn) {
+      generateInvoiceBtn.disabled = count < 1;
+    }
+
+    // Show/hide summary section
+    if (count > 0) {
+      invoiceSummary.classList.remove('hidden');
+      invoiceSummary.style.animation = 'slideIn 0.3s ease-out';
+    } else {
+      invoiceSummary.classList.add('hidden');
+    }
+  }
+
+  // Add event listeners to all invoice checkboxes
+  document.querySelectorAll('.invoice-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      updateSummary();
+      
+      // Update select all checkboxes state
+      const dpCheckboxes = document.querySelectorAll('.dp-checkbox');
+      const ltoCheckboxes = document.querySelectorAll('.lto-checkbox');
+      
+      const dpChecked = Array.from(dpCheckboxes).filter(cb => cb.checked).length;
+      const ltoChecked = Array.from(ltoCheckboxes).filter(cb => cb.checked).length;
+      
+      selectAllDp.checked = dpChecked === dpCheckboxes.length && dpCheckboxes.length > 0;
+      selectAllDp.indeterminate = dpChecked > 0 && dpChecked < dpCheckboxes.length;
+      
+      selectAllLto.checked = ltoChecked === ltoCheckboxes.length && ltoCheckboxes.length > 0;
+      selectAllLto.indeterminate = ltoChecked > 0 && ltoChecked < ltoCheckboxes.length;
+    });
+  });
+
+  // Add form submission debugging
+  const generateForm = document.getElementById('generate-invoice-form');
+  if (generateForm) {
+    generateForm.addEventListener('submit', function(e) {
+      const selectedIds = document.getElementById('selected-tranche-ids').value;
+      console.log('DEBUG: Form submitting with tranche IDs:', selectedIds);
+      
+      if (!selectedIds || selectedIds.trim() === '') {
+        e.preventDefault();
+        alert('Please select at least one tranche before generating an invoice.');
+        return false;
+      }
+    });
+  }
+
+  // Select All functionality for Down Payment
+  if (selectAllDp) {
+    selectAllDp.addEventListener('change', function() {
+      const dpCheckboxes = document.querySelectorAll('.dp-checkbox');
+      dpCheckboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+      });
+      updateSummary();
+    });
+  }
+
+  // Select All functionality for Loan Take Out
+  if (selectAllLto) {
+    selectAllLto.addEventListener('change', function() {
+      const ltoCheckboxes = document.querySelectorAll('.lto-checkbox');
+      ltoCheckboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+      });
+      updateSummary();
+    });
+  }
+
+  // Add CSS animation for slide in effect
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  `;
+  document.head.appendChild(style);
+});
+</script>
+
+{% endblock %}

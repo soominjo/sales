@@ -207,10 +207,10 @@
 </div>
 
 <!-- Printable Content -->
-<div id="printable-content" class="bg-white shadow-lg rounded-lg p-4 sm:p-6 lg:p-8 {% if is_receivable_view %}w-full max-w-2xl{% else %}w-full max-w-4xl{% endif %} mx-auto border-2 sm:border-4 border-blue-500">
-    <div class="flex flex-col sm:flex-row items-center justify-center text-center border-b pb-4 mb-4 space-y-4 sm:space-y-0 sm:space-x-4">
+<div id="printable-content" class="bg-white shadow-lg rounded-lg p-4 sm:p-6 lg:p-8 w-full max-w-4xl mx-auto border-2 sm:border-4 border-blue-500">
+    <div class="text-center border-b pb-4 mb-4">
         <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-contain"> 
-        <div class="flex-1">
+        <div class="mt-4">
             <h2 class="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800">Inner SPARC Realty Corporation</h2>
             <p class="text-xs sm:text-sm text-gray-600 mt-2">
                 Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina, Salawag, Dasmariñas, Cavite 4114 <br class="hidden sm:block"> 
@@ -274,6 +274,15 @@
                     <td class="p-2 border">₱{{ detail.net_commission|floatformat:2|intcomma }}</td>
                 </tr>
             {% endfor %}
+            
+            {% if user.is_staff or user.is_superuser or user.profile.role == 'Sales Manager' %}
+            <tr class="bg-gray-50 font-semibold">
+                <td colspan="4" class="p-2 border text-right">Total:</td>
+                <td class="p-2 border">₱{{ total_gross|floatformat:2|intcomma }}</td>
+                <td class="p-2 border">₱{{ total_tax|floatformat:2|intcomma }}</td>
+                <td class="p-2 border">₱{{ total_net|floatformat:2|intcomma }}</td>
+            </tr>
+            {% endif %}
             </tbody>
         </table>
     </div>
@@ -300,24 +309,25 @@
 </div>
 
 <!-- Action Buttons - No Print -->
-<div class="action-buttons px-4">
+<div class="mt-8 flex flex-wrap justify-center items-center gap-3 sm:gap-4 no-print">
     {% if not edit_mode %}
-        <button type="button" onclick="printContent()" class="action-button print-button">
+        <button onclick="printContent()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
             <span class="hidden sm:inline">Print Commission Slip</span>
             <span class="sm:hidden">Print</span>
         </button>
+
         
         <!-- Signature Upload Button -->
         <div class="mt-2">
             <input type="file" id="signature-upload" accept="image/*" style="display: none;" onchange="handleSignatureUpload(event)">
-            <button type="button" onclick="document.getElementById('signature-upload').click()" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200">
+            <button type="button" onclick="document.getElementById('signature-upload').click()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
                 </svg>
                 <span class="hidden sm:inline">Attach Signature</span>
                 <span class="sm:hidden">Sign</span>
             </button>
-            <button type="button" id="clear-signature" onclick="clearSignature()" class="ml-2 inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200" style="display: none;">
+            <button type="button" id="clear-signature" onclick="clearSignature()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base" style="display: none;">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>

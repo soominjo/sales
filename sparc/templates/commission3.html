@@ -153,7 +153,7 @@
 </div>
 
 <!-- Printable Content -->
-<div id="printable-content" class="bg-white shadow-lg rounded-lg p-8 w-[900px] mx-auto border-4 border-blue-500">
+<div id="printable-content" class="bg-white shadow-lg rounded-lg p-8 w-[900px] mx-auto border-4 border-blue-500" data-slip-id="{{ slip.id }}" data-slip-type="commission3" data-has-signature="{% if slip.signature %}true{% else %}false{% endif %}">
     <div class="flex items-center justify-center text-center border-b pb-4 mb-4">
         <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-20 h-20 object-contain mr-4"> 
         <div>
@@ -238,7 +238,7 @@
             </tr>
             {% endfor %}
             
-            {% if user.is_staff or user.is_superuser %}
+            {% if user.is_staff or user.is_superuser or user.profile.role == 'Sales Manager' or user.profile.role == 'Sales Supervisor' %}
             <tr class="bg-gray-50 font-semibold">
                 <td colspan="3" class="p-2 border text-right">Total:</td>
                 <td class="p-2 border">₱{{ total_gross|floatformat:2|intcomma }}</td>
@@ -249,45 +249,171 @@
         </tbody>
     </table>
 
+    <!-- Signatures -->
     <div class="mt-6 text-center text-gray-700 text-sm">
         <p>Prepared by: <span class="font-semibold">Shiela Mae F. Fajutagana</span> (Accounting Staff)</p>
         <p>Checked by: <span class="font-semibold">Gabriel V. Libacao Jr.</span> (Chief Executive Officer)</p>
         <p>Received by: <span class="font-semibold">{{ slip.sales_agent_name }}</span> (Agent)</p>
-        <p>Received by: <span class="font-semibold">{{ slip.supervisor_name }}</span> (Supervisor)</p>
-        <p class="mt-4">______________________________________</p>
-        <p>Signature Over Printed Name</p>
+        {% if slip.supervisor_name %}<p>Received by: <span class="font-semibold">{{ slip.supervisor_name }}</span> (Supervisor)</p>{% endif %}
+
+        <!-- Signature Area -->
+        <div class="mt-6">
+            <div id="signature-display" class="mb-2" {% if not slip.signature %}style="display: none;"{% endif %}>
+                <img id="signature-image" src="{% if slip.signature %}{{ slip.signature.url }}{% endif %}" alt="Signature" class="mx-auto max-h-16 border border-gray-300 rounded">
+                <p class="text-green-600 font-semibold mt-1">SIGNED</p>
+            </div>
+            <div id="signature-placeholder" class="border-b border-gray-400 pb-2 mb-2" {% if slip.signature %}style="display: none;"{% endif %}>
+                <p class="text-gray-400">______________________________________</p>
+            </div>
+            <p>Signature Over Printed Name</p>
+        </div>
+
         <p class="mt-4 text-gray-600 italic">Thank you for your trust and confidence in our business.</p>
     </div>
 </div>
 
+
 <!-- Action Buttons - No Print -->
-<div class="action-buttons">
+<div class="mt-8 flex flex-wrap justify-center items-center gap-3 sm:gap-4 no-print">
     {% if not edit_mode %}
-        <button type="button" onclick="printContent()" class="action-button print-button">
-            Print Commission Slip
+        <a href="{% url 'edit_commission_slip' slip.id %}" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
+            <span class="hidden sm:inline">Edit</span>
+            <span class="sm:hidden">Edit</span>
+        </a>
+
+        <form action="{% url 'delete_commission_slip' slip.id %}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this commission slip?');">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
+                <span class="hidden sm:inline">Delete</span>
+                <span class="sm:hidden">Delete</span>
+            </button>
+        </form>
+        
+        <button onclick="printContent()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
+            <span class="hidden sm:inline">Print Commission Slip</span>
+            <span class="sm:hidden">Print</span>
         </button>
-        {% if user.is_superuser or user.is_staff %}
-            <form method="POST" action="{% url 'delete_commission_slip' slip.id %}" class="inline">
-                {% csrf_token %}
-                <button type="submit" onclick="return confirm('Are you sure you want to delete this commission slip?')" class="action-button delete-button">
-                    Delete
-                </button>
-                {% if user.is_staff or user.is_superuser %}
-            <a href="{% url 'edit_commission' slip.id %}" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-green-700 no-print mr-2">
-                <i class="fas fa-edit mr-1"></i>Edit
-            </a>
-            {% endif %}
-            </form>
-        {% endif %}
+        
+        <!-- Signature Upload Button -->
+        <div class="mt-2">
+            <input type="file" id="signature-upload" accept="image/*" style="display: none;" onchange="handleSignatureUpload(event)">
+            <button type="button" id="attach-signature-btn" onclick="document.getElementById('signature-upload').click()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                </svg>
+                <span class="hidden sm:inline">Attach Signature</span>
+                <span class="sm:hidden">Sign</span>
+            </button>
+            <button type="button" id="save-signature-btn" onclick="saveSignature()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base" style="display: none;">
+                Save Signature
+            </button>
+            <button type="button" id="clear-signature-btn" onclick="clearSignature()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base" style="display: none;">
+                 Clear
+            </button>
+        </div>
+        
     {% else %}
         <button type="submit" class="action-button print-button">Save Changes</button>
     {% endif %}
 </div>
 
 <script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
     function printContent() {
         window.print();
     }
+
+    function handleSignatureUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please select a valid image file.');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                alert('File size must be less than 5MB.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('signature-image').src = e.target.result;
+                document.getElementById('signature-display').style.display = 'block';
+                document.getElementById('signature-placeholder').style.display = 'none';
+                document.getElementById('save-signature-btn').style.display = 'inline-flex';
+                document.getElementById('clear-signature-btn').style.display = 'inline-flex';
+                document.getElementById('attach-signature-btn').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function saveSignature() {
+        const signatureData = document.getElementById('signature-image').src;
+        const container = document.getElementById('printable-content');
+        const slipId = container.dataset.slipId;
+        const slipType = container.dataset.slipType;
+
+        fetch('/save-signature/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                'slip_id': slipId,
+                'slip_type': slipType,
+                'signature': signatureData
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Signature saved successfully!');
+                window.location.reload();
+            } else {
+                alert('Error saving signature: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred.');
+        });
+    }
+    
+    function clearSignature() {
+        document.getElementById('signature-display').style.display = 'none';
+        document.getElementById('signature-placeholder').style.display = 'block';
+        document.getElementById('save-signature-btn').style.display = 'none';
+        document.getElementById('clear-signature-btn').style.display = 'none';
+        document.getElementById('attach-signature-btn').style.display = 'inline-flex';
+        document.getElementById('signature-upload').value = '';
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('printable-content');
+        const hasSignature = container.dataset.hasSignature === 'true';
+        if (hasSignature) {
+            document.getElementById('attach-signature-btn').style.display = 'none';
+        } else {
+             document.getElementById('attach-signature-btn').style.display = 'inline-flex';
+        }
+    });
 </script>
 
 {% endblock %} 

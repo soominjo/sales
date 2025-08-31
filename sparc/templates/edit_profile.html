@@ -1,134 +1,239 @@
 {% extends "index.html" %}
 
-{% block title %}Edit Profile - {{ user.username }}{% endblock %}
+{% block title %}Edit Profile - {{ target_user.username }}{% endblock %}
 
 {% block content %}
 {% load static %}
 
-
-
-<!-- Back Button -->
-<div class="flex justify-end mb-4">
-    <a href="{% url 'profile' %}"
-       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm">
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-        </svg>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-8 px-4">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header with Back Button -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+          <i class="fas fa-user-edit text-blue-500 mr-3"></i>
+          Edit Your Profile
+        </h1>
+        <p class="text-gray-600 mt-2">Update your personal information and profile settings</p>
+      </div>
+      <a href="{% url 'profile' %}"
+         class="inline-flex items-center px-5 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+        <i class="fas fa-arrow-left mr-2"></i>
         Back to Profile
-    </a>
-</div>
+      </a>
+    </div>
 
-<div class="bg-white shadow-lg rounded-lg p-8 w-[900px] mx-auto border-4 border-blue-500">
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">Edit Profile</h2>
-
+    <!-- Success Toast -->
     {% if request.GET.updated %}
-    <div id="toast" class="mb-6 p-4 rounded-lg bg-green-100 border border-green-400 text-green-800 text-sm dark:bg-green-900 dark:text-green-100">
-        ✅ Profile updated successfully!
+    <div id="toast" class="mb-8 p-4 rounded-lg bg-green-100 border border-green-400 text-green-800 flex items-center justify-between shadow-md animate-fade-in">
+      <div class="flex items-center">
+        <i class="fas fa-check-circle text-green-500 text-xl mr-3"></i>
+        <span class="font-medium">Profile updated successfully!</span>
+      </div>
+      <button onclick="document.getElementById('toast').remove()" class="text-green-700 hover:text-green-900">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
     <script>
-        setTimeout(() => document.getElementById('toast')?.remove(), 3000);
+      setTimeout(() => {
+        const toast = document.getElementById('toast');
+        if(toast) toast.classList.add('animate-fade-out');
+        setTimeout(() => toast?.remove(), 500);
+      }, 3000);
     </script>
     {% endif %}
 
-    <form method="POST" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div class="space-y-6">
-
-            <!-- Profile Image -->
-            <div>
-                <h3 class="text-lg font-semibold mb-4">Profile Image</h3>
-                <div class="flex items-center space-x-4">
-                    {% if user.profile.image and user.profile.image.name != 'default.jpg' %}
-                    <img id="profile-image-preview" src="{{ user.profile.image.url }}" alt="Profile picture"
-                         class="w-24 h-24 rounded-full object-cover ring-2 ring-accent">
-                    {% else %}
-                    <div id="profile-image-preview" class="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-3xl">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    {% endif %}
-                         
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Change Profile Picture</label>
-                        <input type="file" name="image" accept="image/*"
-                               class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 focus:ring-accent focus:border-accent">
-                    </div>
-                </div>
+    <!-- Profile Edit Card -->
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-blue-100">
+      <div class="grid grid-cols-1 lg:grid-cols-3">
+        <!-- Left Side - Profile Image -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-700 p-8 flex flex-col items-center justify-center">
+          <div class="relative group">
+            {% if target_profile.image and target_profile.image.name != 'default.jpg' %}
+            <img id="profile-image-preview" src="{{ target_profile.image.url }}" alt="Profile picture"
+                 class="w-48 h-48 rounded-full object-cover border-4 border-white shadow-xl">
+            {% else %}
+            <div id="profile-image-preview" class="w-48 h-48 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-7xl border-4 border-white shadow-xl">
+              <i class="fas fa-user"></i>
             </div>
-
-   <!-- Personal Information -->
-<div>
-    <h3 class="text-lg font-semibold mb-4">Personal Information</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label class="block text-sm font-medium mb-1">First Name</label>
-            <input type="text" name="first_name" value="{{ user.first_name }}"
-                   class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-black focus:ring-accent focus:border-accent">
+            {% endif %}
+            
+            <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <label for="image-upload" class="cursor-pointer text-white text-center">
+                <i class="fas fa-camera text-2xl mb-1 block"></i>
+                <span class="text-sm font-medium">Change Photo</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="mt-6 text-center">
+            <h2 class="text-2xl font-bold text-white">{{ target_user.first_name }} {{ target_user.last_name }}</h2>
+            <p class="text-blue-100 mt-1">@{{ target_user.username }}</p>
+            <div class="mt-4">
+              <label for="image-upload" class="bg-blue-400 text-white px-4 py-2 rounded-full cursor-pointer hover:bg-blue-300 transition-colors">
+                <i class="fas fa-upload mr-2"></i>
+                Upload New Image
+              </label>
+              <p class="text-blue-200 text-sm mt-2">JPG, PNG or GIF. Max 5MB</p>
+            </div>
+          </div>
         </div>
-        <div>
-            <label class="block text-sm font-medium mb-1">Last Name</label>
-            <input type="text" name="last_name" value="{{ user.last_name }}"
-                   class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-black focus:ring-accent focus:border-accent">
-        </div>
-        <div>
-            <label class="block text-sm font-medium mb-1">Email</label>
-            <input type="email" name="email" value="{{ user.email }}"
-                   class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-black focus:ring-accent focus:border-accent">
-        </div>
-        <div>
-            <label class="block text-sm font-medium mb-1">Phone Number</label>
-            <input type="tel" name="phone_number" value="{{ user.profile.phone_number|default:'' }}"
-                   class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-black focus:ring-accent focus:border-accent">
-        </div>
-    </div>
-</div>
-
-
-            <!-- Address Information -->
-            <div>
-                <h3 class="text-lg font-semibold mb-4">Address</h3>
+        
+        <!-- Right Side - Form -->
+        <div class="p-8 lg:col-span-2">
+          <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Hidden file input for image upload -->
+            <input type="file" id="image-upload" name="image" accept="image/*" class="hidden">
+            
+            <div class="mb-8">
+              <h3 class="text-xl font-semibold text-gray-800 border-b pb-3 mb-4 flex items-center">
+                <i class="fas fa-user-circle text-blue-500 mr-2"></i>
+                Personal Information
+              </h3>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-medium mb-1">Complete Address</label>
-                    <textarea name="address" rows="3" placeholder="Street, City, State, ZIP"
-                              class="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-black  focus:ring-accent focus:border-accent">{{ user.profile.address|default:'' }}</textarea>
+                  <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <i class="fas fa-user text-blue-500 mr-2"></i>
+                    First Name
+                  </label>
+                  <input type="text" name="first_name" value="{{ target_user.first_name }}"
+                         class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm">
                 </div>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="flex justify-end space-x-4 pt-6">
-                <a href="{% url 'profile' %}" 
-                   class="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-400 transition focus:ring-2 focus:ring-gray-300 focus:outline-none">
-                    Cancel
-                </a>
-                <button type="submit" 
-                        class="px-6 py-2 bg-blue-900 text-white rounded-lg shadow hover:bg-blue-700 transition focus:ring-2 focus:ring-green-400 focus:outline-none">
-                    Save Changes
-                </button>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <i class="fas fa-user text-blue-500 mr-2"></i>
+                    Last Name
+                  </label>
+                  <input type="text" name="last_name" value="{{ target_user.last_name }}"
+                         class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm">
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <i class="fas fa-envelope text-blue-500 mr-2"></i>
+                    Email Address
+                  </label>
+                  <input type="email" name="email" value="{{ target_user.email }}"
+                         class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm">
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <i class="fas fa-phone text-blue-500 mr-2"></i>
+                    Phone Number
+                  </label>
+                  <input type="tel" name="phone_number" value="{{ target_profile.phone_number|default:'' }}"
+                         class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm">
+                </div>
+              </div>
             </div>
             
+            <div class="mb-8">
+              <h3 class="text-xl font-semibold text-gray-800 border-b pb-3 mb-4 flex items-center">
+                <i class="fas fa-home text-blue-500 mr-2"></i>
+                Address Information
+              </h3>
+              
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <i class="fas fa-map-marker-alt text-blue-500 mr-2"></i>
+                  Complete Address
+                </label>
+                <textarea name="address" rows="3" placeholder="Street, City, State, ZIP"
+                          class="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm">{{ target_profile.address|default:'' }}</textarea>
+              </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row justify-between gap-4 pt-6 border-t border-gray-200">
+              <a href="{% url 'profile' %}" 
+                 class="px-6 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-100 transition-all duration-300 text-center font-medium">
+                <i class="fas fa-times mr-2"></i>
+                Cancel Changes
+              </a>
+              <button type="submit" 
+                      class="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 font-medium">
+                <i class="fas fa-save mr-2"></i>
+                Save Profile Changes
+              </button>
+            </div>
+          </form>
         </div>
-    </form>
+      </div>
+    </div>
+    
+    <!-- Security Note -->
+    <div class="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200 flex">
+      <div class="mr-4 text-blue-500 text-2xl">
+        <i class="fas fa-shield-alt"></i>
+      </div>
+      <div>
+        <h3 class="font-bold text-blue-800 text-lg mb-1">Your Privacy Matters</h3>
+        <p class="text-blue-700">
+          We take your privacy seriously. All information is securely stored and only used to enhance your experience.
+          <a href="#" class="text-blue-600 font-medium hover:underline ml-1">Learn more</a>
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- JS for image preview & dark mode -->
+<!-- JS for image preview -->
 <script>
-document.querySelector('input[name="image"]').addEventListener('change', function (e) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const imageInput = document.getElementById('image-upload');
     const preview = document.getElementById('profile-image-preview');
-    const file = e.target.files[0];
-    if (file) {
-        preview.src = URL.createObjectURL(file);
+    
+    if (imageInput && preview) {
+      imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+          // Create a URL for the selected file
+          const imageUrl = URL.createObjectURL(file);
+          
+          if (preview.tagName === 'IMG') {
+            // If preview is already an image, just update the src
+            preview.src = imageUrl;
+          } else {
+            // If preview is a div (default avatar), replace it with an image
+            const newImage = document.createElement('img');
+            newImage.id = 'profile-image-preview';
+            newImage.src = imageUrl;
+            newImage.alt = 'Profile picture';
+            newImage.className = 'w-48 h-48 rounded-full object-cover border-4 border-white shadow-xl';
+            preview.parentNode.replaceChild(newImage, preview);
+          }
+          
+          // Optional: Show a success message
+          console.log('Image selected successfully');
+        }
+      });
     }
-});
-
-function toggleDarkMode() {
-    document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('theme') === 'dark') {
-        document.documentElement.classList.add('dark');
-    }
-});
+  });
 </script>
+
+<style>
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(10px); }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+  
+  .animate-fade-out {
+    animation: fade-out 0.5s ease-in forwards;
+  }
+</style>
 
 {% endblock %}

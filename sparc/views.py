@@ -9,13 +9,13 @@ from .models import *
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.db.models import Sum, Q
+from django.db import models
 from django.urls import reverse, reverse_lazy
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation, ROUND_HALF_UP
 from datetime import datetime, timedelta
 from django.db import IntegrityError
 from django.utils import timezone
-from django.db.models.functions import Coalesce, TruncMonth
-from django.db.models import DecimalField
+from django.db.models.functions import TruncMonth
 from django.core.mail import send_mail
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -28,10 +28,68 @@ from django.core.paginator import Paginator
 import json
 from collections import OrderedDict
 from django.template.defaulttags import register
-from .models import Property, Developer, BillingInvoice
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import user_passes_test
-from .models import Team
-from django.contrib.admin.views.decorators import staff_member_required
+from django.core.files.base import ContentFile
+import base64
+
+
+def perform_excel_tranche_calculations(total_contract_price, commission_rate, vat_rate=12, 
+                                     withholding_tax_rate=10, process_fee_percentage=0,
+                                     option1_percentage=50, option2_percentage=50, other_deductions=0):
+    """
+    Perform tranche calculations for Excel processing
+    """
+    # Convert percentages to decimals
+    commission_rate_decimal = commission_rate / Decimal(100)
+    vat_rate_decimal = vat_rate / Decimal(100)
+    withholding_tax_rate_decimal = withholding_tax_rate / Decimal(100)
+    process_fee_decimal = process_fee_percentage / Decimal(100)
+    option1_decimal = option1_percentage / Decimal(100)
+    option2_decimal = option2_percentage / Decimal(100)
+    
+    # Calculate base amounts
+    net_of_vat = total_contract_price / (Decimal(1) + vat_rate_decimal)
+    vat_amount = total_contract_price - net_of_vat
+    gross_commission = net_of_vat * commission_rate_decimal
+    
+    # Calculate process fee
+    process_fee = gross_commission * process_fee_decimal
+    
+    # Calculate net commission after process fee
+    net_commission_after_fee = gross_commission - process_fee
+    
+    # Calculate withholding tax
+    withholding_tax = net_commission_after_fee * withholding_tax_rate_decimal
+    
+    # Calculate net commission after all deductions
+    net_commission = net_commission_after_fee - withholding_tax - other_deductions
+    
+    # Split into tranches
+    dp_amount = net_commission * option1_decimal
+    lto_amount = net_commission * option2_decimal
+    
+    return {
+        'total_contract_price': float(total_contract_price),
+        'net_of_vat': float(net_of_vat),
+        'vat_amount': float(vat_amount),
+        'gross_commission': float(gross_commission),
+        'process_fee': float(process_fee),
+        'withholding_tax': float(withholding_tax),
+        'other_deductions': float(other_deductions),
+        'net_commission': float(net_commission),
+        'dp_amount': float(dp_amount),
+        'lto_amount': float(lto_amount),
+        'commission_rate': float(commission_rate),
+        'vat_rate': float(vat_rate),
+        'withholding_tax_rate': float(withholding_tax_rate),
+        'process_fee_percentage': float(process_fee_percentage),
+        'option1_percentage': float(option1_percentage),
+        'option2_percentage': float(option2_percentage)
+    }
 
 # ---------------- Email confirmation helpers -----------------
 
@@ -216,6 +274,41 @@ def signup(request):
 
     return render(request, 'signup.html', {'form': form})
 
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def create_user_by_superuser(request):
+    if request.method == "POST":
+        form = SignUpForm(request.POST)
+        if form.is_valid():
+            try:
+                user = form.save(commit=False)
+                user.is_active = True  # Activate immediately
+                user.set_password(form.cleaned_data['password1'])
+                user.first_name = form.cleaned_data.get('first_name', '')
+                user.last_name = form.cleaned_data.get('last_name', '')
+                user.save()
+
+                Profile.objects.create(
+                    user=user,
+                    role=form.cleaned_data.get('role'),
+                    team=form.cleaned_data.get('team'),
+                    phone_number=form.cleaned_data.get('phone_number'),
+                    first_name=form.cleaned_data.get('first_name'),
+                    last_name=form.cleaned_data.get('last_name'),
+                    is_approved=True  # Approve immediately
+                )
+                
+                messages.success(request, f"User '{user.username}' created successfully and is ready to use.")
+                return redirect('approve')  # Redirect to user management page
+            except IntegrityError:
+                messages.error(request, 'This username is already taken. Please choose a different username.')
+                return render(request, 'signup.html', {'form': form})
+    else:
+        form = SignUpForm()
+
+    return render(request, 'signup.html', {'form': form})
+
 def signup_view(request):
     if request.method == 'POST':
         user_form = SignUpForm(request.POST)
@@ -292,11 +385,11 @@ def export_top5_excel(request):
 
 
 def profile(request):
-    # Get sales list
+    # Get commission records (using Commission model instead of Sale)
     if request.user.is_superuser:
-        sales = Sale.objects.all().order_by('-date')
+        commissions_list = Commission.objects.all().order_by('-date_released')
     else:
-        sales = Sale.objects.filter(user=request.user).order_by('-date')
+        commissions_list = Commission.objects.filter(agent=request.user).order_by('-date_released')
     
     # Get commission slips for the current user
     if request.user.is_superuser or request.user.profile.role == 'Sales Manager':
@@ -306,30 +399,20 @@ def profile(request):
             sales_agent_name=request.user.get_full_name()
         ).order_by('-date')
     
-    # Calculate sales summary directly from sales transactions
-    total_cancelled = sales.filter(status='Cancelled').aggregate(
-        Sum('amount'))['amount__sum'] or Decimal('0')
+    # Calculate commission summary from commission records
+    total_commission_amount = commissions_list.aggregate(
+        Sum('commission_amount'))['commission_amount__sum'] or Decimal('0')
     
-    total_active = sales.filter(status='Active').aggregate(
-        Sum('amount'))['amount__sum'] or Decimal('0')
+    # Calculate commission count
+    commission_count = commissions_list.count()
     
-    # Calculate total sales (sum of active and cancelled)
-    total_sales = total_active + total_cancelled
-
-    # Calculate percentages
-    active_percentage = (total_active / total_sales * 100) if total_sales > 0 else 0
-    cancelled_percentage = (total_cancelled / total_sales * 100) if total_sales > 0 else 0
-    
-    # Calculate active sales count (units sold)
-    active_count = sales.filter(status='Active').count()
-    
-    # Paginate sales
+    # Paginate commissions (renamed from sales)
     page = request.GET.get('page', 1)
-    paginator = Paginator(sales, 10)  # Show 10 sales per page
+    paginator = Paginator(commissions_list, 10)  # Show 10 commissions per page
     try:
-        paginated_sales = paginator.page(page)
+        paginated_commissions = paginator.page(page)
     except:
-        paginated_sales = paginator.page(1)
+        paginated_commissions = paginator.page(1)
     
     # Add properties and developers to context
     properties = Property.objects.all().order_by('name')
@@ -357,54 +440,59 @@ def profile(request):
     recent_commissions = commissions[:10]  # Get the 10 most recent
 
     context = {
-        'sales': paginated_sales,
+        'commissions': paginated_commissions,
         'properties': properties,
         'developers': developers,
         'commission_slips': commission_slips,
-        'total_active': total_active,
-        'total_sales': total_sales,
-        'total_cancelled': total_cancelled,
-        'active_percentage': active_percentage,
-        'cancelled_percentage': cancelled_percentage,
-        'active_count': active_count,
-        'properties': properties,
-        'developers': developers,  # Add developers to context
+        'total_commission_amount': total_commission_amount,
+        'commission_count': commission_count,
         'total_commission_received': total_commission_received,
         'total_commission_remaining': total_commission_remaining,
-        'commission_count': commission_count,
         'recent_commissions': recent_commissions,
     }
     return render(request, 'profile.html', context)
 
 
 @login_required(login_url='signin')
-def edit_profile_view(request):
-    # Create profile if it doesn't exist
-    profile, created = Profile.objects.get_or_create(user=request.user)
-    
+def edit_profile_view(request, profile_id=None):
+    if profile_id:
+        # Superuser is editing another user's profile
+        if not request.user.is_superuser:
+            messages.error(request, 'You do not have permission to perform this action.')
+            return redirect('profile')
+        profile = get_object_or_404(Profile, id=profile_id)
+        user_to_edit = profile.user
+        redirect_url = 'approve'
+    else:
+        # User is editing their own profile
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        user_to_edit = request.user
+        redirect_url = 'profile'
+
     if request.method == 'POST':
         # Update User model fields
-        request.user.first_name = request.POST.get('first_name', '')
-        request.user.last_name = request.POST.get('last_name', '')
-        request.user.email = request.POST.get('email', '')
-        request.user.save()
-        
+        user_to_edit.first_name = request.POST.get('first_name', '')
+        user_to_edit.last_name = request.POST.get('last_name', '')
+        user_to_edit.email = request.POST.get('email', '')
+        user_to_edit.save()
+
         # Handle profile image upload
         if request.FILES.get('image'):
             profile.image = request.FILES['image']
-        
+
         # Update Profile model fields
         profile.phone_number = request.POST.get('phone_number', '')
         profile.address = request.POST.get('address', '')
-        profile.city = request.POST.get('city', '')
-        profile.state = request.POST.get('state', '')
-        profile.zip_code = request.POST.get('zip_code', '')
         profile.save()
-        
-        messages.success(request, 'Profile updated successfully!')
-        return redirect('profile')
-    
-    return render(request, 'edit_profile.html')
+
+        messages.success(request, f"{user_to_edit.username}'s profile updated successfully!")
+        return redirect(redirect_url)
+
+    context = {
+        'target_user': user_to_edit,
+        'target_profile': profile
+    }
+    return render(request, 'edit_profile.html', context)
 
 
 @login_required(login_url='signin')
@@ -434,7 +522,7 @@ def edit_user_profile(request, profile_id):
         profile.save()
 
         messages.success(request, f"{user_obj.username}'s profile updated successfully!")
-        return redirect('approve')
+        return redirect('approve')  # This is correct as the URL pattern is named 'approve'
     else:
         # For GET requests, show a confirmation page
         return render(request, 'edit_user_profile.html', {
@@ -442,464 +530,67 @@ def edit_user_profile(request, profile_id):
             'target_profile': profile,
         })
 
-@login_required(login_url='signin')
-def dashboard(request):
-    if not request.user.is_authenticated:
-        return redirect('signin')
 
-    # Get filter parameters
-    period = request.GET.get('period', 'all')
-    month = request.GET.get('month')
-    year = request.GET.get('year')
-
-    # Get all users and their sales
-    team_members = User.objects.filter(
-        profile__is_approved=True
-    ).prefetch_related('sale_set')
-    
-    # Base query for all sales
-    team_sales = Sale.objects.all()
-    
-    # Apply time period filters
-    if period == 'monthly' and month:
-        # If year is not specified, use current year
-        filter_year = year if year else timezone.now().year
-        team_sales = team_sales.filter(
-            date__year=filter_year,
-            date__month=int(month)
-        )
-    elif period == 'yearly' and year:
-        team_sales = team_sales.filter(date__year=int(year))
-    
-    # Get count of all approved members
-    approved_members_count = team_members.count()
-    
-    # Get active teams
-    teams = Team.objects.filter(is_active=True)
-    
-    # Calculate total sales and recent sales growth for each member
-    team_members_with_sales = []
-    for member in team_members:
-        member_sales = team_sales.filter(user=member)
-        active_sales = member_sales.filter(status='Active')
-        
-        if member_sales.exists(): 
-            latest_sale = member_sales.last()
-            previous_total = member_sales.exclude(id=latest_sale.id).aggregate(
-                total=Sum('amount')
-            )['total'] or 0
-            
-            # Default growth percentage
-            if previous_total == 0:
-                # First sale scenario: treat as +100% or -100% based on status
-                growth_percentage = 100 if latest_sale.status == 'Active' else -100
-            else:
-                growth_percentage = (latest_sale.amount / previous_total) * 100
-                if latest_sale.status == 'Cancelled':
-                    growth_percentage = -growth_percentage
-            
-            team_members_with_sales.append({
-                'user': member,
-                'total_sales': member_sales.aggregate(total=Sum('amount'))['total'] or 0,
-                'latest_sale': latest_sale.amount if latest_sale else 0,
-                'growth_percentage': growth_percentage,
-                'active_count': active_sales.count()
-            })
-        else:
-            team_members_with_sales.append({
-                'user': member,
-                'total_sales': 0,
-                'latest_sale': 0,
-                'growth_percentage': 0,
-                'previous_total': 0,
-                'latest_sale_status': None,
-                'active_count': 0
-            })
-
-    # Sort team members by total sales in descending order
-    team_members_with_sales.sort(key=lambda x: x['total_sales'], reverse=True)
-    
-    # Calculate overall statistics
-    total_sales = team_sales.aggregate(total=Sum('amount'))['total'] or 0
-    active_sales = team_sales.filter(status='Active').aggregate(total=Sum('amount'))['total'] or 0
-    cancelled_sales = team_sales.filter(status='Cancelled').aggregate(total=Sum('amount'))['total'] or 0
-    
-    # Calculate percentages
-    active_percentage = (active_sales / total_sales * 100) if total_sales > 0 else 0
-    cancelled_percentage = (cancelled_sales / total_sales * 100) if total_sales > 0 else 0
-
-    # Get developer-specific sales data
-    developer_sales = (
-        team_sales
-        .values('developer')
-        .annotate(
-            active=Sum('amount', filter=Q(status='Active')),
-            cancelled=Sum('amount', filter=Q(status='Cancelled'))
-        )
-        .order_by('-active')
-    )
-
-    # Filter out developers with no sales
-    developer_sales = [d for d in developer_sales if d['active'] or d['cancelled']]
-    
-    # Prepare data for developer chart
-    developers = [item['developer'] for item in developer_sales]
-    developer_active = [float(item['active'] or 0) for item in developer_sales]
-    developer_cancelled = [float(item['cancelled'] or 0) for item in developer_sales]
-
-    # --- PROPERTY/PROJECT SALES BREAKDOWN ---
-    property_sales = (
-        team_sales
-        .values('property_name')
-        .annotate(
-            active=Sum('amount', filter=Q(status='Active')),
-            cancelled=Sum('amount', filter=Q(status='Cancelled'))
-        )
-        .order_by('-active')
-    )
-
-    # Filter out properties with no sales
-    property_sales = [p for p in property_sales if p['active'] or p['cancelled']]
-
-    # Prepare data for property chart
-    properties = [item['property_name'] for item in property_sales]
-    property_active = [float(item['active'] or 0) for item in property_sales]
-    property_cancelled = [float(item['cancelled'] or 0) for item in property_sales]
-
-    # --- TOP DEVELOPERS & PROPERTIES FOR HIGHLIGHT SECTIONS ---
-    # Compute developer totals (active + cancelled) then get top 5
-    developer_totals_qs = (
-        team_sales
-        .values('developer')
-        .annotate(total=Sum('amount'))
-        .order_by('-total')[:5]
-    )
-    top_developers = []
-    for row in developer_totals_qs:
-        name = row['developer'] or 'Unknown'
-        total = float(row['total'] or 0)
-        dev_obj = Developer.objects.filter(name=name).first()
-        if dev_obj:
-            dev_obj.total_sales = total  # attach dynamic attribute for template
-            top_developers.append(dev_obj)
-        else:
-            # Create a lightweight object with needed attrs when Developer record missing
-            top_developers.append(type('Dev', (), {'name': name, 'image': None, 'total_sales': total}))
-
-    # Compute property/project totals
-    property_totals_qs = (
-        team_sales
-        .values('property_name')
-        .annotate(total=Sum('amount'))
-        .order_by('-total')[:5]
-    )
-    top_properties = []
-    for row in property_totals_qs:
-        name = row['property_name'] or 'Unknown'
-        total = float(row['total'] or 0)
-        prop_obj = Property.objects.filter(name=name).first()
-        if prop_obj:
-            prop_obj.total_sales = total
-            top_properties.append(prop_obj)
-        else:
-            top_properties.append(type('Prop', (), {'name': name, 'image': None, 'total_sales': total}))
-    
-    # Monthly sales trend/breakdown data
-    monthly_sales = (
-        team_sales
-        .annotate(month=TruncMonth('date'))
-        .values('month', 'status')
-        .annotate(total=Sum('amount'))
-        .order_by('month')
-    )
-
-    # Organize monthly data
-    month_dict = OrderedDict()
-    for entry in monthly_sales:
-        month_label = entry['month'].strftime('%b %Y') if entry['month'] else 'Unknown'
-        if month_label not in month_dict:
-            month_dict[month_label] = {'Active': 0, 'Cancelled': 0}
-        month_dict[month_label][entry['status']] = float(entry['total'])
-
-    # Filter out months with no sales
-    month_dict = {k: v for k, v in month_dict.items() if v['Active'] > 0 or v['Cancelled'] > 0}
-    
-    months = list(month_dict.keys())
-    monthly_active = [vals['Active'] for vals in month_dict.values()]
-    monthly_cancelled = [vals['Cancelled'] for vals in month_dict.values()]
-
-    selected_role = request.GET.get('role', 'Sales Manager')
-    filtered_members = [m for m in team_members_with_sales if m['user'].profile.role == selected_role]
-
-    context = {
-        'total_sales': total_sales,
-        'active_sales': active_sales,
-        'cancelled_sales': cancelled_sales,
-        'active_percentage': active_percentage,
-        'cancelled_percentage': cancelled_percentage,
-        'team_members': team_members_with_sales,
-        'approved_members_count': approved_members_count,
-        'months': months,
-        'monthly_active': monthly_active,
-        'monthly_cancelled': monthly_cancelled,
-        'developers': developers,
-        'developer_totals': developer_active,
-        'developer_active': developer_active,
-        'developer_cancelled': developer_cancelled,
-        'properties_json': json.dumps(properties),
-        'property_active_json': json.dumps(property_active),
-        'property_cancelled_json': json.dumps(property_cancelled),
-        'top_developers': top_developers,
-        'top_properties': top_properties,
-        'months_json': json.dumps(months),
-        'monthly_active_json': json.dumps(monthly_active),
-        'monthly_cancelled_json': json.dumps(monthly_cancelled),
-        'developers_json': json.dumps(developers),
-        'developer_active_json': json.dumps(developer_active),
-        'developer_cancelled_json': json.dumps(developer_cancelled),
-        'is_superuser': request.user.is_superuser,
-        'teams': teams,
-        'filtered_members': filtered_members[:5],
-        'selected_role': selected_role,
-        'available_roles': ['Sales Agent', 'Sales Supervisor', 'Sales Manager'],
-        'selected_period': period,
-        'selected_month': month,
-        'selected_year': year,
-        'has_data': total_sales > 0,  # Add flag to check if there's any data
-        'current_year': timezone.now().year  # Add current year for default filtering
-    }
-    return render(request, 'dashboard.html', context)
-
-
-
-@register.filter
-def month_name(month_number):
-    try:
-        return {
-            '1': 'January',
-            '2': 'February',
-            '3': 'March',
-            '4': 'April',
-            '5': 'May',
-            '6': 'June',
-            '7': 'July',
-            '8': 'August',
-            '9': 'September',
-            '10': 'October',
-            '11': 'November',
-            '12': 'December'
-        }[str(month_number)]
-    except (KeyError, TypeError):
-        return ''
-
-@login_required(login_url='signin')
-@login_required(login_url='signin')
-def team_dashboard(request, team_name):
-    # Get team object
-    team = get_object_or_404(Team, name=team_name, is_active=True)
-    
-    # Get team-specific data
-    team_members = Profile.objects.filter(team=team, is_approved=True)
-    team_users = User.objects.filter(profile__in=team_members)
-    
-    # Get filter parameters
-    period = request.GET.get('period', 'monthly')  # Default to 'monthly' instead of 'all'
-    month = request.GET.get('month')
-    year = request.GET.get('year')
-    
-    # If period is monthly and month/year not specified, use current month/year
-    if period == 'monthly' and not (month and year):
-        today = timezone.now()
-        month = today.month
-        year = today.year
-        
-        # Only redirect if no month/year was provided to avoid infinite redirects
-        if not request.GET.get('month') and not request.GET.get('year'):
-            return redirect(f"{request.path}?period=monthly&month={month}&year={year}")
-    
-    # Base query for team sales
-    team_sales = Sale.objects.filter(user__in=team_users)
-    
-    # Apply time period filters
-    if period == 'monthly' and month:
-        # If year is not specified, use current year
-        filter_year = year if year else timezone.now().year
-        team_sales = team_sales.filter(
-            date__year=filter_year,
-            date__month=int(month)
-        )
-    elif period == 'yearly' and year:
-        team_sales = team_sales.filter(date__year=int(year))
-    
-    # Calculate team sales statistics
-    total_sales = team_sales.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-    active_sales = team_sales.filter(status='Active').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-    cancelled_sales = team_sales.filter(status='Cancelled').aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-    
-    # Calculate percentages
-    active_percentage = (active_sales / total_sales * 100) if total_sales > 0 else 0
-    cancelled_percentage = (cancelled_sales / total_sales * 100) if total_sales > 0 else 0
-    
-    # Get top 5 team members with sales data (filtered by period)
-    team_members_data = []
-    for member in team_members:
-        member_sales = team_sales.filter(user=member.user)
-        total_member_sales = member_sales.aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-        latest_sale = member_sales.order_by('-date').first()
-        growth_percentage = 0
-        if latest_sale:
-            # Sum of all sales before the latest one
-            previous_total = member_sales.filter(date__lt=latest_sale.date).aggregate(Sum('amount'))['amount__sum'] or Decimal('0')
-            if previous_total == 0:
-                # First sale scenario: +100% for active, -100% for cancelled
-                growth_percentage = 100 if latest_sale.status.strip() == 'Active' else -100
-            else:
-                # Compare the latest sale amount to previous total
-                growth_percentage = (latest_sale.amount / previous_total) * 100
-                if latest_sale.status.strip() == 'Cancelled':
-                    growth_percentage = -growth_percentage
-        
-        team_members_data.append({
-            'user': member.user,
-            'total_sales': total_member_sales,
-            'latest_sale': latest_sale.amount if latest_sale else 0,
-            'growth_percentage': growth_percentage,
-            'active_count': member_sales.filter(status='Active').count()
-        })
-    
-    # Sort team members by total sales
-    team_members_data.sort(key=lambda x: x['total_sales'], reverse=True)
-    
-    # Prepare monthly sales data
-    monthly_sales = team_sales.annotate(
-        month=TruncMonth('date')
-    ).values('month').annotate(
-        active=Sum('amount', filter=Q(status='Active')),
-        cancelled=Sum('amount', filter=Q(status='Cancelled'))
-    ).order_by('month')  # Changed to chronological order
-    
-    # Prepare project sales data for the selected period
-    project_sales = team_sales.values('property_name').annotate(
-        active=Sum('amount', filter=Q(status='Active')),
-        cancelled=Sum('amount', filter=Q(status='Cancelled'))
-    ).order_by('-active')
-    
-    # Filter out months with no sales
-    monthly_sales = [m for m in monthly_sales if m['active'] or m['cancelled']]
-
-    monthly_data = {
-        'labels': [d['month'].strftime('%B %Y') for d in monthly_sales],
-        'datasets': [
-            {
-                'label': 'Active Sales',
-                'data': [float(d['active'] or 0) for d in monthly_sales],
-                'backgroundColor': '#22c55e'
-            },
-            {
-                'label': 'Cancelled Sales',
-                'data': [float(d['cancelled'] or 0) for d in monthly_sales],
-                'backgroundColor': '#ef4444'
-            }
-        ]
-    }
-    
-    # Prepare project sales data for the chart
-    project_data = {
-        'labels': [p['property_name'] or 'Unspecified' for p in project_sales],
-        'datasets': [
-            {
-                'label': 'Active Sales',
-                'data': [float(p['active'] or 0) for p in project_sales],
-                'backgroundColor': '#3b82f6',
-                'borderColor': '#1d4ed8',
-                'borderWidth': 1
-            },
-            {
-                'label': 'Cancelled Sales',
-                'data': [float(p['cancelled'] or 0) for p in project_sales],
-                'backgroundColor': '#f59e0b',
-                'borderColor': '#d97706',
-                'borderWidth': 1
-            }
-        ]
-    }
-    
-    # Prepare developer sales data (filtered by period)
-    developer_sales = team_sales.values('developer').annotate(
-        active=Sum('amount', filter=Q(status='Active')),
-        cancelled=Sum('amount', filter=Q(status='Cancelled'))
-    ).order_by('-active')
-    
-    # Filter out developers with no sales
-    developer_sales = [d for d in developer_sales if d['active'] or d['cancelled']]
-    
-    # Convert developer sales data to lists for the chart
-    developers = [d['developer'] for d in developer_sales]
-    developer_active = [float(d['active'] or 0) for d in developer_sales]
-    developer_cancelled = [float(d['cancelled'] or 0) for d in developer_sales]
-    
-    context = {
-        'team_name': team_name,
-        'total_sales': total_sales,
-        'active_sales': active_sales,
-        'cancelled_sales': cancelled_sales,
-        'active_percentage': active_percentage,
-        'cancelled_percentage': cancelled_percentage,
-        'approved_members_count': team_members.count(),
-        'team_members': team_members_data,
-        'monthly_data': json.dumps(monthly_data),
-        'project_data': json.dumps(project_data),
-        'developers_json': json.dumps(developers),
-        'developer_active_json': json.dumps(developer_active),
-        'developer_cancelled_json': json.dumps(developer_cancelled),
-        'selected_period': period,
-        'selected_month': month,
-        'selected_year': year,
-        'has_data': total_sales > 0  # Add flag to check if there's any data
-    }
-    
-    return render(request, 'team_dashboard.html', context)
 
 
 @login_required(login_url='signin')
 def approve_users_list(request):
-    if not (request.user.is_superuser or request.user.profile.role == 'Sales Manager'):
-        return HttpResponseForbidden("You don't have permission to approve users.")
+    # Extended permission to include Sales Supervisor
+    if not (request.user.is_superuser or request.user.profile.role in ['Sales Manager', 'Sales Supervisor']):
+        return HttpResponseForbidden("You don't have permission to view this page.")
 
-    if request.user.is_superuser:
-        # Superusers can see all users
+    context = {}
+    user_profile = request.user.profile
+
+    if request.user.is_superuser or request.user.is_staff:
+        # Superusers/Staff see all users and all stats
+        base_query = Profile.objects.filter(is_approved=True)
         unapproved_accounts = Profile.objects.filter(is_approved=False)
-        approved_accounts_list = Profile.objects.filter(is_approved=True)
-    else:
-        # Managers can only see users from their team
-        user_team = request.user.profile.team
+        approved_accounts_list = base_query
+        
+        # Calculate stats for superuser/staff
+        context['sales_managers_count'] = base_query.filter(role='Sales Manager').count()
+        context['sales_supervisors_count'] = base_query.filter(role='Sales Supervisor').count()
+        context['sales_agents_count'] = base_query.filter(role='Sales Agent').count()
+        context['staff_count'] = User.objects.filter(is_staff=True).count()
+        context['total_users_count'] = base_query.count()
+
+    else:  # Sales Manager or Sales Supervisor
+        # Managers/Supervisors see their team members
+        user_team = user_profile.team
+        base_query = Profile.objects.filter(is_approved=True, team=user_team)
+
         unapproved_accounts = Profile.objects.filter(
             is_approved=False,
             role__in=['Sales Supervisor', 'Sales Agent'],
             team=user_team
         )
-        approved_accounts_list = Profile.objects.filter(
-            is_approved=True,
-            role__in=['Sales Supervisor', 'Sales Agent'],
-            team=user_team
-        )
+        approved_accounts_list = base_query.filter(role__in=['Sales Supervisor', 'Sales Agent'])
+        
+        # Calculate stats for manager/supervisor
+        context['sales_supervisors_count'] = base_query.filter(role='Sales Supervisor').count()
+        context['sales_agents_count'] = base_query.filter(role='Sales Agent').count()
+        context['total_users_count'] = base_query.count()
 
-    # Get all active teams for the team change modal
+    # Common context for all roles
     active_teams = Team.objects.filter(is_active=True)
 
     # Pagination for approved accounts
     page = request.GET.get('page', 1)
-    paginator = Paginator(approved_accounts_list, 10)  # Show 10 users per page
+    paginator = Paginator(approved_accounts_list, 10)
     try:
         approved_accounts = paginator.page(page)
     except:
         approved_accounts = paginator.page(1)
 
-    return render(request, 'approve.html', {
+    # Add remaining items to context
+    context.update({
         'unapproved_accounts': unapproved_accounts,
         'approved_accounts': approved_accounts,
-        'teams': active_teams
+        'teams': active_teams,
     })
+
+    return render(request, 'approve.html', context)
 
 @login_required
 def approve_user(request, profile_id):
@@ -1095,10 +786,14 @@ def create_commission_slip(request):
             profile__role='Sales Manager'
         ).select_related('profile', 'profile__team').order_by('username')
 
+    # Get all properties for the dropdown
+    properties = Property.objects.all().order_by('name')
+    
     context = {
         'slip_form': slip_form,
         'sales_agents': sales_agents,
         'sales_managers': sales_managers,
+        'properties': properties,
         'user_is_staff': request.user.is_staff,
         'user_is_superuser': request.user.is_superuser
     }
@@ -1144,18 +839,22 @@ def commission_history(request):
         # Superusers and staff can see all commission slips
         pass
     elif request.user.profile.role == 'Sales Manager':
-        # Sales Managers can see their team's slips and slips they created
+        # Sales Managers can see their team's slips, slips they created, and slips created by superusers/staff
         user_team = request.user.profile.team
         commission_slips = commission_slips.filter(
             Q(created_by=request.user) |
             Q(sales_agent_name=request.user.get_full_name()) |
-            Q(created_by__profile__team=user_team)
+            Q(created_by__profile__team=user_team) |
+            Q(created_by__is_superuser=True) |
+            Q(created_by__is_staff=True)
         )
         commission_slips3 = commission_slips3.filter(
             Q(created_by=request.user) |
             Q(sales_agent_name=request.user.get_full_name()) |
             Q(supervisor_name=request.user.get_full_name()) |
-            Q(created_by__profile__team=user_team)
+            Q(created_by__profile__team=user_team) |
+            Q(created_by__is_superuser=True) |
+            Q(created_by__is_staff=True)
         )
     else:
         # Regular users can only see their own commission slips
@@ -1174,7 +873,6 @@ def commission_history(request):
     sales_agents_commission = 0
     supervisors_commission = 0
     managers_commission = 0
-    team_leader_commission = 0
     operations_commission = 0
     cofounder_commission = 0
     founder_commission = 0
@@ -1202,10 +900,7 @@ def commission_history(request):
             position='Sales Manager'
         ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
 
-        team_leader_commission = commission_details.filter(
-            position='Team Leader'
-        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
-        
+  
         operations_commission = commission_details.filter(
             position='Operation Manager'
         ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
@@ -1233,9 +928,61 @@ def commission_history(request):
 
         # Calculate team totals
         sales_team_total = sales_agents_commission + supervisors_commission + managers_commission
-        management_team_total = team_leader_commission + operations_commission + cofounder_commission + founder_commission + funds_commission
+        management_team_total =  operations_commission + cofounder_commission + founder_commission + funds_commission
         
         # Calculate grand total (sum of both team totals)
+        total_gross_commission = sales_team_total + management_team_total
+        
+    elif request.user.profile.role == 'Sales Manager':
+        # For Sales Managers, show team commissions based on filtered slips
+        commission_details = CommissionDetail.objects.filter(slip__in=commission_slips)
+        commission_details3 = CommissionDetail3.objects.filter(slip__in=commission_slips3)
+        
+        # Calculate role-based commissions from filtered commission details
+        sales_agents_commission = commission_details.filter(
+            position='Sales Agent'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        supervisors_commission = commission_details.filter(
+            position='Sales Supervisor'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        managers_commission = commission_details.filter(
+            position='Sales Manager'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        # Add commissions from CommissionDetail3
+        sales_agents_commission += commission_details3.filter(
+            position='Sales Agent'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        supervisors_commission += commission_details3.filter(
+            position='Sales Supervisor'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        # Calculate team totals (Sales Manager focuses on sales team)
+        sales_team_total = sales_agents_commission + supervisors_commission + managers_commission
+        
+        # For management team, get all other positions
+        operations_commission = commission_details.filter(
+            position='Operation Manager'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        cofounder_commission = commission_details.filter(
+            position='Co-Founder'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        founder_commission = commission_details.filter(
+            position='Founder'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        funds_commission = commission_details.filter(
+            position='Funds'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        management_team_total = operations_commission + cofounder_commission + founder_commission + funds_commission
+        
+        # Calculate grand total
         total_gross_commission = sales_team_total + management_team_total
         
     else:
@@ -1287,8 +1034,92 @@ def commission_history(request):
     except:
         paginated_slips = paginator.page(1)
 
-    # Get all active users for team information
-    team_members = User.objects.filter(is_active=True).select_related('profile')
+    # Get team members based on user role
+    # Check if user has a profile first
+    try:
+        user_profile = request.user.profile
+    except:
+        user_profile = None
+    
+    if user_profile and user_profile.role == 'Sales Manager':
+        # Sales Managers only see their own team members
+        user_team = request.user.profile.team
+        team_members = User.objects.filter(
+            is_active=True,
+            profile__team=user_team,
+            profile__role__in=['Sales Agent', 'Sales Supervisor', 'Sales Manager']
+        ).select_related('profile')
+        
+        # Calculate individual commission totals for each team member
+        for member in team_members:
+            member_name = member.get_full_name()
+            
+            # Skip if member doesn't have a profile
+            if not hasattr(member, 'profile') or not member.profile:
+                member.total_commission = 0
+                continue
+            
+            # Get commission details for this specific team member
+            member_commission_details = CommissionDetail.objects.filter(
+                slip__in=commission_slips,
+                slip__sales_agent_name=member_name,
+                position=member.profile.role
+            )
+            
+            member_commission_details3 = CommissionDetail3.objects.filter(
+                slip__in=commission_slips3
+            ).filter(
+                Q(slip__sales_agent_name=member_name, position='Sales Agent') |
+                Q(slip__supervisor_name=member_name, position='Sales Supervisor') |
+                Q(slip__manager_name=member_name, position='Sales Manager')
+            )
+            
+            # Calculate total commission for this member
+            member_total = (
+                member_commission_details.aggregate(total=models.Sum('gross_commission'))['total'] or 0
+            ) + (
+                member_commission_details3.aggregate(total=models.Sum('gross_commission'))['total'] or 0
+            )
+            
+            # Attach the commission total to the member object
+            member.total_commission = member_total
+    else:
+        # For superuser/staff, show all active users with commission calculations
+        team_members = User.objects.filter(is_active=True).select_related('profile')
+        
+        # Calculate individual commission totals for each team member (same logic as Sales Manager)
+        for member in team_members:
+            member_name = member.get_full_name()
+            
+            # Skip if member doesn't have a profile
+            if not hasattr(member, 'profile') or not member.profile:
+                member.total_commission = 0
+                continue
+            
+            # Get commission details for this specific team member
+            member_commission_details = CommissionDetail.objects.filter(
+                slip__in=commission_slips,
+                slip__sales_agent_name=member_name,
+                position=member.profile.role
+            )
+            
+            member_commission_details3 = CommissionDetail3.objects.filter(
+                slip__in=commission_slips3
+            ).filter(
+                Q(slip__sales_agent_name=member_name, position='Sales Agent') |
+                Q(slip__supervisor_name=member_name, position='Sales Supervisor') |
+                Q(slip__manager_name=member_name, position='Sales Manager')
+            )
+            
+            # Calculate total commission for this member
+            member_total = (
+                member_commission_details.aggregate(total=models.Sum('gross_commission'))['total'] or 0
+            ) + (
+                member_commission_details3.aggregate(total=models.Sum('gross_commission'))['total'] or 0
+            )
+            
+            # Attach the commission total to the member object
+            member.total_commission = member_total
 
     # Attach details and agent_role for each slip
     for slip in paginated_slips:
@@ -1312,6 +1143,9 @@ def commission_history(request):
                 else:
                     slip.agent_role = "Unknown Role"
 
+    # Calculate total slips count
+    total_slips = regular_commission_count + management_commission_count + supervisor_agent_commission_count
+
     context = {
         'commission_slips': paginated_slips,
         'search_agent': search_agent,
@@ -1321,13 +1155,13 @@ def commission_history(request):
         'regular_commission_count': regular_commission_count,
         'management_commission_count': management_commission_count,
         'supervisor_agent_commission_count': supervisor_agent_commission_count,
+        'total_slips': total_slips,
         'team_members': team_members,
         'total_gross_commission': total_gross_commission,
         # Role-based commission totals
         'sales_agents_commission': sales_agents_commission,
         'supervisors_commission': supervisors_commission,
         'managers_commission': managers_commission,
-        'team_leader_commission': team_leader_commission,
         'operations_commission': operations_commission,
         'cofounder_commission': cofounder_commission,
         'founder_commission': founder_commission,
@@ -1335,6 +1169,7 @@ def commission_history(request):
         # Team totals
         'sales_team_total': sales_team_total,
         'management_team_total': management_team_total,
+        'management_commission': management_team_total,  # Add this for chart compatibility
         # User-specific commission
         'user_commission': user_commission,
     }
@@ -1373,19 +1208,32 @@ def commission_view(request, slip_id=None):
             is_creator = slip.created_by == request.user
             is_agent = slip.sales_agent_name == request.user.get_full_name()
             
-            if not (is_creator or is_agent):
+            # Check if the user is named in any commission details (for managers)
+            user_full_name = request.user.get_full_name()
+            is_in_details = CommissionDetail.objects.filter(
+                slip=slip, 
+                agent_name=user_full_name
+            ).exists()
+            
+            if not (is_creator or is_agent or is_in_details):
                 messages.error(request, 'You do not have permission to view this slip.')
                 return redirect('commission_history')
             
             # Get all details for this slip
             details = CommissionDetail.objects.filter(slip=slip)
             
-            # If viewing as creator (manager/supervisor), show agent's details
-            if is_creator and not is_agent:
+            # For Sales Managers, show all commission details to see the full breakdown
+            if request.user.profile.role == 'Sales Manager':
+                # Sales Managers can see all details for complete oversight
+                details = details
+            elif is_creator and not is_agent and not is_in_details:
                 # Filter details to show only those matching the sales agent's position
                 agent_details = details.filter(agent_name=slip.sales_agent_name)
                 if agent_details.exists():
                     details = agent_details
+            elif is_in_details and not is_agent:
+                # Show their own commission details when they are named in the details
+                details = details.filter(agent_name=user_full_name)
             else:
                 # Show their own commission details when viewing as agent
                 details = details.filter(position=request.user.profile.role)
@@ -1485,136 +1333,136 @@ def commission_slip_view(request, slip_id):
     slip = get_object_or_404(CommissionSlip, id=slip_id)
     return render(request, 'commission2.html', {'slip': slip})
 
+@login_required
+@require_http_methods(["POST"])
+def save_signature(request):
+    logger.info("save_signature view called.")
+    try:
+        data = json.loads(request.body)
+        logger.info(f"Request body: {data}")
+        slip_id = data.get('slip_id')
+        slip_type = data.get('slip_type', 'commission')  # Default to 'commission'
+        signature_data = data.get('signature')
+
+        if not slip_id or not signature_data:
+            logger.error("Missing slip_id or signature data.")
+            return JsonResponse({'status': 'error', 'message': 'Missing slip_id or signature data.'}, status=400)
+
+        logger.info(f"Attempting to save signature for slip_id: {slip_id} of type: {slip_type}")
+        
+        if slip_type == 'commission3':
+            slip = get_object_or_404(CommissionSlip3, id=slip_id)
+        else:
+            slip = get_object_or_404(CommissionSlip, id=slip_id)
+
+        # Decode the base64 image
+        format, imgstr = signature_data.split(';base64,')
+        ext = format.split('/')[-1]
+        signature_file = ContentFile(base64.b64decode(imgstr), name=f'signature_{slip_id}.{ext}')
+
+        slip.signature = signature_file
+        slip.save()
+
+        logger.info(f"Signature for {slip_type} slip_id {slip_id} saved successfully.")
+        return JsonResponse({'status': 'success', 'message': 'Signature saved successfully.'})
+
+    except Exception as e:
+        logger.error(f"Error saving signature: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 @login_required(login_url='signin')
 def create_commission_slip2(request):
-    # Check if user has permission (only staff and superuser)
     if not request.user.is_staff and not request.user.is_superuser:
         messages.error(request, "You don't have permission to create commission slips.")
         return redirect('commission_history')
 
     if request.method == 'POST':
-        slip_form = CommissionSlipForm(request.POST)
+        post_data = request.POST.copy()
+        agent_id = post_data.get('agent_select')
+        if agent_id:
+            try:
+                agent = User.objects.get(id=agent_id)
+                post_data['sales_agent_name'] = agent.get_full_name()
+            except User.DoesNotExist:
+                pass  # Handle case where agent_id is invalid or not found
+
+        slip_form = CommissionSlipForm(post_data)
         if slip_form.is_valid():
-            # Get form data
-            sales_agent_name = request.POST.get('sales_agent_name')
-            buyer_name = request.POST.get('buyer_name')
-            project_name = request.POST.get('project_name')
-            unit_id = request.POST.get('unit_id')
-            total_selling_price = Decimal(request.POST.get('total_selling_price_manager', '0'))
-            cash_advance = Decimal(request.POST.get('cash_advance', '0'))
-            date = request.POST.get('date')
-            withholding_tax_rate = Decimal(request.POST.get('withholding_tax_rate', '10.00'))
-            team_leader_tax_rate = Decimal(request.POST.get('team_leader_tax_rate') or 0)
-            operation_manager_tax_rate = Decimal(request.POST.get('operation_manager_tax_rate') or 0)
-            co_founder_tax_rate = Decimal(request.POST.get('co_founder_tax_rate') or 0)
-            founder_tax_rate = Decimal(request.POST.get('founder_tax_rate') or 0)
-            funds_tax_rate = Decimal(request.POST.get('funds_tax_rate') or 0)
-            particulars = request.POST.get('particulars', 'FULL COMM')
-            partial_percentage = Decimal(request.POST.get('partial_percentage', '100'))
+            particulars = slip_form.cleaned_data.get('particulars')
+            slip = slip_form.save(commit=False)
+            slip.created_by = request.user
+            slip.is_full_breakdown = True
+            slip.position = request.POST.get('position', '')
+            slip.save()
 
-            # Get commission rates for each position
-            commission_rates = request.POST.getlist('commission_rate[]')
-            positions = request.POST.getlist('position[]')
-            gross_commissions = request.POST.getlist('gross_commission[]')
-            withholding_taxes = request.POST.getlist('withholding_tax[]')
-            net_commissions = request.POST.getlist('net_commission[]')
+            positions = request.POST.getlist('position')
+            is_primary_list = request.POST.getlist('is_primary')
+            manager_rate = request.POST.get('manager_commission_rate', '0')
+            other_rates = request.POST.getlist('commission_rate')
+            partial_percentage_list = request.POST.getlist('partial_percentage')
+            partial_percentage = Decimal(partial_percentage_list[0] if partial_percentage_list else '0')
 
-            # Create commission slip with is_full_breakdown set to True
-            slip = CommissionSlip.objects.create(
-                sales_agent_name=sales_agent_name,
-                buyer_name=buyer_name,
-                project_name=project_name,
-                unit_id=unit_id,
-                total_selling_price=total_selling_price,
-                cash_advance=cash_advance,
-                date=date,
-                withholding_tax_rate=withholding_tax_rate,
-                team_leader_tax_rate=team_leader_tax_rate,
-                operation_manager_tax_rate=operation_manager_tax_rate,
-                co_founder_tax_rate=co_founder_tax_rate,
-                founder_tax_rate=founder_tax_rate,
-                created_by=request.user,
-                created_at=timezone.now(),
-                is_full_breakdown=True  # Set this to True for management commission
-            )
-                    
-            # Create commission details for each position
-            for idx, position in enumerate(positions):
-                # Safely get the matching values; default to 0 if the list is shorter
-                rate_str = commission_rates[idx] if idx < len(commission_rates) else ''
-                rate = Decimal(rate_str) if rate_str else 0
-                if rate == 0:
-                    # Skip positions with zero/blank rate but keep index alignment
-                    continue
-                # Use a separate pointer for financial arrays since they only exist for rows with rate>0
-                if 'fin_ptr' not in locals():
-                    fin_ptr = 0
-                
-                gross = Decimal(gross_commissions[fin_ptr]) if fin_ptr < len(gross_commissions) and gross_commissions[fin_ptr] else Decimal('0')
-                wt = Decimal(withholding_taxes[fin_ptr]) if fin_ptr < len(withholding_taxes) and withholding_taxes[fin_ptr] else Decimal('0')
-                net = Decimal(net_commissions[fin_ptr]) if fin_ptr < len(net_commissions) and net_commissions[fin_ptr] else Decimal('0')
+            net_cash_advance = slip.cash_advance - (slip.cash_advance * Decimal('0.10'))
+            adjusted_total = Decimal(slip.total_selling_price) - Decimal(net_cash_advance)
 
-                # Determine the correct tax rate for this position
-                applied_tax_rate = (
-                    withholding_tax_rate if position == 'Sales Agent' else
-                    team_leader_tax_rate if position == 'Team Leader' else
-                    operation_manager_tax_rate if position == 'Operation Manager' else
-                    co_founder_tax_rate if position == 'Co-Founder' else
-                    founder_tax_rate if position == 'Founder' else
-                    funds_tax_rate if position == 'Funds' else Decimal('0')
-                )
+            other_rates_iterator = iter(other_rates)
+            for i in range(len(positions)):
+                position = positions[i]
+                is_primary = is_primary_list[i] == 'true' if i < len(is_primary_list) else False
 
-                # If the frontend didn't send calculated amounts (e.g., Funds row), compute them here
-                if gross == 0:
-                    # Recreate adjusted total used in JS preview
-                    net_cash_advance = cash_advance - (cash_advance * Decimal('0.10'))
-                    adjusted_total = total_selling_price - net_cash_advance
-                    
-                    # Calculate base commission
-                    base_commission = adjusted_total * (rate) * (partial_percentage / 100)
-                    
-                    # Apply partial percentage if applicable
-                    if particulars == 'PARTIAL COMM':
-                        base_commission = base_commission * (partial_percentage / 100)
-                    
-                    # Calculate gross commission
-                    gross = base_commission
-                    if particulars == 'INCENTIVES':
-                        gross = base_commission + Decimal(request.POST.get('incentive_amount', '0'))
-                    
-                    # Calculate tax
-                    tax_rate = applied_tax_rate / 100
-                    withholding_tax = gross * tax_rate
-                    net = gross - withholding_tax
+                if is_primary:
+                    rate_str = manager_rate
+                else:
+                    try:
+                        rate_str = next(other_rates_iterator)
+                    except StopIteration:
+                        rate_str = '0'
 
-                # Advance financial pointer since we've consumed this set
-                fin_ptr += 1
+                rate = Decimal(rate_str or '0')
 
-                # Round values to 2 decimal places for storage consistency
-                gross = gross.quantize(Decimal('0.01'))
-                wt = wt.quantize(Decimal('0.01'))
-                net = net.quantize(Decimal('0.01'))
+                if rate > 0:
+                    if is_primary:
+                        tax_rate = slip.withholding_tax_rate
+                    elif position == 'Operation Manager':
+                        tax_rate = slip.operation_manager_tax_rate
+                    elif position == 'Co-Founder':
+                        tax_rate = slip.co_founder_tax_rate
+                    elif position == 'Founder':
+                        tax_rate = slip.founder_tax_rate
+                    elif position == 'Funds':
+                        tax_rate = Decimal('0')
+                    else:
+                        tax_rate = Decimal('0')
 
-                CommissionDetail.objects.create(
-                    slip=slip,
-                    position=position,
-                    particulars=particulars,
-                    commission_rate=rate,
-                    gross_commission=gross,
-                    withholding_tax=wt,
-                    net_commission=net,
-                    partial_percentage=partial_percentage,
-                    withholding_tax_rate=applied_tax_rate
-                )
+                    base_commission = adjusted_total * (rate / 100)
+                    gross_commission = base_commission * (partial_percentage / 100)
+                    withholding_tax = gross_commission * (tax_rate / 100)
+                    net_commission = gross_commission - withholding_tax
+
+                    CommissionDetail.objects.create(
+                        slip=slip,
+                        position=position,
+                        particulars=particulars,
+                        commission_rate=rate,
+                        gross_commission=gross_commission.quantize(Decimal('0.01')),
+                        withholding_tax=withholding_tax.quantize(Decimal('0.01')),
+                        net_commission=net_commission.quantize(Decimal('0.01')),
+                        partial_percentage=partial_percentage,
+                        withholding_tax_rate=tax_rate
+                    )
 
             messages.success(request, "Commission slip created successfully!")
             return redirect('commission_history')
     else:
         slip_form = CommissionSlipForm()
 
+    # Get all properties for the dropdown
+    properties = Property.objects.all().order_by('name')
+    
     context = {
         'slip_form': slip_form,
-        'active_users': User.objects.filter(profile__is_approved=True)
+        'active_users': User.objects.filter(profile__is_approved=True),
+        'properties': properties
     }
     return render(request, 'create_commission_slip2.html', context)
 
@@ -1785,306 +1633,425 @@ def tranches_view(request):
         profile__is_approved=True,
         profile__role__in=['Sales Agent', 'Sales Supervisor', 'Sales Manager']
     ).select_related('profile')
+    
+    # Get all properties for the dropdown
+    properties = Property.objects.all().select_related('developer')
+    
+    # Initialize variables for Excel processing
+    excel_results = None
+    excel_form = ExcelUploadForm()
 
     if request.method == 'POST':
-        form = CommissionForm(request.POST)
-        if form.is_valid():
-            try:
-                # Compute Net of VAT based on Total Contract Price and VAT rate
-                vat_rate_decimal = form.cleaned_data.get('vat_rate', Decimal(12)) / Decimal(100)
-                net_of_vat_base = form.cleaned_data['total_contract_price'] / (Decimal(1) + vat_rate_decimal)
-
-                # Create TrancheRecord
-                tranche_record = TrancheRecord.objects.create(
-                    project_name=form.cleaned_data['project_name'],
-                    agent_name=form.cleaned_data['agent_name'].get_full_name(),
-                    phase=form.cleaned_data['phase'],
-                    unit_id=form.cleaned_data['unit_id'],
-                    buyer_name=form.cleaned_data['buyer_name'],
-                    reservation_date=form.cleaned_data['reservation_date'],
-                    total_contract_price=form.cleaned_data['total_contract_price'],
-                    commission_rate=form.cleaned_data['commission_rate'],
-                    process_fee_percentage=form.cleaned_data.get('process_fee_percentage', 0),
-                    withholding_tax_rate=form.cleaned_data['withholding_tax_rate'],
-                    option1_percentage=form.cleaned_data['option1_percentage'],
-                    option2_percentage=form.cleaned_data['option2_percentage'],
-                    option1_tax_rate=form.cleaned_data['option1_tax_rate'],
-                    option2_tax_rate=form.cleaned_data['option2_tax_rate'],
-                    tranche_option=form.cleaned_data['tranche_option'],
-                    number_months=form.cleaned_data['number_months'],
-                    deduction_type=form.cleaned_data.get('deduction_type'),
-                    other_deductions=form.cleaned_data.get('other_deductions', 0),
-                    # Store computed Net of VAT in the record so it can be displayed later
-                    net_of_vat_amount=net_of_vat_base,
-                    vat_rate=form.cleaned_data['vat_rate'],
-                    deduction_tax_rate=form.cleaned_data.get('deduction_tax_rate', 10),
-                    created_by=request.user
-                )
-                print("Created TrancheRecord:", tranche_record.id)
-
-                # Calculate base values using the new Net of VAT computation (TCP / (1+VAT))
-                less_process_fee = (form.cleaned_data['total_contract_price'] * form.cleaned_data.get('process_fee_percentage', 0)) / Decimal(100)
-                net_of_vat_amount = net_of_vat_base
-                total_selling_price = net_of_vat_base - less_process_fee
-                tax_rate = form.cleaned_data['withholding_tax_rate'] / Decimal(100)
-                gross_commission = total_selling_price * (form.cleaned_data['commission_rate'] / Decimal(100))
-
-                # Incorporate VAT (default 12%) before withholding tax
-                vat_rate_decimal = form.cleaned_data.get('vat_rate', Decimal(12)) / Decimal(100)
-                vat_amount = gross_commission * vat_rate_decimal
-                net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-
-                tax = net_of_vat * tax_rate
-                net_commission = gross_commission - tax
-
-                print("Base calculations completed")
-
-                # Calculate tax rates for different components
-                option1_tax_rate = form.cleaned_data['option1_tax_rate'] / Decimal(100)
-                option2_tax_rate = form.cleaned_data['option2_tax_rate'] / Decimal(100)
-                deduction_tax_rate = form.cleaned_data.get('deduction_tax_rate', Decimal(10)) / Decimal(100)
-
-                print("Tax rates calculated:", {
-                    "option1_tax_rate": option1_tax_rate,
-                    "option2_tax_rate": option2_tax_rate,
-                    "deduction_tax_rate": deduction_tax_rate
-                })
-
-                # Calculate deductions
-                deduction_amount = form.cleaned_data.get('other_deductions', Decimal(0))
-                deduction_tax = deduction_amount * deduction_tax_rate
-                deduction_net = deduction_amount - deduction_tax
-
-                print("Deductions calculated:", {
-                    "amount": deduction_amount,
-                    "tax": deduction_tax,
-                    "net": deduction_net
-                })
-
-                # Calculate commission splits
-                total_commission = net_commission
-                option1_value_before_deduction = total_commission * (form.cleaned_data['option1_percentage'] / Decimal(100))
-                option2_value = total_commission * (form.cleaned_data['option2_percentage'] / Decimal(100))
-
-                # Apply deductions to option1_value (DP period)
-                option1_value = option1_value_before_deduction - deduction_net
-                option1_monthly = option1_value / Decimal(form.cleaned_data['number_months'])
-
-                print("Commission splits calculated:", {
-                    "option1_before_deduction": option1_value_before_deduction,
-                    "option1_after_deduction": option1_value,
-                    "option2_value": option2_value,
-                    "monthly_value": option1_monthly
-                })
-
-                # Create payment schedule
-                intervals = []
-                current_date = form.cleaned_data['reservation_date']
-                for i in range(form.cleaned_data['number_months']):
-                    if form.cleaned_data['tranche_option'] == "bi_monthly":
-                        current_date += timedelta(days=30)
-                    elif form.cleaned_data['tranche_option'] == "quarterly":
-                        current_date += timedelta(days=90)
-                    elif form.cleaned_data['tranche_option'] == "bi_6_months":
-                        current_date += timedelta(days=180)
-                    elif form.cleaned_data['tranche_option'] == "bi_9_months":
-                        current_date += timedelta(days=270)
-                    else:
-                        current_date += timedelta(days=30)
-                    intervals.append(current_date)
-
-                print(f"Created {len(intervals)} payment intervals")
-
-                # Create DP tranches
-                dp_tranches = []
-                total_net = Decimal('0')
-                total_dp_tax = Decimal('0')
-
-                # Calculate totals first
-                for i, date in enumerate(intervals, start=1):
-                    net = option1_monthly
-                    tax_amount = net * option1_tax_rate
-                    total_net += net
-                    total_dp_tax += tax_amount
-
-                total_expected_commission = total_net - total_dp_tax
-                remaining_balance = total_expected_commission
-
-                print("DP period totals calculated:", {
-                    "total_net": total_net,
-                    "total_tax": total_dp_tax,
-                    "expected_commission": total_expected_commission
-                })
-
-                # Create individual tranches
-                for i, date in enumerate(intervals, start=1):
-                    net = option1_monthly
-                    tax_amount = net * option1_tax_rate
-                    expected_commission = net - tax_amount
-                    commission_received = Decimal(request.POST.get(f"commission_received_{i}", 0) or 0)
-                    date_received = request.POST.get(f"date_received_{i}")
-
-                    remaining_balance = remaining_balance - commission_received
-
-                    tranche = TranchePayment.objects.create(
-                        tranche_record=tranche_record,
-                        tranche_number=i,
-                        expected_date=date,
-                        expected_amount=expected_commission,
-                        received_amount=commission_received,
-                        date_received=date_received if date_received else None,
-                        is_lto=False,
-                        initial_balance=total_expected_commission,
-                        status="Received" if commission_received >= expected_commission else
-                               "Partial" if commission_received > 0 else "On Process"
+        # Check if this is an Excel upload request
+        if 'excel_file' in request.FILES:
+            logger.info(f"Excel file upload detected. Files: {list(request.FILES.keys())}")
+            excel_form = ExcelUploadForm(request.POST, request.FILES)
+            
+            if excel_form.is_valid():
+                try:
+                    import pandas as pd
+                    import io
+                    
+                    excel_file = excel_form.cleaned_data['excel_file']
+                    logger.info(f"Processing Excel file: {excel_file.name}, Size: {excel_file.size} bytes")
+                    
+                    # Read Excel file using pandas with openpyxl engine
+                    df = pd.read_excel(
+                        io.BytesIO(excel_file.read()),
+                        engine='openpyxl'
                     )
-                    dp_tranches.append({
-                        'tranche': tranche,
-                        'tax_amount': tax_amount,
-                        'net_amount': net,
-                        'balance': remaining_balance,
-                        'initial_balance': total_expected_commission,
-                        'expected_commission': expected_commission
+                    
+                    logger.info(f"Excel file loaded successfully. Shape: {df.shape}, Columns: {list(df.columns)}")
+                    
+                    # Validate required columns
+                    required_columns = [
+                        'agent_name', 'buyer_name', 'project_name', 'unit_id',
+                        'total_contract_price', 'commission_rate'
+                    ]
+                    
+                    missing_columns = [col for col in required_columns if col not in df.columns]
+                    if missing_columns:
+                        error_message = f"Missing required columns: {', '.join(missing_columns)}"
+                        messages.error(request, error_message)
+                        logger.error(f"Missing columns: {missing_columns}")
+                    else:
+                        # Process each row and perform tranche calculations
+                        processed_results = []
+                        
+                        for index, row in df.iterrows():
+                            try:
+                                # Extract data from row
+                                agent_name = str(row['agent_name']).strip()
+                                buyer_name = str(row['buyer_name']).strip()
+                                project_name = str(row['project_name']).strip()
+                                unit_id = str(row['unit_id']).strip()
+                                total_contract_price = Decimal(str(row['total_contract_price']))
+                                commission_rate = Decimal(str(row['commission_rate']))
+                                
+                                # Optional fields with defaults
+                                vat_rate = Decimal(str(row.get('vat_rate', 12)))
+                                withholding_tax_rate = Decimal(str(row.get('withholding_tax_rate', 10)))
+                                process_fee_percentage = Decimal(str(row.get('process_fee_percentage', 0)))
+                                option1_percentage = Decimal(str(row.get('option1_percentage', 50)))
+                                option2_percentage = Decimal(str(row.get('option2_percentage', 50)))
+                                other_deductions = Decimal(str(row.get('other_deductions', 0)))
+                                
+                                # Perform tranche calculations
+                                calculations = perform_excel_tranche_calculations(
+                                    total_contract_price=total_contract_price,
+                                    commission_rate=commission_rate,
+                                    vat_rate=vat_rate,
+                                    withholding_tax_rate=withholding_tax_rate,
+                                    process_fee_percentage=process_fee_percentage,
+                                    option1_percentage=option1_percentage,
+                                    option2_percentage=option2_percentage,
+                                    other_deductions=other_deductions
+                                )
+                                
+                                # Add row data to calculations
+                                calculations.update({
+                                    'row_number': index + 1,
+                                    'agent_name': agent_name,
+                                    'buyer_name': buyer_name,
+                                    'project_name': project_name,
+                                    'unit_id': unit_id,
+                                    'total_contract_price': float(total_contract_price),
+                                    'commission_rate': float(commission_rate),
+                                })
+                                
+                                processed_results.append(calculations)
+                                logger.info(f"Successfully processed row {index + 1}")
+                                
+                            except Exception as row_error:
+                                logger.error(f"Error processing row {index + 1}: {str(row_error)}")
+                                processed_results.append({
+                                    'row_number': index + 1,
+                                    'error': f"Error processing row {index + 1}: {str(row_error)}",
+                                    'agent_name': row.get('agent_name', 'N/A'),
+                                    'buyer_name': row.get('buyer_name', 'N/A'),
+                                    'project_name': row.get('project_name', 'N/A'),
+                                })
+                        
+                        excel_results = {
+                            'total_rows': len(df),
+                            'processed_rows': len(processed_results),
+                            'results': processed_results,
+                            'filename': excel_file.name
+                        }
+                        
+                        messages.success(request, f'Successfully processed {len(processed_results)} rows from {excel_file.name}')
+                        logger.info(f"Excel processing completed successfully. Processed {len(processed_results)} rows")
+                        
+                except Exception as e:
+                    error_message = f"Error processing Excel file: {str(e)}"
+                    messages.error(request, error_message)
+                    logger.error(f"Excel processing error: {str(e)}")
+            else:
+                messages.error(request, "Please correct the form errors below.")
+                logger.error(f"Excel form validation errors: {excel_form.errors}")
+        else:
+            # Handle regular form submission
+            form = CommissionForm(request.POST)
+            if form.is_valid():
+                try:
+                    # Compute Net of VAT based on Total Contract Price and VAT rate
+                    vat_rate_decimal = form.cleaned_data.get('vat_rate', Decimal(12)) / Decimal(100)
+                    net_of_vat_base = form.cleaned_data['total_contract_price'] / (Decimal(1) + vat_rate_decimal)
+
+                    # Create TrancheRecord
+                    tranche_record = TrancheRecord.objects.create(
+                        project_name=form.cleaned_data['project_name'],
+                        agent_name=form.cleaned_data['agent_name'].get_full_name(),
+                        phase=form.cleaned_data['phase'],
+                        unit_id=form.cleaned_data['unit_id'],
+                        buyer_name=form.cleaned_data['buyer_name'],
+                        reservation_date=form.cleaned_data['reservation_date'],
+                        total_contract_price=form.cleaned_data['total_contract_price'],
+                        commission_rate=form.cleaned_data['commission_rate'],
+                        process_fee_percentage=form.cleaned_data.get('process_fee_percentage', 0),
+                        withholding_tax_rate=form.cleaned_data['withholding_tax_rate'],
+                        option1_percentage=form.cleaned_data['option1_percentage'],
+                        option2_percentage=form.cleaned_data['option2_percentage'],
+                        option1_tax_rate=form.cleaned_data['option1_tax_rate'],
+                        option2_tax_rate=form.cleaned_data['option2_tax_rate'],
+                        tranche_option=form.cleaned_data['tranche_option'],
+                        number_months=form.cleaned_data['number_months'],
+                        deduction_type=form.cleaned_data.get('deduction_type'),
+                        other_deductions=form.cleaned_data.get('other_deductions', 0),
+                        # Store computed Net of VAT in the record so it can be displayed later
+                        net_of_vat_amount=net_of_vat_base,
+                        vat_rate=form.cleaned_data['vat_rate'],
+                        deduction_tax_rate=form.cleaned_data.get('deduction_tax_rate', 10),
+                        created_by=request.user
+                    )
+                    print("Created TrancheRecord:", tranche_record.id)
+
+                    # Calculate base values using the new Net of VAT computation (TCP / (1+VAT))
+                    less_process_fee = (net_of_vat_base * form.cleaned_data.get('process_fee_percentage', 0)) / Decimal(100)
+                    net_of_vat_amount = net_of_vat_base
+                    total_selling_price = net_of_vat_base - less_process_fee
+                    tax_rate = form.cleaned_data['withholding_tax_rate'] / Decimal(100)
+                    gross_commission = total_selling_price * (form.cleaned_data['commission_rate'] / Decimal(100))
+
+                    # Incorporate VAT (default 12%) before withholding tax
+                    vat_rate_decimal = form.cleaned_data.get('vat_rate', Decimal(12)) / Decimal(100)
+                    vat_amount = gross_commission * vat_rate_decimal
+                    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
+
+                    tax = net_of_vat * tax_rate
+                    net_commission = gross_commission - tax
+
+                    print("Base calculations completed")
+
+                    # Calculate tax rates for different components
+                    option1_tax_rate = form.cleaned_data['option1_tax_rate'] / Decimal(100)
+                    option2_tax_rate = form.cleaned_data['option2_tax_rate'] / Decimal(100)
+                    deduction_tax_rate = form.cleaned_data.get('deduction_tax_rate', Decimal(10)) / Decimal(100)
+
+                    print("Tax rates calculated:", {
+                        "option1_tax_rate": option1_tax_rate,
+                        "option2_tax_rate": option2_tax_rate,
+                        "deduction_tax_rate": deduction_tax_rate
                     })
 
-                print(f"Created {len(dp_tranches)} DP tranches")
+                    # Calculate deductions
+                    deduction_amount = form.cleaned_data.get('other_deductions', Decimal(0))
+                    deduction_tax = deduction_amount * deduction_tax_rate
+                    deduction_net = deduction_amount - deduction_tax
 
-                # Calculate LTO values
-                total_commission_received = sum(t['tranche'].received_amount for t in dp_tranches)
-                total_commission1 = total_expected_commission
+                    print("Deductions calculated:", {
+                        "amount": deduction_amount,
+                        "tax": deduction_tax,
+                        "net": deduction_net
+                    })
 
-                lto_deduction_value = option2_value
-                lto_deduction_tax = lto_deduction_value * option2_tax_rate
-                lto_deduction_net = lto_deduction_value - lto_deduction_tax
-                lto_expected_commission = lto_deduction_net - lto_deduction_tax
+                    # Calculate commission splits
+                    total_commission = net_commission
+                    option1_value_before_deduction = total_commission * (form.cleaned_data['option1_percentage'] / Decimal(100))
+                    option2_value = total_commission * (form.cleaned_data['option2_percentage'] / Decimal(100))
 
-                print("LTO calculations:", {
-                    "deduction_value": lto_deduction_value,
-                    "tax": lto_deduction_tax,
-                    "net": lto_deduction_net,
-                    "expected_commission": lto_expected_commission
-                })
+                    # Apply deductions to option1_value (DP period)
+                    option1_value = option1_value_before_deduction - deduction_net
+                    option1_monthly = option1_value / Decimal(form.cleaned_data['number_months'])
 
-                # Create LTO tranche
-                schedule2_gap_months = int(request.POST.get("schedule2_gap_months", 1))
-                schedule2_start_date = intervals[-1] + timedelta(days=30 * schedule2_gap_months)
+                    print("Commission splits calculated:", {
+                        "option1_before_deduction": option1_value_before_deduction,
+                        "option1_after_deduction": option1_value,
+                        "option2_value": option2_value,
+                        "monthly_value": option1_monthly
+                    })
 
-                commission_received2 = Decimal(request.POST.get("commission_received2_1", 0) or 0)
-                date_received2 = request.POST.get("date_received2_1")
+                    # Create payment schedule
+                    intervals = []
+                    current_date = form.cleaned_data['reservation_date']
+                    for i in range(form.cleaned_data['number_months']):
+                        if form.cleaned_data['tranche_option'] == "bi_monthly":
+                            current_date += timedelta(days=30)
+                        elif form.cleaned_data['tranche_option'] == "quarterly":
+                            current_date += timedelta(days=90)
+                        elif form.cleaned_data['tranche_option'] == "bi_6_months":
+                            current_date += timedelta(days=180)
+                        elif form.cleaned_data['tranche_option'] == "bi_9_months":
+                            current_date += timedelta(days=270)
+                        else:
+                            current_date += timedelta(days=30)
+                        intervals.append(current_date)
 
-                lto_current_balance = lto_expected_commission - commission_received2
+                    print(f"Created {len(intervals)} payment intervals")
 
-                lto_tranche = TranchePayment.objects.create(
-                    tranche_record=tranche_record,
-                    tranche_number=1,
-                    expected_date=schedule2_start_date,
-                    expected_amount=lto_expected_commission,
-                    received_amount=commission_received2,
-                    date_received=date_received2 if date_received2 else None,
-                    is_lto=True,
-                    initial_balance=lto_expected_commission,
-                    status="Received" if commission_received2 >= lto_expected_commission else
-                           "Partial" if commission_received2 > 0 else "On Process"
-                )
+                    # Create DP tranches
+                    dp_tranches = []
+                    total_net = Decimal('0')
+                    total_dp_tax = Decimal('0')
 
-                print("Created LTO tranche")
+                    # Calculate totals first
+                    for i, date in enumerate(intervals, start=1):
+                        net = option1_monthly
+                        tax_amount = net * option1_tax_rate
+                        total_net += net
+                        total_dp_tax += tax_amount
 
-                lto_tranches = [{
-                    'tranche': lto_tranche,
-                    'tax_amount': lto_deduction_tax,
-                    'net_amount': lto_deduction_net,
-                    'expected_commission': lto_expected_commission,
-                    'balance': lto_current_balance,
-                    'initial_balance': lto_expected_commission
-                }]
+                    total_expected_commission = total_net - total_dp_tax
+                    remaining_balance = total_expected_commission
 
-                # Calculate final totals
-                total_commission2 = sum(t['tranche'].expected_amount for t in lto_tranches)
-                total_commission_received2 = sum(t['tranche'].received_amount for t in lto_tranches)
-                total_balance2 = total_commission2 - total_commission_received2
-                percentage_received2 = (total_commission_received2 / total_commission2 * 100) if total_commission2 > 0 else 0
-                percentage_remaining2 = 100 - percentage_received2
+                    print("DP period totals calculated:", {
+                        "total_net": total_net,
+                        "total_tax": total_dp_tax,
+                        "expected_commission": total_expected_commission
+                    })
 
-                total_dp_tax = sum(t['tax_amount'] for t in dp_tranches)
+                    # Create individual tranches
+                    for i, date in enumerate(intervals, start=1):
+                        net = option1_monthly
+                        tax_amount = net * option1_tax_rate
+                        expected_commission = net - tax_amount
+                        commission_received = Decimal(request.POST.get(f"commission_received_{i}", 0) or 0)
+                        date_received = request.POST.get(f"date_received_{i}")
 
-                # Calculate total tax for LTO tranche so it can be included in the context
-                total_lto_tax = lto_deduction_tax
+                        remaining_balance = remaining_balance - commission_received
 
-                print("Final calculations completed")
+                        tranche = TranchePayment.objects.create(
+                            tranche_record=tranche_record,
+                            tranche_number=i,
+                            expected_date=date,
+                            expected_amount=expected_commission,
+                            received_amount=commission_received,
+                            date_received=date_received if date_received else None,
+                            is_lto=False,
+                            initial_balance=total_expected_commission,
+                            status="Received" if commission_received >= expected_commission else
+                                   "Partial" if commission_received > 0 else "On Process"
+                        )
+                        dp_tranches.append({
+                            'tranche': tranche,
+                            'tax_amount': tax_amount,
+                            'net_amount': net,
+                            'balance': remaining_balance,
+                            'initial_balance': total_expected_commission,
+                            'expected_commission': expected_commission
+                        })
 
-                # Prepare context with all calculated values
-                context = {
-                    "form": form,
-                    "approved_users": approved_users,
-                    "project_name": form.cleaned_data['project_name'],
-                    "agent_name": form.cleaned_data['agent_name'].get_full_name(),
-                    "phase": form.cleaned_data['phase'],
-                    "unit_id": form.cleaned_data['unit_id'],
-                    "buyer_name": form.cleaned_data['buyer_name'],
-                    "reservation_date": form.cleaned_data['reservation_date'],
-                    "total_contract_price": form.cleaned_data['total_contract_price'],
-                    "less_process_fee": less_process_fee,
-                    "total_selling_price": total_selling_price,
-                    "commission_rate": form.cleaned_data['commission_rate'],
-                    "gross_commission": gross_commission,
-                    "vat_rate": tranche_record.vat_rate,
-                    "net_of_vat": net_of_vat,
-                    "vat_amount": vat_amount,
-                    "tax": tax_rate * 100,
-                    "tax_rate": tax,
-                    "net_commission": net_commission,
-                    "dp_tranches": dp_tranches,
-                    "lto_tranches": lto_tranches,
-                    "option1_value": option1_value,
-                    "option1_value_before_deduction": option1_value_before_deduction,
-                    "option2_value": option2_value,
-                    "option1_percentage": form.cleaned_data['option1_percentage'],
-                    "option2_percentage": form.cleaned_data['option2_percentage'],
-                    "option1_tax_rate": option1_tax_rate,
-                    "option2_tax_rate": option2_tax_rate,
-                    "tranche_option": form.cleaned_data['tranche_option'],
-                    "number_months": form.cleaned_data['number_months'],
-                    "process_fee_percentage": form.cleaned_data.get('process_fee_percentage', Decimal(0)),
-                    "withholding_tax_rate": form.cleaned_data['withholding_tax_rate'],
-                    "option1_monthly": option1_monthly,
-                    "total_commission1": total_commission1,
-                    "total_commission_received": total_commission_received,
-                    "total_balance": total_commission1 - total_commission_received,
-                    "percentage_received": (total_commission_received / total_commission1 * 100) if total_commission1 > 0 else 0,
-                    "percentage_remaining": 100 - (total_commission_received / total_commission1 * 100) if total_commission1 > 0 else 0,
-                    "other_deductions": form.cleaned_data.get('other_deductions', Decimal(0)),
-                    "deduction_type": form.cleaned_data.get('deduction_type'),
-                    "deduction_tax": deduction_tax,
-                    "deduction_net": deduction_net,
-                    "deductions": option1_value,
-                    "deduction_tax_rate": deduction_tax_rate * 100,
-                    "schedule2_start_date": schedule2_start_date,
-                    "schedule2_gap_months": schedule2_gap_months,
-                    "total_commission2": total_commission2,
-                    "total_commission_received2": total_commission_received2,
-                    "total_balance2": total_balance2,
-                    "percentage_received2": percentage_received2,
-                    "percentage_remaining2": percentage_remaining2,
-                    "total_dp_tax": total_dp_tax,
-                    "total_lto_tax": total_lto_tax,
-                    "lto_deduction_value": lto_deduction_value,
-                    "lto_deduction_tax": lto_deduction_tax,
-                    "lto_deduction_net": lto_deduction_net,
-                }
+                    print(f"Created {len(dp_tranches)} DP tranches")
 
-                messages.success(request, 'Tranche record created successfully!')
-                # Redirect to the tranche details page so the user can immediately review the generated report
-                return redirect(reverse('view_tranche', args=[tranche_record.id]))
+                    # Calculate LTO values
+                    total_commission_received = sum(t['tranche'].received_amount for t in dp_tranches)
+                    total_commission1 = total_expected_commission
 
-            except Exception as e:
-                print("Error creating tranche record:", str(e))
-                messages.error(request, f"Error creating tranche record: {str(e)}")
-                return render(request, "tranches.html", {"form": form, "approved_users": approved_users})
+                    lto_deduction_value = option2_value
+                    lto_deduction_tax = lto_deduction_value * option2_tax_rate
+                    lto_deduction_net = lto_deduction_value - lto_deduction_tax
+                    lto_expected_commission = lto_deduction_net - lto_deduction_tax
+
+                    print("LTO calculations:", {
+                        "deduction_value": lto_deduction_value,
+                        "tax": lto_deduction_tax,
+                        "net": lto_deduction_net,
+                        "expected_commission": lto_expected_commission
+                    })
+
+                    # Create LTO tranche
+                    schedule2_gap_months = int(request.POST.get("schedule2_gap_months", 1))
+                    schedule2_start_date = intervals[-1] + timedelta(days=30 * schedule2_gap_months)
+
+                    commission_received2 = Decimal(request.POST.get("commission_received2_1", 0) or 0)
+                    date_received2 = request.POST.get("date_received2_1")
+
+                    lto_current_balance = lto_expected_commission - commission_received2
+
+                    lto_tranche = TranchePayment.objects.create(
+                        tranche_record=tranche_record,
+                        tranche_number=1,
+                        expected_date=schedule2_start_date,
+                        expected_amount=lto_expected_commission,
+                        received_amount=commission_received2,
+                        date_received=date_received2 if date_received2 else None,
+                        is_lto=True,
+                        initial_balance=lto_expected_commission,
+                        status="Received" if commission_received2 >= lto_expected_commission else
+                               "Partial" if commission_received2 > 0 else "On Process"
+                    )
+
+                    print("Created LTO tranche")
+
+                    lto_tranches = [{
+                        'tranche': lto_tranche,
+                        'tax_amount': lto_deduction_tax,
+                        'net_amount': lto_deduction_net,
+                        'expected_commission': lto_expected_commission,
+                        'balance': lto_current_balance,
+                        'initial_balance': lto_expected_commission
+                    }]
+
+                    # Calculate final totals
+                    total_commission2 = sum(t['tranche'].expected_amount for t in lto_tranches)
+                    total_commission_received2 = sum(t['tranche'].received_amount for t in lto_tranches)
+                    total_balance2 = total_commission2 - total_commission_received2
+                    percentage_received2 = (total_commission_received2 / total_commission2 * 100) if total_commission2 > 0 else 0
+                    percentage_remaining2 = 100 - percentage_received2
+
+                    total_dp_tax = sum(t['tax_amount'] for t in dp_tranches)
+
+                    # Calculate total tax for LTO tranche so it can be included in the context
+                    total_lto_tax = lto_deduction_tax
+
+                    print("Final calculations completed")
+
+                    # Prepare context with all calculated values
+                    context = {
+                        "form": form,
+                        "approved_users": approved_users,
+                        "project_name": form.cleaned_data['project_name'],
+                        "agent_name": form.cleaned_data['agent_name'].get_full_name(),
+                        "phase": form.cleaned_data['phase'],
+                        "unit_id": form.cleaned_data['unit_id'],
+                        "buyer_name": form.cleaned_data['buyer_name'],
+                        "reservation_date": form.cleaned_data['reservation_date'],
+                        "total_contract_price": form.cleaned_data['total_contract_price'],
+                        "less_process_fee": less_process_fee,
+                        "total_selling_price": total_selling_price,
+                        "commission_rate": form.cleaned_data['commission_rate'],
+                        "gross_commission": gross_commission,
+                        "vat_rate": tranche_record.vat_rate,
+                        "net_of_vat": net_of_vat,
+                        "vat_amount": vat_amount,
+                        "tax": tax_rate * 100,
+                        "tax_rate": tax,
+                        "net_commission": net_commission,
+                        "dp_tranches": dp_tranches,
+                        "lto_tranches": lto_tranches,
+                        "option1_value": option1_value,
+                        "option1_value_before_deduction": option1_value_before_deduction,
+                        "option2_value": option2_value,
+                        "option1_percentage": form.cleaned_data['option1_percentage'],
+                        "option2_percentage": form.cleaned_data['option2_percentage'],
+                        "option1_tax_rate": option1_tax_rate,
+                        "option2_tax_rate": option2_tax_rate,
+                        "tranche_option": form.cleaned_data['tranche_option'],
+                        "number_months": form.cleaned_data['number_months'],
+                        "process_fee_percentage": form.cleaned_data.get('process_fee_percentage', Decimal(0)),
+                        "withholding_tax_rate": form.cleaned_data['withholding_tax_rate'],
+                        "option1_monthly": option1_monthly,
+                        "total_commission1": total_commission1,
+                        "total_commission_received": total_commission_received,
+                        "total_balance": total_commission1 - total_commission_received,
+                        "percentage_received": (total_commission_received / total_commission1 * 100) if total_commission1 > 0 else 0,
+                        "percentage_remaining": 100 - (total_commission_received / total_commission1 * 100) if total_commission1 > 0 else 0,
+                        "other_deductions": form.cleaned_data.get('other_deductions', Decimal(0)),
+                        "deduction_type": form.cleaned_data.get('deduction_type'),
+                        "deduction_tax": deduction_tax,
+                        "deduction_net": deduction_net,
+                        "deductions": option1_value,
+                        "deduction_tax_rate": deduction_tax_rate * 100,
+                        "schedule2_start_date": schedule2_start_date,
+                        "schedule2_gap_months": schedule2_gap_months,
+                        "total_commission2": total_commission2,
+                        "total_commission_received2": total_commission_received2,
+                        "total_balance2": total_balance2,
+                        "percentage_received2": percentage_received2,
+                        "percentage_remaining2": percentage_remaining2,
+                        "total_dp_tax": total_dp_tax,
+                        "total_lto_tax": total_lto_tax,
+                        "lto_deduction_value": lto_deduction_value,
+                        "lto_deduction_tax": lto_deduction_tax,
+                        "lto_deduction_net": lto_deduction_net,
+                    }
+
+                    messages.success(request, 'Tranche record created successfully!')
+                    # Redirect to the tranche details page so the user can immediately review the generated report
+                    return redirect(reverse('view_tranche', args=[tranche_record.id]))
+
+                except Exception as e:
+                    print("Error creating tranche record:", str(e))
+                    messages.error(request, f"Error creating tranche record: {str(e)}")
+                    return render(request, "tranches.html", {"form": form, "approved_users": approved_users, "properties": properties})
 
     form = CommissionForm()
     context = {
         "form": form,
         "approved_users": approved_users,
+        "properties": properties,
+        "excel_form": excel_form,
+        "excel_results": excel_results,
         "option1_tax_rate": Decimal("0.10"),
         "option2_tax_rate": Decimal("0.10"),
         "option1_value": Decimal("0"),
@@ -2222,31 +2189,41 @@ def view_receivable_voucher(request, release_number):
         except TrancheRecord.DoesNotExist:
             pass
     
+    # Initialize all context variables to prevent UnboundLocalError
+    gross_commission_value = Decimal('0.00')
+    vat_amount = Decimal('0.00')
+    withholding_tax_value = Decimal('0.00')
+    net_commission_value = Decimal('0.00')
+    total_deductions = Decimal('0.00')
+    net_receivable = Decimal('0.00')
+    tranche_payments = []
+    total_selling_price = Decimal('0.00')
+
     # If we have tranche data, use it for calculations (same as view_tranche)
     if tranche_record:
         # Calculate base values using the same logic as view_tranche
         vat_rate_decimal = tranche_record.vat_rate / Decimal(100)
         net_of_vat_base = tranche_record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-        less_process_fee = (tranche_record.total_contract_price * tranche_record.process_fee_percentage) / Decimal(100)
+        less_process_fee = (net_of_vat_base * tranche_record.process_fee_percentage) / Decimal(100)
         total_selling_price = net_of_vat_base - less_process_fee
         tax_rate = tranche_record.withholding_tax_rate / Decimal(100)
-        gross_commission = total_selling_price * (tranche_record.commission_rate / Decimal(100))
+        gross_commission_value = total_selling_price * (tranche_record.commission_rate / Decimal(100))
         
         vat_rate_decimal = tranche_record.vat_rate / Decimal(100)
-        net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-        vat_amount = gross_commission - net_of_vat
+        net_of_vat = gross_commission_value / (Decimal(1) + vat_rate_decimal)
+        vat_amount = gross_commission_value - net_of_vat
         
         tax = net_of_vat * tax_rate
-        withholding_tax_amount = tax
-        net_of_withholding_tax = net_of_vat - withholding_tax_amount
-        net_commission = gross_commission - tax
+        withholding_tax_value = tax
+        net_of_withholding_tax = net_of_vat - withholding_tax_value
+        net_commission_value = gross_commission_value - tax
         
         # Get DP tranches and calculate values (same as view_tranche)
         dp_payments = tranche_record.payments.filter(is_lto=False).order_by('tranche_number')
         dp_tranches = []
         
         # Calculate option1 values (DP period)
-        option1_value_before_deduction = net_commission * (tranche_record.option1_percentage / Decimal(100))
+        option1_value_before_deduction = net_commission_value * (tranche_record.option1_percentage / Decimal(100))
         option1_tax_rate = tranche_record.option1_tax_rate / Decimal(100)
         
         # Apply deductions
@@ -2275,7 +2252,7 @@ def view_receivable_voucher(request, release_number):
             })
         
         # Calculate LTO values
-        option2_value = net_commission * (tranche_record.option2_percentage / Decimal(100))
+        option2_value = net_commission_value * (tranche_record.option2_percentage / Decimal(100))
         option2_tax_rate = tranche_record.option2_tax_rate / Decimal(100)
         lto_deduction_value = option2_value
         lto_deduction_tax = lto_deduction_value * option2_tax_rate
@@ -2413,7 +2390,7 @@ def view_tranche_voucher(request, tranche_id):
     # Calculate base values using the same logic as view_tranche
     vat_rate_decimal = record.vat_rate / Decimal(100)
     net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-    less_process_fee = (record.total_contract_price * record.process_fee_percentage) / Decimal(100)
+    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
     total_selling_price = net_of_vat_base - less_process_fee
     tax_rate = record.withholding_tax_rate / Decimal(100)
     gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
@@ -2566,11 +2543,41 @@ def receivables(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Calculate counts for the chart
+    dp_count = sum(1 for comm in commissions_with_type if comm['payment_type'] == 'Down Payment')
+    lto_count = sum(1 for comm in commissions_with_type if comm['payment_type'] == 'Loan Take Out')
+
+    # --- Monthly Trend Chart Data ---
+    six_months_ago = timezone.now() - timedelta(days=180)
+    monthly_data = (
+        Commission.objects
+        .filter(date_released__gte=six_months_ago)
+        .annotate(month=TruncMonth('date_released'))
+        .values('month')
+        .annotate(total=Sum('commission_amount'))
+        .order_by('month')
+    )
+
+    # Prepare data for Chart.js, ensuring we have data for the last 6 months
+    month_map = {data['month'].strftime('%b'): data['total'] for data in monthly_data}
+    monthly_labels = []
+    monthly_collections = []
+    for i in range(5, -1, -1):
+        month_date = timezone.now() - timedelta(days=i*30)
+        month_name = month_date.strftime('%b')
+        if month_name not in monthly_labels:
+            monthly_labels.append(month_name)
+            monthly_collections.append(float(month_map.get(month_name, 0)))
+
     context = {
         'page_obj': page_obj,
         'commission_count': commission_count,
         'total_commission': total_commission,
         'total_remaining': total_remaining,
+        'dp_count': dp_count,
+        'lto_count': lto_count,
+        'monthly_labels': monthly_labels,
+        'monthly_collections': monthly_collections,
     }
     return render(request, 'receivables.html', context)
 
@@ -2638,7 +2645,7 @@ def update_tranche(request):
         elif received_amount > 0:
             tranche.status = 'Partial'
         else:
-            tranche.status = 'On Process'
+            tranche.status = 'Pending'
             
         tranche.save()
 
@@ -2845,7 +2852,7 @@ def view_tranche(request, tranche_id):
     # Calculate base values using the new Net of VAT computation (TCP / (1+VAT))
     vat_rate_decimal = record.vat_rate / Decimal(100)
     net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-    less_process_fee = (record.total_contract_price * record.process_fee_percentage) / Decimal(100)
+    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
     total_selling_price = net_of_vat_base - less_process_fee
     tax_rate = record.withholding_tax_rate / Decimal(100)
     gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
@@ -3031,7 +3038,7 @@ def edit_tranche(request, tranche_id):
                     elif payment.received_amount > 0:
                         payment.status = 'Partial'
                     else:
-                        payment.status = 'On Process'
+                        payment.status = 'Pending'
 
                     payment.save()
 
@@ -3087,7 +3094,7 @@ def edit_tranche(request, tranche_id):
     from decimal import Decimal, ROUND_HALF_UP
     vat_rate_decimal = record.vat_rate / Decimal(100)
     net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-    less_process_fee = (record.total_contract_price * record.process_fee_percentage / Decimal(100)) if record.process_fee_percentage else Decimal(0)
+    less_process_fee = (net_of_vat_base * record.process_fee_percentage / Decimal(100)) if record.process_fee_percentage else Decimal(0)
     total_selling_price = net_of_vat_base - less_process_fee
 
     gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
@@ -3359,13 +3366,15 @@ def create_commission_slip3(request):
             messages.error(request, "Please correct the errors below.")
     else:
         slip_form = CommissionSlipForm3()
+    properties = Property.objects.all().order_by('name')
 
     return render(request, 'create_commission_slip3.html', {
         'slip_form': slip_form,
         'active_agents': active_agents,
         'active_supervisors': active_supervisors,
         'active_managers': active_managers,
-        'user_role': user_profile.role
+        'user_role': user_profile.role,
+        'properties': properties
     })
 
 @login_required(login_url='signin')
@@ -3380,7 +3389,10 @@ def commission3(request, slip_id):
         slip.created_by == request.user or
         slip.sales_agent_name == request.user.get_full_name() or
         slip.supervisor_name == request.user.get_full_name() or
-        slip.manager_name == request.user.get_full_name()
+        slip.manager_name == request.user.get_full_name() or
+        (request.user.profile.role == 'Sales Manager' and 
+         hasattr(request.user, 'profile') and 
+         hasattr(request.user.profile, 'team'))
     )
 
     if not can_view:
@@ -3407,30 +3419,32 @@ def commission3(request, slip_id):
         detail.net_commission = detail.gross_commission - detail.withholding_tax
         detail.save()
     
-    # Calculate totals
-    total_gross = sum(detail.gross_commission for detail in details)
-    total_tax = sum(detail.withholding_tax for detail in details)
-    total_net = sum(detail.net_commission for detail in details)
-    
-    # Filter details based on user role and permissions
+    # Filter details based on user role and permissions first
     user_role = request.user.profile.role
     user_name = request.user.get_full_name()
     
-    if request.user.is_superuser or request.user.is_staff or (user_role == 'Sales Manager' and slip.created_by == request.user):
-        # Staff, superusers, and managers who created the slip can see all details
+    if request.user.is_superuser or request.user.is_staff:
+        # Staff and superusers can see all details
+        filtered_details = details
+    elif user_role == 'Sales Manager':
+        # Sales Managers can see all details to view supervisor/agent breakdowns
         filtered_details = details
     elif user_role == 'Sales Supervisor' and user_name == slip.supervisor_name:
-        # Supervisor can see both their own and their agent's details
-        filtered_details = details
+        # Supervisor can see both their own and their agent's details, but not manager details
+        filtered_details = details.filter(
+            Q(agent_name=slip.sales_agent_name) | Q(agent_name=user_name)
+        )
     elif user_role == 'Sales Agent' and user_name == slip.sales_agent_name:
         # Agent can only see their own details
-        filtered_details = details.filter(agent_name=user_name)
-    elif user_role == 'Sales Manager' and user_name == slip.manager_name:
-        # Manager can only see their own details
         filtered_details = details.filter(agent_name=user_name)
     else:
         # For other cases, show only their own details
         filtered_details = details.filter(agent_name=user_name)
+    
+    # Calculate totals based on filtered details (what the user can see)
+    total_gross = sum(detail.gross_commission for detail in filtered_details)
+    total_tax = sum(detail.withholding_tax for detail in filtered_details)
+    total_net = sum(detail.net_commission for detail in filtered_details)
     
     return render(request, 'commission3.html', {
         'slip': slip,
@@ -3459,10 +3473,12 @@ def delete_tranche(request, tranche_id):
             # Delete associated payments first
             tranche.payments.all().delete()
             
-            # Delete associated commission records
+            # Delete associated commission records using the tranche ID
+            # This is more reliable than matching by project and buyer names.
+            tranche_id_str = str(tranche.id)
             Commission.objects.filter(
-                project_name=tranche.project_name,
-                buyer=tranche.buyer_name
+                Q(release_number__startswith=f'DP-{tranche_id_str}') | 
+                Q(release_number__startswith=f'LTO-{tranche_id_str}')
             ).delete()
             
             # Delete the tranche record
@@ -3475,59 +3491,63 @@ def delete_tranche(request, tranche_id):
 
 @login_required
 def add_property(request):
-    if not request.user.is_superuser:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Only superusers can manage properties.'
-        }, status=403)
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, 'You do not have permission to manage properties.')
+        return redirect('home')
         
     if request.method == 'POST':
         name = request.POST.get('name')
         developer_id = request.POST.get('developer')
         image = request.FILES.get('image')
         developer_obj = Developer.objects.filter(id=developer_id).first() if developer_id else None
+        
         if name:
             try:
                 property = Property.objects.create(name=name, developer=developer_obj, image=image)
-                return JsonResponse({
-                    'status': 'success',
-                    'message': 'Property added successfully!',
-                    'property_id': property.id,
-                    'property_name': property.name
-                })
+                messages.success(request, f'Property "{property.name}" added successfully!')
+                return redirect('add_property')
             except Exception as e:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': str(e)
-                })
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+                messages.error(request, f'Error adding property: {str(e)}')
+        else:
+            messages.error(request, 'Property name is required.')
+    
+    # Get all developers for the dropdown
+    developers = Developer.objects.all().order_by('name')
+    properties = Property.objects.all().order_by('name')
+    
+    context = {
+        'developers': developers,
+        'properties': properties,
+    }
+    return render(request, 'add_property.html', context)
 
 @login_required
 def add_developer(request):
-    if not request.user.is_superuser:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Only superusers can manage developers.'
-        }, status=403)
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, 'You do not have permission to manage developers.')
+        return redirect('home')
         
     if request.method == 'POST':
         name = request.POST.get('name')
         image = request.FILES.get('image')
+        
         if name:
             try:
                 developer = Developer.objects.create(name=name, image=image)
-                return JsonResponse({
-                    'status': 'success',
-                    'message': 'Developer added successfully!',
-                    'developer_id': developer.id,
-                    'developer_name': developer.name
-                })
+                messages.success(request, f'Developer "{developer.name}" added successfully!')
+                return redirect('add_developer')
             except Exception as e:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': str(e)
-                })
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+                messages.error(request, f'Error adding developer: {str(e)}')
+        else:
+            messages.error(request, 'Developer name is required.')
+    
+    # Get all developers for display
+    developers = Developer.objects.all().order_by('name')
+    
+    context = {
+        'developers': developers,
+    }
+    return render(request, 'add_developer.html', context)
 
 @login_required
 def delete_property(request, property_id):
@@ -3854,11 +3874,13 @@ def create_commission_slip3(request):
             messages.error(request, "Please correct the errors below.")
     else:
         slip_form = CommissionSlipForm3()
+    properties = Property.objects.all().order_by('name')
 
     return render(request, 'create_commission_slip3.html', {
         'slip_form': slip_form,
         'active_agents': active_agents,
         'active_supervisors': active_supervisors,
         'active_managers': active_managers,
-        'user_role': user_profile.role
+        'user_role': user_profile.role,
+        'properties': properties
     })

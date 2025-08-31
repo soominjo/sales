@@ -9,18 +9,6 @@
 
 {% block content %}
 
-<!-- Notifications -->
-{% if messages %}
-    <div class="space-y-2 mb-4">
-        {% for message in messages %}
-            <div class="p-4 rounded-lg text-sm
-                {% if message.tags == 'error' %}bg-red-100 text-red-800{% elif message.tags == 'success' %}bg-green-100 text-green-800{% else %}bg-blue-100 text-blue-800{% endif %}">
-                {{ message }}
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
-
 <style>
     @media print {
         @page {
@@ -240,8 +228,9 @@
     </span>
 </h1>
 
-        <p class="text-sm text-gray-600 mb-4">Fill out the form below to generate the commission report.</p>
+        <p class="text-sm text-gray-600 mb-4">Fill out the form below to generate the commission report, or upload an Excel file for bulk processing.</p>
 
+       
         <form method="POST" class="bg-emerald-100 p-8 rounded-2xl shadow-lg">
             {% csrf_token %}
             
@@ -284,8 +273,15 @@
                                 {{ form.buyer_name|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
                             </div>
                             <div>
-                                <label for="project_name" class="block text-gray-700 font-medium mb-2">Project Name</label>
-                                {{ form.project_name|add_class:"w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300" }}
+                                <label for="id_project_name" class="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2">
+                                    Project Name
+                                </label>
+                                <select name="project_name" id="id_project_name" class="w-full p-3 border border-gray-300 rounded-lg focus:ring focus:ring-green-300 bg-white" required>
+                                    <option value="" disabled selected>Select a property</option>
+                                    {% for property in properties %}
+                                        <option value="{{ property.name }}">{{ property.name }} - {{ property.developer.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div>
                                 <label for="phase" class="block text-gray-700 font-medium mb-2">Phase</label>
@@ -408,6 +404,155 @@
                 </button>
             </div>
         </form>
+    </div>
+
+    <!-- Excel Results Display -->
+    {% if excel_results %}
+    <div class="bg-white p-8 rounded-lg shadow-lg mt-8">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                <svg class="w-8 h-8 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Excel Processing Results
+            </h2>
+            <div class="text-sm text-gray-600">
+                <span class="font-semibold">{{ excel_results.filename }}</span> - 
+                {{ excel_results.processed_rows }} of {{ excel_results.total_rows }} rows processed
+            </div>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Row</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract Price</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission Rate</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Commission</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DP Period Net</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">LTO Net</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Net</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for result in excel_results.results %}
+                    <tr class="{% if result.error %}bg-red-50{% else %}hover:bg-gray-50{% endif %}">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ result.row_number }}</td>
+                        {% if result.error %}
+                            <td colspan="10" class="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                                <div class="flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    {{ result.error }}
+                                </div>
+                            </td>
+                        {% else %}
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ result.agent_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ result.buyer_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ result.project_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ result.unit_id }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ result.total_contract_price|floatformat:2 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ result.commission_rate|floatformat:2 }}%</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">₱{{ result.gross_commission|floatformat:2 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">₱{{ result.dp_period_net|floatformat:2 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">₱{{ result.lto_net|floatformat:2 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-700">₱{{ result.total_net_commission|floatformat:2 }}</td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Summary Statistics -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <p class="text-sm font-medium text-blue-600">Total Rows Processed</p>
+                <p class="text-2xl font-bold text-blue-700">{{ excel_results.processed_rows }}</p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <p class="text-sm font-medium text-green-600">Successful Calculations</p>
+                <p class="text-2xl font-bold text-green-700">{{ excel_results.results|length }}</p>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <p class="text-sm font-medium text-yellow-600">Total Gross Commission</p>
+                <p class="text-2xl font-bold text-yellow-700">₱{% widthratio excel_results.results|length 1 0 as total_gross %}{{ total_gross|floatformat:2 }}</p>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg">
+                <p class="text-sm font-medium text-purple-600">Total Net Commission</p>
+                <p class="text-2xl font-bold text-purple-700">₱{% widthratio excel_results.results|length 1 0 as total_net %}{{ total_net|floatformat:2 }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Live Calculation Preview -->
+    <div id="live-preview-container" class="bg-white p-6 rounded-lg shadow-md mt-8 border border-gray-200">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4 border-b pb-3">Live Calculation Preview</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <tbody class="divide-y divide-gray-200">
+                    <!-- Price Details -->
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium text-gray-600">Total Contract Price</td>
+                        <td id="preview-total-contract-price" class="p-3 text-right font-semibold text-gray-800">₱0.00</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium text-gray-600">Net of VAT</td>
+                        <td id="preview-base-amount" class="p-3 text-right font-semibold text-gray-800">₱0.00</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium text-gray-600">LMF</td>
+                        <td id="preview-lmf-amount" class="p-3 text-right font-semibold text-gray-800">₱0.00</td>
+                    </tr>
+
+                    <!-- Commission Calculation -->
+                    <tr class="bg-blue-50 hover:bg-blue-100">
+                        <td class="p-3 font-medium text-blue-700">Total Selling Price</td>
+                        <td id="preview-commissionable-amount" class="p-3 text-right font-bold text-blue-800">₱0.00</td>
+                    </tr>
+                    <tr class="bg-blue-50 hover:bg-blue-100">
+                        <td class="p-3 font-medium text-blue-700">Gross Commission</td>
+                        <td id="preview-total-commission" class="p-3 text-right font-bold text-blue-800">₱0.00</td>
+                    </tr>
+
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium text-gray-600">VAT Amount</td>
+                        <td id="preview-commission-vat" class="p-3 text-right font-semibold text-gray-800">₱0.00</td>
+                    </tr>
+
+
+                    <!-- Taxes and Deductions -->
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-medium text-gray-600">Commission (Net of VAT)</td>
+                        <td id="preview-commission-net-vat" class="p-3 text-right font-semibold text-gray-800">₱0.00</td>
+                    </tr>
+                   
+
+                    <tr class="bg-red-50 hover:bg-red-100">
+                        <td class="p-3 font-medium text-red-700">Withholding Tax</td>
+                        <td id="preview-withholding-tax" class="p-3 text-right font-bold text-red-800">₱0.00</td>
+                    </tr>
+                
+
+                    <!-- Net Commission -->
+                    <tr class="bg-green-100 hover:bg-green-200">
+                        <td class="p-3 text-lg font-bold text-green-800">Net Commission Payable</td>
+                        <td id="preview-net-commission" class="p-3 text-right text-2xl font-extrabold text-green-800">₱0.00</td>
+                    </tr>
+                    <tr class="bg-red-50 hover:bg-red-100">
+                        <td class="p-3 font-medium text-red-700">Other Deductions</td>
+                        <td id="preview-other-deductions" class="p-3 text-right font-bold text-red-800">₱0.00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
    
@@ -613,16 +758,185 @@
         }
     }
 
-    // Initialize the inputs when the page loads
+    // --- Live Calculation Logic ---
     document.addEventListener('DOMContentLoaded', function() {
-        const numberMonthsInput = document.getElementById('number_months');
+        const fieldIds = [
+            'id_total_contract_price',
+            'id_net_of_vat_amount',
+            'id_process_fee_percentage',
+            'id_commission_rate',
+            'id_vat_rate',
+            'id_withholding_tax_rate',
+            'id_other_deductions'
+        ];
+
+        // Fields that should not trigger net_of_vat_amount recalculation
+        const fieldsExcludingNetVat = [
+            'id_total_contract_price',
+            'id_process_fee_percentage',
+            'id_commission_rate',
+            'id_withholding_tax_rate',
+            'id_other_deductions'
+        ];
+
+        const getFloatValue = (id) => {
+            const element = document.getElementById(id);
+            return element ? (parseFloat(element.value.replace(/,/g, '')) || 0) : 0;
+        };
+
+        const updateLivePreview = () => {
+            const totalContractPrice = getFloatValue('id_total_contract_price');
+            const netOfVatDivisor = getFloatValue('id_net_of_vat_amount');
+            const processFeePercentage = getFloatValue('id_process_fee_percentage') / 100;
+            const commissionRate = getFloatValue('id_commission_rate') / 100;
+            const vatRate = getFloatValue('id_vat_rate') / 100;
+            const withholdingTaxRate = getFloatValue('id_withholding_tax_rate') / 100;
+            const otherDeductions = getFloatValue('id_other_deductions');
+
+            // --- Calculations ---
+            const baseAmount = netOfVatDivisor > 0 ? totalContractPrice / netOfVatDivisor : 0;
+            const lmfAmount = baseAmount * processFeePercentage;
+            const commissionableAmount = baseAmount - lmfAmount;
+            const grossCommission = commissionableAmount * commissionRate;
+            const commissionNetVat = grossCommission / (1 + vatRate);
+            const commissionVatAmount = grossCommission - commissionNetVat;
+            const withholdingTax = commissionNetVat * withholdingTaxRate;
+            const netCommissionPayable = grossCommission - withholdingTax - otherDeductions;
+
+            // --- UI Update ---
+            const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
+
+            document.getElementById('preview-total-contract-price').textContent = formatCurrency(totalContractPrice);
+            document.getElementById('preview-base-amount').textContent = formatCurrency(baseAmount);
+            document.getElementById('preview-lmf-amount').textContent = formatCurrency(lmfAmount);
+            document.getElementById('preview-commissionable-amount').textContent = formatCurrency(commissionableAmount);
+            document.getElementById('preview-total-commission').textContent = formatCurrency(grossCommission);
+            document.getElementById('preview-commission-net-vat').textContent = formatCurrency(commissionNetVat);
+            document.getElementById('preview-commission-vat').textContent = formatCurrency(commissionVatAmount);
+            document.getElementById('preview-withholding-tax').textContent = formatCurrency(withholdingTax);
+            document.getElementById('preview-other-deductions').textContent = formatCurrency(otherDeductions);
+            document.getElementById('preview-net-commission').textContent = formatCurrency(netCommissionPayable);
+        };
+
+        // Debounce function to delay execution
+        let debounceTimeout;
+        const debouncedUpdate = () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(updateLivePreview, 250);
+        };
+
+        // Attach listeners for fields excluding VAT rate affecting net of VAT
+        fieldsExcludingNetVat.forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.addEventListener('keyup', debouncedUpdate);
+                input.addEventListener('change', debouncedUpdate);
+            }
+        });
+
+        // Separate listener for net_of_vat_amount - only updates when manually changed
+        const netOfVatInput = document.getElementById('id_net_of_vat_amount');
+        if (netOfVatInput) {
+            netOfVatInput.addEventListener('keyup', debouncedUpdate);
+            netOfVatInput.addEventListener('change', debouncedUpdate);
+        }
+
+        // Separate listener for VAT rate - updates calculations but not net_of_vat_amount
+        const vatRateInput = document.getElementById('id_vat_rate');
+        if (vatRateInput) {
+            vatRateInput.addEventListener('keyup', debouncedUpdate);
+            vatRateInput.addEventListener('change', debouncedUpdate);
+        }
+
+        // Initial calculation on page load
+        updateLivePreview();
+    });
+
+    // Excel Upload JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        const excelForm = document.getElementById('excel-upload-form');
+        const fileInput = document.getElementById('excel-file-input');
+        const downloadTemplate = document.getElementById('download-template');
         
-        // Add event listeners for immediate updates
-        numberMonthsInput.addEventListener('input', updateTrancheInputs);
-        numberMonthsInput.addEventListener('change', updateTrancheInputs);
+        // Auto-submit on file selection
+        if (fileInput) {
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    // Show loading state
+                    const submitBtn = excelForm.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing...';
+                    submitBtn.disabled = true;
+                    
+                    // Submit form
+                    setTimeout(() => {
+                        excelForm.submit();
+                    }, 500);
+                }
+            });
+        }
         
-        // Initial update
-        updateTrancheInputs();
+        // Download template functionality
+        if (downloadTemplate) {
+            downloadTemplate.addEventListener('click', function() {
+                // Create a sample Excel template
+                const csvContent = 'agent_name,buyer_name,project_name,unit_id,total_contract_price,commission_rate,vat_rate,withholding_tax_rate,process_fee_percentage,option1_percentage,option2_percentage,other_deductions\n' +
+                    'John Doe,Jane Smith,Sample Project,A-101,1500000,7,12,10,0,50,50,0\n' +
+                    'Mary Johnson,Bob Wilson,Another Project,B-202,2000000,8,12,10,0,60,40,5000';
+                
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'tranche_template.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            });
+        }
+        
+        // File drag and drop functionality
+        if (fileInput) {
+            const dropZone = fileInput;
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight(e) {
+                dropZone.classList.add('border-blue-500', 'bg-blue-50');
+            }
+            
+            function unhighlight(e) {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            }
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    fileInput.dispatchEvent(new Event('change'));
+                }
+            }
+        }
     });
 </script>
 

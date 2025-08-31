@@ -96,32 +96,7 @@ class Profile(models.Model):
         ).aggregate(total=Sum('amount'))['total'] or 0
 
 
-class Sale(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    date = models.DateField(null=True, blank=True)
-    property_name = models.CharField(max_length=200, null=True, blank=True)  # Store selected property name
-    developer = models.CharField(max_length=200, null=True, blank=True)  # Store selected developer name
-    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    status = models.CharField(max_length=20, choices=[
-        ('Reserved', 'Reserved'),
-        ('Active', 'Active'),
-        ('Cancelled', 'Cancelled')
-    ])
 
-    class Meta:
-        ordering = ['-date']
-
-    def __str__(self):
-        return f"{self.property_name} - {self.amount}"
-    property = models.CharField(max_length=255)
-    developer = models.CharField(max_length=255)
-    total_sales = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    status = models.CharField(max_length=50, choices=[
-        ('Active', 'Active'),
-        ('Cancelled', 'Cancelled'),
-        ('Reserved', 'Reserved'),
-    ])
-    
 
 class CommissionSlip(models.Model):
     sales_agent_name = models.CharField(max_length=100)    
@@ -139,19 +114,18 @@ class CommissionSlip(models.Model):
     created_at = models.DateTimeField(null=True, blank=True)
     is_full_breakdown = models.BooleanField(default=False)
     withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Agent tax rate
-    team_leader_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Team Leader tax rate
     operation_manager_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Operation Manager tax rate
     co_founder_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Co-Founder tax rate
     founder_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Founder tax rate
     sales_manager_name = models.CharField(max_length=100, null=True, blank=True)
     manager_commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
 
     def __str__(self):
         return f"Commission Slip for {self.sales_agent_name}"
     
 class CommissionSlip2(models.Model):
     total_selling_price_manager = models.DecimalField(max_digits=12, decimal_places=2)
-    team_leader_rate = models.DecimalField(max_digits=5, decimal_places=2)
     operation_manager_rate = models.DecimalField(max_digits=5, decimal_places=2)
     co_founder_rate = models.DecimalField(max_digits=5, decimal_places=2)
     founder_rate = models.DecimalField(max_digits=5, decimal_places=2)
@@ -238,7 +212,7 @@ class TranchePayment(models.Model):
     received_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     date_received = models.DateField(null=True, blank=True)
     is_lto = models.BooleanField(default=False)  # To distinguish between DP and LTO tranches
-    status = models.CharField(max_length=20, default='On Process')  # On Process, Partial, Received
+    status = models.CharField(max_length=20, default='Pending')  # Pending, Partial, Received
     initial_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # Add initial balance field
 
     def __str__(self):
@@ -305,6 +279,7 @@ class CommissionSlip3(models.Model):
     created_at = models.DateTimeField(null=True, blank=True)
     withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Agent tax rate
     supervisor_withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # New supervisor tax rate
+    signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
 
     def __str__(self):
         return f"Commission Slip for {self.sales_agent_name} with Supervisor {self.supervisor_name}"
@@ -325,3 +300,49 @@ class CommissionDetail3(models.Model):
 
     def __str__(self):
         return f"{self.position} - {self.particulars}"
+
+
+class ProblemReport(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+    
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('login', 'Login Issues'),
+        ('password', 'Password Problems'),
+        ('account', 'Account Access'),
+        ('technical', 'Technical Issues'),
+        ('other', 'Other'),
+    ]
+    
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+    subject = models.CharField(max_length=200)
+    description = models.TextField()
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='open')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_problems')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    admin_notes = models.TextField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)  # Browser info
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        
+    def __str__(self):
+        return f"{self.subject} - {self.name} ({self.get_status_display()})"

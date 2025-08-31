@@ -5,174 +5,7 @@
 {% block content %}
 
 {% load static %}
-
 {% load humanize %}
-
-<style>
-  .profile-card {
-    @apply bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl shadow-lg transition-all duration-300;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .profile-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.1), transparent);
-    transform: translateX(-100%);
-    transition: transform 0.6s ease;
-  }
-
-  .profile-card:hover::before {
-    transform: translateX(100%);
-  }
-
-  .stat-card {
-    @apply bg-white p-6 rounded-xl shadow-md transition-all duration-300;
-    border: 1px solid rgba(59, 130, 246, 0.1);
-  }
-
-  .stat-card:hover {
-    @apply shadow-xl transform -translate-y-1;
-    border-color: rgba(59, 130, 246, 0.3);
-  }
-
-  .role-badge {
-    @apply inline-flex items-center px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300;
-    background-color: #2563eb;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    box-shadow: none;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  /* Removed hover effect for role-badge */
-
-  .team-badge {
-    @apply inline-flex items-center px-6 py-3 rounded-lg font-semibold text-sm transition-all duration-300;
-    background-color: #0d9488;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    box-shadow: none;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  /* Removed hover effect for team-badge */
-
-  .action-button {
-    @apply px-8 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-3;
-    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    min-width: 180px;
-  }
-
-  .action-button:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-    background: linear-gradient(135deg, #1d4ed8 0%, #93c5fd 100%);
-  }
-
-  .action-button.edit-profile {
-    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-  }
-
-  .action-button.edit-profile:hover {
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-    background: linear-gradient(135deg, #1d4ed8 0%, #93c5fd 100%);
-  }
-
-  .add-sales-button {
-    @apply px-8 py-4 rounded-xl font-semibold text-base transition-all duration-300 flex items-center justify-center gap-3;
-    background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    min-width: 180px;
-  }
-
-  .add-sales-button:hover {
-    transform: translateY(-2px) scale(1.03);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-    background: linear-gradient(135deg, #1d4ed8 0%, #93c5fd 100%);
-  }
-
-  .table-header {
-    @apply bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 font-semibold;
-  }
-
-  .table-row {
-    @apply transition-all duration-200 hover:bg-blue-50;
-  }
-
-  .status-badge {
-    @apply px-3 py-1 rounded-full text-xs font-semibold;
-  }
-
-  .status-active {
-    @apply bg-green-100 text-green-800;
-  }
-
-  .status-cancelled {
-    @apply bg-orange-100 text-red-800;
-  }
-
-  .status-reserved {
-    @apply bg-yellow-100 text-yellow-800;
-  }
-</style>
-<style id="responsive-fix">
-/* Responsive fixes – replaces invalid @apply rules with plain CSS so page works on all devices */
-.profile-card{
-  background:linear-gradient(to bottom right,#eff6ff,#ffffff);
-  padding:2rem;border-radius:1rem;box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);
-  position:relative;overflow:hidden;transition:all .3s ease;
-}
-.profile-card:hover{transform:translateY(-2px);}
-.stat-card{
-  background:#ffffff;padding:1.5rem;border-radius:.75rem;box-shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.05);
-  border:1px solid rgba(59,130,246,.1);transition:all .3s;
-}
-.stat-card:hover{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.05);transform:translateY(-4px);border-color:rgba(59,130,246,.3)}
-.role-badge,.team-badge{
-  display:inline-flex;align-items:center;padding:.75rem 1.5rem;border-radius:.5rem;font-weight:600;font-size:.875rem;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.1);
-  backdrop-filter:blur(10px);
-}
-.role-badge{background-color:#2563eb;}
-.team-badge{background-color:#0d9488;}
-.action-button,.add-sales-button{
-  display:flex;align-items:center;justify-content:center;gap:.75rem;padding:1rem 2rem;border-radius:.75rem;font-weight:600;font-size:1rem;color:#fff;min-width:180px;border:1px solid rgba(255,255,255,.1);
-  box-shadow:0 4px 15px rgba(37,99,235,.3);transition:all .3s;background:linear-gradient(135deg,#2563eb 0%,#60a5fa 100%);
-}
-.action-button:hover,.add-sales-button:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 6px 20px rgba(37,99,235,.4);background:linear-gradient(135deg,#1d4ed8 0%,#93c5fd 100%);}
-.action-button.edit-profile{background:linear-gradient(135deg,#2563eb 0%,#60a5fa 100%);}
-.table-header{background:linear-gradient(to right,#eff6ff,#dbeafe);color:#1e3a8a;font-weight:600;}
-.table-row{transition:background .2s;}
-.table-row:hover{background:#eff6ff;}
-.status-badge{padding:.25rem .75rem;border-radius:9999px;font-size:.75rem;font-weight:600;}
-.status-active{background:#dcfce7;color:#166534;}
-.status-cancelled{background:#ffedd5;color:#b91c1c;}
-.status-reserved{background:#fef3c7;color:#ca8a04;}
-/* Avatar responsive */
-@media(max-width:767px){
-  .profile-card img{width:80px;height:80px;}
-  .profile-card h2{font-size:1.5rem;}
-  .action-button,.add-sales-button{padding:.75rem 1.25rem;font-size:.875rem;}
-  .grid-cols-1.md\:grid-cols-3{grid-template-columns:1fr!important;}
-}
-</style>
 
 <head>
     <meta charset="UTF-8">
@@ -180,7 +13,7 @@
     <title>Real Estate Accounting Profile</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -191,678 +24,759 @@
                         accent: '#3b82f6',
                     },
                     fontFamily: {
-                        sans: ['Poppins', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif'],
                     },
                 }
             }
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 </head>
-<body class="bg-gray-50 font-sans">
-    <div class="min-h-screen flex">
-        <!-- Main Content -->
-        <div class="flex-1">
-                <!-- Profile Header -->
-                <div class="profile-card mb-8 flex flex-col md:flex-row items-center md:items-start justify-between bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl shadow-lg transition-all duration-300 relative overflow-hidden group">
-                    <div class="flex items-center space-x-6">
-                        {% if user.profile.image and user.profile.image.name != 'default.jpg' %}
-                            <img src="{{ user.profile.image.url }}" alt="Profile Picture" class="w-24 h-24 rounded-full object-cover ring-4 ring-blue-400 ring-opacity-50 shadow-lg transform transition-transform duration-300 hover:scale-105">
-                        {% else %}
-                            <div class="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-3xl shadow-lg">
-                                <i class="fas fa-user"></i>
-                            </div>
-                        {% endif %}
-                        <div>
-                            <h2 class="text-3xl font-bold text-gray-800 mb-2">{{ user.first_name }} {{ user.last_name }}</h2>
-                            <div class="flex flex-wrap gap-3">
-                                <span class="role-badge" title="Role: {{ user.profile.role }}">
-                                    <i class="fas fa-user-tie mr-2"></i>{{ user.profile.role }}
+
+<style>
+    /* Enhanced Profile Styles */
+    .profile-hero {
+        position: relative;
+        overflow: hidden;
+    }
+
+    
+
+    .profile-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .profile-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid rgba(59, 130, 246, 0.1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #3b82f6, #8b5cf6, #06b6d4);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .stat-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+        border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .settings-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .settings-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+        border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .action-button {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        border: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .action-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .action-button:hover::before {
+        left: 100%;
+    }
+
+    .action-button:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4);
+    }
+
+    .role-badge {
+        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    }
+
+    .team-badge {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+    }
+
+    .avatar-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .avatar-container::after {
+        content: '';
+        position: absolute;
+        inset: -4px;
+        background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
+        border-radius: 50%;
+        z-index: -1;
+        animation: rotate 3s linear infinite;
+    }
+
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .setting-item {
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+
+    .setting-item:hover {
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.05), transparent);
+        border-left-color: #3b82f6;
+        transform: translateX(5px);
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #cbd5e1;
+        transition: 0.3s;
+        border-radius: 24px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background: white;
+        transition: 0.3s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .slider {
+        background: #3b82f6;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+
+    .progress-ring {
+        transform: rotate(-90deg);
+    }
+
+    .progress-ring-circle {
+        stroke-dasharray: 251.2;
+        stroke-dashoffset: 251.2;
+        transition: stroke-dashoffset 0.5s ease-in-out;
+    }
+
+    @media (max-width: 768px) {
+        .profile-hero {
+            padding: 2rem 1rem;
+        }
+        
+        .stat-card {
+            margin-bottom: 1rem;
+        }
+        
+        .action-button {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+
+<body class="bg-gradient-to-br from-slate-50 to-blue-50 font-sans min-h-screen">
+    <!-- Enhanced Profile Hero Section -->
+    <div class="profile-hero relative py-16 mb-8">
+        <div class="relative z-10">
+            <div class="profile-card mx-auto max-w-6xl rounded-3xl p-8">
+                <div class="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-8">
+                    <!-- Profile Info -->
+                    <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                        <div class="avatar-container">
+                            {% if user.profile.image and user.profile.image.name != 'default.jpg' %}
+                                <img src="{{ user.profile.image.url }}" alt="Profile Picture" 
+                                     class="w-32 h-32 rounded-full object-cover shadow-2xl">
+                            {% else %}
+                                <div class="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl shadow-2xl">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="text-center sm:text-left">
+                            <h1 class="text-4xl font-bold text-gray-800 mb-3">{{ user.first_name }} {{ user.last_name }}</h1>
+                            <div class="flex flex-wrap gap-3 justify-center sm:justify-start mb-4">
+                                <span class="role-badge px-6 py-3 rounded-full font-semibold text-sm flex items-center gap-2">
+                                    <i class="fas fa-user-tie"></i>{{ user.profile.role }}
                                 </span>
-                                <span class="team-badge" title="Team: {{ user.profile.team.display_name }}">
-                                    <i class="fas fa-users mr-2"></i>{{ user.profile.team.display_name }}
+                                <span class="team-badge px-6 py-3 rounded-full font-semibold text-sm flex items-center gap-2">
+                                    <i class="fas fa-users"></i>{{ user.profile.team.display_name }}
                                 </span>
                             </div>
+                            <p class="text-gray-600 text-lg">Member since {{ user.date_joined|date:"F Y" }}</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-4 mt-6 md:mt-0">
-                        <a href="{% url 'edit_profile' %}" class="action-button edit-profile hover:scale-105">
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="{% url 'edit_profile' %}" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 flex items-center justify-center gap-3 min-w-[180px]">
                             <i class="fas fa-user-edit text-lg"></i>
                             <span>Edit Profile</span>
                         </a>
-                        <a href="{% url 'password_change' %}" class="action-button hover:scale-105" title="Change Password">
+                        <a href="{% url 'password_change' %}" class="action-button px-8 py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-3 min-w-[180px]">
                             <i class="fas fa-key text-lg"></i>
                             <span>Change Password</span>
                         </a>
                     </div>
-                    <div class="absolute inset-0 pointer-events-none group-hover:opacity-100 opacity-0 transition-opacity duration-500" style="background: linear-gradient(45deg, transparent, rgba(59, 130, 246, 0.08), transparent);"></div>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <!-- Stats Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <!-- Personal Info Card -->
-                    <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-id-card mr-2 text-blue-500"></i>Personal Information</h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center space-x-3"><i class="fas fa-envelope text-blue-500"></i><div><p class="text-sm text-gray-500">Email</p><p class="font-medium">{{ user.email }}</p></div></div>
-                            <div class="flex items-center space-x-3"><i class="fas fa-phone text-blue-500"></i><div><p class="text-sm text-gray-500">Phone</p><p class="font-medium">{{ user.profile.phone_number }}</p></div></div>
-                            <div class="flex items-center space-x-3"><i class="fas fa-map-marker-alt text-blue-500"></i><div><p class="text-sm text-gray-500">Address</p><p class="font-medium">{{ user.profile.address|default:'Not provided' }}</p></div></div>
-                            <div class="flex items-center space-x-3"><i class="fas fa-calendar text-blue-500"></i><div><p class="text-sm text-gray-500">Member Since</p><p class="font-medium">{{ user.date_joined|date:"F d, Y" }}</p></div></div>
+    <!-- Enhanced Stats Grid -->
+    {% if user.profile.role == 'Sales Agent' or user.profile.role == 'Sales Supervisor' or user.profile.role == 'Sales Manager' %}
+    <div class="max-w-6xl mx-auto px-4 mb-12">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Personal Information Card -->
+            <div class="stat-card rounded-2xl p-8 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-id-card text-blue-600"></i>
+                        </div>
+                        Personal Info
+                    </h3>
+                </div>
+                <div class="space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-envelope text-blue-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Email Address</p>
+                            <p class="font-semibold text-gray-800">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-phone text-green-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Phone Number</p>
+                            <p class="font-semibold text-gray-800">{{ user.profile.phone_number|default:'Not provided' }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-map-marker-alt text-purple-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Address</p>
+                            <p class="font-semibold text-gray-800">{{ user.profile.address|default:'Not provided' }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-calendar text-orange-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium">Joined Date</p>
+                            <p class="font-semibold text-gray-800">{{ user.date_joined|date:"F d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commission Summary Card -->
+            <div class="stat-card rounded-2xl p-8 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-line text-green-600"></i>
+                        </div>
+                        Commission Summary
+                    </h3>
+                </div>
+                <div class="space-y-6">
+                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-medium text-green-700">Total Received</p>
+                                <p class="text-2xl font-bold text-green-800">₱{{ total_commission_received|floatformat:2|intcomma }}</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-arrow-up text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-medium text-orange-700">Remaining</p>
+                                <p class="text-2xl font-bold text-orange-800">₱{{ total_commission_remaining|floatformat:2|intcomma }}</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-clock text-orange-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <p class="text-sm font-medium text-blue-700">Total Entries</p>
+                                <p class="text-2xl font-bold text-blue-800">{{ commission_count }}</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-list text-blue-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commission Chart Card -->
+            <div class="stat-card rounded-2xl p-8 shadow-lg">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-3">
+                        <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-pie text-purple-600"></i>
+                        </div>
+                        Distribution
+                    </h3>
+                </div>
+                <div class="flex items-center justify-center h-64">
+                    <canvas id="commissionChart" class="max-w-full"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Enhanced Profile Settings Section -->
+    <div class="max-w-6xl mx-auto px-4 mb-12">
+        <div class="settings-card rounded-2xl p-8 shadow-lg">
+            <div class="flex items-center justify-between mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-cog text-indigo-600"></i>
+                    </div>
+                    Profile Settings & Preferences
+                </h3>
+                <a href="{% url 'receivables' %}" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2">
+                    View Commission History <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Account Settings -->
+                <div class="space-y-6">
+                    <h4 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-3">Notifications</h4>
+
+                    <div class="setting-item p-4 rounded-xl">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-envelope-open-text text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-semibold text-gray-800">Email Notifications</h5>
+                                    <p class="text-sm text-gray-600">Receive updates via email</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="emailNotifToggle" checked>
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
 
-                    <!-- Commission Received Summary Card -->
-                    <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-chart-line mr-2 text-blue-500"></i>Commission Received Summary</h3>
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-green-50 transition-colors"><div><p class="font-medium text-gray-800">Total Commission Received</p></div><span class="text-xl font-bold text-green-600">₱{{ total_commission_received|floatformat:2|intcomma }}</span></div>
-                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-orange-50 transition-colors"><div><p class="font-medium text-gray-800">Total Remaining Commission</p></div><span class="text-xl font-bold text-orange-600">₱{{ total_commission_remaining|floatformat:2|intcomma }}</span></div>
-                            <div class="flex justify-between items-center p-3 rounded-lg hover:bg-blue-50 transition-colors"><div><p class="font-medium text-gray-800">Total Number of Entries</p></div><span class="text-xl font-bold text-blue-600">{{ commission_count }}</span></div>
+                
+
+
+                    <div class="setting-item p-4 rounded-xl">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-mobile-alt text-orange-600"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-semibold text-gray-800">SMS Notifications</h5>
+                                    <p class="text-sm text-gray-600">Get text alerts for important updates</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Commission Chart Card -->
-                    <div class="stat-card hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                        <h3 class="text-lg font-semibold mb-4 text-gray-800 border-b pb-2 flex items-center"><i class="fas fa-chart-pie mr-2 text-blue-500"></i>Commission Distribution</h3>
-                        <div class="flex items-center justify-center h-[300px]">
-                            <canvas id="propertyLossPieChart" class="max-w-full"></canvas>
+                <!-- System Preferences -->
+                <div class="space-y-6">
+                    <h4 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-3">System Preferences</h4>
+                    
+              
+
+
+
+
+                    <div class="setting-item p-4 rounded-xl">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-download text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-semibold text-gray-800">Auto-Download Reports</h5>
+                                    <p class="text-sm text-gray-600">Automatically download monthly commission reports</p>
+                                </div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
-
-                  <!-- Recent Commission Received Table -->
-                  <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                      <div class="p-6 border-b">
-                          <div class="flex justify-between items-center">
-                              <h3 class="text-lg font-semibold text-gray-800"><i class="fas fa-history mr-2 text-blue-500"></i>Recent Commission Received</h3>
-                              <a href="{% url 'receivables' %}" class="text-sm text-blue-600 hover:text-blue-800">View All</a>
-                          </div>
-                      </div>
-                      <div class="overflow-x-auto">
-                          <table class="min-w-full divide-y divide-gray-200">
-                              <thead class="table-header">
-                                  <tr>
-                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Released</th>
-                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project Name</th>
-                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission Amount</th>
-                                      {% if user.is_superuser %}
-                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
-                                      {% endif %}
-                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                  </tr>
-                              </thead>
-                              <tbody class="bg-white divide-y divide-gray-200">
-                                  {% for commission in recent_commissions %}
-                                  <tr class="hover:bg-gray-50 transition-colors duration-200">
-                                      <td class="px-6 py-4">
-                                          <div class="text-sm text-gray-900">{{ commission.date_released|date:"M d, Y" }}</div>
-                                      </td>
-                                      <td class="px-6 py-4">
-                                          <div class="text-sm font-medium text-gray-900">{{ commission.project_name }}</div>
-                                      </td>
-                                      <td class="px-6 py-4">
-                                          <div class="font-medium text-green-700">₱{{ commission.commission_amount|floatformat:2|intcomma }}</div>
-                                      </td>
-                                      {% if user.is_superuser %}
-                                      <td class="px-6 py-4">{{ commission.agent_name }}</td>
-                                      {% endif %}
-                                      <td class="px-6 py-4">
-                                          <div class="flex items-center space-x-2">
-                                              <div class="flex-1 bg-gray-200 rounded-full h-2 mr-2 overflow-hidden">
-                                                  <div class="h-full rounded-full {% if commission.completion_percentage >= 100 %}bg-green-500{% elif commission.completion_percentage > 0 %}bg-yellow-500{% else %}bg-red-500{% endif %}" 
-                                                       style="width: {{ commission.completion_percentage }}%"></div>
-                                              </div>
-                                              <span class="text-xs font-medium whitespace-nowrap {% if commission.completion_percentage >= 100 %}text-green-600{% elif commission.completion_percentage > 0 %}text-yellow-600{% else %}text-red-600{% endif %}">
-                                                  {{ commission.completion_percentage|floatformat:0 }}%
-                                              </span>
-                                          </div>
-                                      </td>
-                                      <td class="px-6 py-4">
-                                          <a href="{% url 'view_receivable_voucher' release_number=commission.release_number %}" 
-                                             class="tooltip p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors duration-200"
-                                             data-tippy-content="View Commission Voucher">
-                                              <i class="fas fa-eye"></i>
-                                          </a>
-                                      </td>
-                                  </tr>
-                                  {% empty %}
-                                  <tr>
-                                      <td colspan="6" class="px-6 py-4 text-center text-gray-500">
-                                          No commission records found.
-                                      </td>
-                                  </tr>
-                                  {% endfor %}
-                              </tbody>
-                          </table>
-                      </div>
-                  </div>
-            </div>
-        </div>
-    </div>
-    <div id="addSalesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <h3 class="text-lg font-semibold mb-4">Add New Sale</h3>
-            <form method="POST" action="{% url 'add_sale' %}" class="space-y-4">
-                {% csrf_token %}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" name="date" required
-                           value="{% now 'Y-m-d' %}"
-                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                    <select name="property" required
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                        <option value="">Select a Property</option>
-                        {% for property in properties %}
-                        <option value="{{ property.name }}">{{ property.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Developer</label>
-                    <select name="developer" required
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                        <option value="">Select a Developer</option>
-                        {% for developer in developers %}
-                        <option value="{{ developer.name }}">{{ developer.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% if user.is_superuser %}
-                <div class="flex space-x-4 mt-2">
-                    <button onclick="openPropertyModal()" class="text-sm text-blue-600 hover:text-blue-800">
-                        + Add New Property
-                    </button>
-                    <button onclick="openDeveloperModal()" class="text-sm text-blue-600 hover:text-blue-800">
-                        + Add New Developer
-                    </button>
-                </div>
-                {% endif %}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                    <input type="number" name="amount" step="0.01" min="0" required
-                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select name="status" required
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                        <option value="Active">Active</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
-                <div class="flex justify-end space-x-2 pt-4">
-                    <button type="button" onclick="closeModal()"
-                            class="px-4 py-2 border text-gray-600 rounded hover:bg-gray-100">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Add Sale
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <div id="editSalesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <h3 class="text-lg font-semibold mb-4">Edit Sale</h3>
-            <form id="editSaleForm" method="POST" class="space-y-4">
-                {% csrf_token %}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input type="date" name="date" id="edit-date" required
-                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Property</label>
-                    <select name="property" id="edit-property" required
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                        <option value="">Select a Property</option>
-                        {% for property in properties %}
-                        <option value="{{ property.name }}">{{ property.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Developer</label>
-                    <select name="developer" id="edit-developer" required
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                        <option value="">Select a Developer</option>
-                        {% for developer in developers %}
-                        <option value="{{ developer.name }}">{{ developer.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                    <input type="number" name="amount" id="edit-amount" step="0.01" min="0" required
-                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select name="status" id="edit-status" required
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                        <option value="Active">Active</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
-                </div>
-                <div class="flex justify-end space-x-2 pt-4">
-                    <button type="button" onclick="closeEditModal()"
-                            class="px-4 py-2 border text-gray-600 rounded hover:bg-gray-100">
-                        Cancel
-                    </button>
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <div id="propertyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Property Management</h3>
-                <button onclick="closePropertyModal()" class="text-gray-500 hover:text-gray-700">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
             </div>
 
-            <!-- Add Property Form -->
-            <form id="propertyForm" class="space-y-4 mb-6" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Property Name</label>
-                    <input type="text" name="name" required
-                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                </div>
-                <!-- Property Image -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Image / Logo</label>
-                    <input type="file" name="image" accept="image/*"
-                           class="w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Add Property
+            <!-- Quick Actions -->
+            <div class="mt-12 pt-8 border-t border-gray-200">
+                <h4 class="text-lg font-semibold text-gray-800 mb-6">Quick Actions</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <a href="{% url 'receivables' %}" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-receipt text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">View Receivables</h5>
+                                <p class="text-xs opacity-90">Check commission status</p>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <a href="{% url 'commission_history' %}" class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-history text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Commission History</h5>
+                                <p class="text-xs opacity-90">View all transactions</p>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <a href="{% url 'tranche_history' %}" class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-layer-group text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Tranche History</h5>
+                                <p class="text-xs opacity-90">View project tranches</p>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <button onclick="printProfile()" class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-print text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Print Profile</h5>
+                                <p class="text-xs opacity-90">Generate PDF report</p>
+                            </div>
+                        </div>
                     </button>
                 </div>
-            </form>
+            </div>
 
-            <!-- Existing Properties List -->
-            <div class="border-t pt-4">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Existing Properties</h4>
-                <div class="max-h-60 overflow-y-auto">
-                    {% for property in properties %}
-                    <div class="flex justify-between items-center py-2 hover:bg-gray-50 px-2 rounded">
-                        <span class="text-sm text-gray-800">{{ property.name }}</span>
-                        <button onclick="deleteProperty('{{ property.id }}')" 
-                                class="text-red-600 hover:text-red-800">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                        </button>
-                    </div>
-                    {% endfor %}
+            <!-- Management Actions (Superuser/Staff Only) -->
+            {% if user.is_superuser or user.is_staff %}
+            <div class="mt-8 pt-8 border-t border-gray-200">
+                <h4 class="text-lg font-semibold text-gray-800 mb-6">Management Actions</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <a href="{% url 'add_property' %}" class="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-4 rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-building text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Property Management</h5>
+                                <p class="text-xs opacity-90">Add and manage properties</p>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <a href="{% url 'add_developer' %}" class="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-4 rounded-xl hover:from-teal-600 hover:to-teal-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-users-cog text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Developer Management</h5>
+                                <p class="text-xs opacity-90">Add and manage developers</p>
+                            </div>
+                        </div>
+                    </a>
+                    
+                    <a href="{% url 'manage_teams' %}" class="bg-gradient-to-r from-pink-500 to-pink-600 text-white p-4 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-users text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Team Management</h5>
+                                <p class="text-xs opacity-90">Manage teams and members</p>
+                            </div>
+                        </div>
+                    </a>
+
+                    <a href="{% url 'problem_dashboard' %}" class="bg-gradient-to-r from-pink-500 to-pink-600 text-white p-4 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-exclamation-triangle text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Problem Dashboard</h5>
+                                <p class="text-xs opacity-90">View and manage reported issues</p>
+                            </div>
+                        </div>
+                    </a>
+
+                    <a href="{% url 'create_user' %}" class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-user-plus text-xl"></i>
+                            <div>
+                                <h5 class="font-semibold">Create User</h5>
+                                <p class="text-xs opacity-90">Create a new user account</p>
+                            </div>
+                        </div>
+                    </a>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
-    <div id="developerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Developer Management</h3>
-                <button onclick="closeDeveloperModal()" class="text-gray-500 hover:text-gray-700">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
 
-            <!-- Add Developer Form -->
-            <form id="developerForm" class="space-y-4 mb-6" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Developer Name</label>
-                    <input type="text" name="name" required
-                           class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
-                </div>
-                <!-- Developer Image -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Logo / Image</label>
-                    <input type="file" name="image" accept="image/*"
-                           class="w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="submit"
-                            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Add Developer
-                    </button>
-                </div>
-            </form>
 
-            <!-- Existing Developers List -->
-            <div class="border-t pt-4">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Existing Developers</h4>
-                <div class="max-h-60 overflow-y-auto">
-                    {% for developer in developers %}
-                    <div class="flex justify-between items-center py-2 hover:bg-gray-50 px-2 rounded">
-                        <span class="text-sm text-gray-800">{{ developer.name }}</span>
-                        <button onclick="deleteDeveloper('{{ developer.id }}')" 
-                                class="text-red-600 hover:text-red-800">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                        </button>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Enhanced JavaScript -->
     <script>
-        function openModal() {
-            document.getElementById('addSalesModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('addSalesModal').classList.add('hidden');
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('addSalesModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
-    </script>
-    <script>
-        function openEditModal(saleId) {
-            document.getElementById('editSalesModal').classList.remove('hidden');
-            document.getElementById('editSaleForm').action = `/edit-sale/${saleId}/`;
-            
-            // Fetch the sale data and populate the form
-            fetch(`/get-sale/${saleId}/`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('edit-date').value = data.date;
-                    document.getElementById('edit-property').value = data.property_name;
-                    document.getElementById('edit-developer').value = data.developer;
-                    document.getElementById('edit-amount').value = data.amount;
-                    document.getElementById('edit-status').value = data.status;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error loading sale data');
-                });
-        }
-
-        function closeEditModal() {
-            document.getElementById('editSalesModal').classList.add('hidden');
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('editSalesModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeEditModal();
-            }
-        });
-    </script>
-    <script>
-        function deleteSale(saleId) {
-            if (confirm('Are you sure you want to delete this sale?')) {
-                // Send delete request to your backend
-                fetch(`/delete-sale/${saleId}/`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        // Reload the page to show updated data
-                        window.location.reload();
-                    } else {
-                        alert('Error deleting sale');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error deleting sale');
-                });
-            }
-        }
-    </script>
-    <script>
-        var propertyLossCtx = document.getElementById('propertyLossPieChart').getContext('2d');
-        var propertyLossData = [
-          parseFloat("{{ total_active|default_if_none:0|floatformat:'2' }}"),
-          parseFloat("{{ total_cancelled|default_if_none:0|floatformat:'2' }}")
+        // Commission Chart
+        const ctx = document.getElementById('commissionChart').getContext('2d');
+        const commissionData = [
+            parseFloat("{{ total_commission_received|default_if_none:0|floatformat:'2' }}"),
+            parseFloat("{{ total_commission_remaining|default_if_none:0|floatformat:'2' }}")
         ];
-        var propertyLossLabels = ['Active', 'Cancelled'];
-        var propertyLossColors = ['#16a34a', '#dc2626'];
-
-        var propertyLossChart = new Chart(propertyLossCtx, {
-          type: 'pie',
-          data: {
-            labels: propertyLossLabels,
-            datasets: [{
-              data: propertyLossData,
-              backgroundColor: propertyLossColors,
-              borderColor: '#fff',
-              borderWidth: 2,
-              hoverOffset: 16
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-              animateScale: true,
-              animateRotate: true
+        
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Received', 'Remaining'],
+                datasets: [{
+                    data: commissionData,
+                    backgroundColor: ['#22c55e', '#f97316'], // Green for Received, Orange for Remaining
+                    borderWidth: 0,
+                    hoverOffset: 8
+                }]
             },
-            plugins: {
-              legend: {
-                position: 'bottom',
-                align: 'center',
-                labels: {
-                  boxWidth: 24,
-                  font: { size: 20, weight: 'bold' },
-                  color: '#1e293b',
-                  padding: 24
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            font: { size: 12, weight: 'bold' },
+                            color: '#374151'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1f2937',
+                        titleColor: '#f9fafb',
+                        bodyColor: '#f9fafb',
+                        borderColor: '#374151',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed;
+                                const total = commissionData.reduce((a, b) => a + b, 0);
+                                const percentage = total ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ₱${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true,
+                    duration: 1000
                 }
-              },
-              tooltip: {
-                backgroundColor: '#f3f4f6',
-                titleColor: '#0f172a',
-                bodyColor: '#0f172a',
-                borderColor: '#e5e7eb',
-                borderWidth: 1,
-                titleFont: { weight: 'bold', size: 18 },
-                bodyFont: { size: 17 }
-              }
-            },
-            hover: {
-              mode: 'nearest',
-              intersect: true
             }
-          }
         });
 
-        propertyLossCtx.canvas.onclick = function(evt) {
-          var points = propertyLossChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-          if (points.length) {
-            var idx = points[0].index;
-            var value = propertyLossData[idx];
-            var total = propertyLossData.reduce(function(a, b) { return a + b; }, 0);
-            var percent = total ? (value / total * 100) : 0;
-            var label = propertyLossLabels[idx];
-            alert(label + '\nAmount: ₱' + value.toLocaleString() + '\nPercent: ' + percent.toFixed(1) + '%');
-          }
+        // Dark Mode Toggle
+        document.getElementById('darkModeToggle').addEventListener('change', function() {
+            if (this.checked) {
+                document.body.classList.add('dark');
+                localStorage.setItem('darkMode', 'enabled');
+            } else {
+                document.body.classList.remove('dark');
+                localStorage.setItem('darkMode', 'disabled');
+            }
+        });
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'enabled') {
+            document.getElementById('darkModeToggle').checked = true;
+            document.body.classList.add('dark');
+        }
+
+        // Notification Toggles
+        const notificationToggles = [
+            { id: 'emailNotifToggle', key: 'emailNotif' },
+            { id: 'smsNotifToggle', key: 'smsNotif' },
+            { id: 'pushNotifToggle', key: 'pushNotif' }
+        ];
+
+        notificationToggles.forEach(toggle => {
+            const toggleElement = document.getElementById(toggle.id);
+            
+            // Set initial state from local storage
+            if (localStorage.getItem(toggle.key) === 'enabled') {
+                toggleElement.checked = true;
+            } else if (localStorage.getItem(toggle.key) === 'disabled') {
+                toggleElement.checked = false;
+            }
+
+            // Add event listener
+            toggleElement.addEventListener('change', function() {
+                if (this.checked) {
+                    localStorage.setItem(toggle.key, 'enabled');
+                } else {
+                    localStorage.setItem(toggle.key, 'disabled');
+                }
+            });
+        });
+
+        // Print Profile Function
+        function printProfile() {
+            window.print();
+        }
+
+        // Enhanced animations on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
         };
-    </script>
-    <script>
-        // Property form submission
-        document.getElementById('propertyForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all cards
+        document.querySelectorAll('.stat-card, .settings-card').forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.6s ease';
+            observer.observe(card);
+        });
+
+        // Enhanced hover effects
+        document.querySelectorAll('.setting-item').forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateX(8px)';
+            });
             
-            fetch('{% url "add_property" %}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert(data.message);
-                    window.location.reload();
-                } else {
-                    alert(data.message || 'Error adding property');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error adding property');
+            item.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateX(0)';
             });
         });
 
-        // Developer form submission
-        document.getElementById('developerForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            
-            fetch('{% url "add_developer" %}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        // Smooth scroll for internal links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
                 }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert(data.message);
-                    window.location.reload();
-                } else {
-                    alert(data.message || 'Error adding developer');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error adding developer');
             });
         });
 
-        // Delete property function
-        function deleteProperty(propertyId) {
-            if (confirm('Are you sure you want to delete this property? This action cannot be undone.')) {
-                fetch(`/delete-property/${propertyId}/`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert(data.message);
-                        window.location.reload();
-                    } else {
-                        alert(data.message || 'Error deleting property');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error deleting property');
-                });
-            }
-        }
-
-        // Delete developer function
-        function deleteDeveloper(developerId) {
-            if (confirm('Are you sure you want to delete this developer? This action cannot be undone.')) {
-                fetch(`/delete-developer/${developerId}/`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert(data.message);
-                        window.location.reload();
-                    } else {
-                        alert(data.message || 'Error deleting developer');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error deleting developer');
-                });
-            }
-        }
-
-        // Modal functions
-        function openPropertyModal() {
-            document.getElementById('propertyModal').classList.remove('hidden');
-        }
-
-        function closePropertyModal() {
-            document.getElementById('propertyModal').classList.add('hidden');
-        }
-
-        function openDeveloperModal() {
-            document.getElementById('developerModal').classList.remove('hidden');
-        }
-
-        function closeDeveloperModal() {
-            document.getElementById('developerModal').classList.add('hidden');
-        }
-
-        // Close modals when clicking outside
-        window.onclick = function(event) {
-            const propertyModal = document.getElementById('propertyModal');
-            const developerModal = document.getElementById('developerModal');
-            
-            if (event.target === propertyModal) {
-                closePropertyModal();
-            }
-            if (event.target === developerModal) {
-                closeDeveloperModal();
-            }
-        }
-
-        // Add escape key listener
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closePropertyModal();
-                closeDeveloperModal();
-            }
+        // Loading animation for action buttons
+        document.querySelectorAll('.action-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const originalText = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    this.innerHTML = originalText;
+                    this.disabled = false;
+                }, 1000);
+            });
         });
     </script>
-    <script>
-    function printSection(id) {
-        const originalHtml = document.body.innerHTML;
-        const section = document.getElementById(id).innerHTML;
-        document.body.innerHTML = section;
-        window.print();
-        document.body.innerHTML = originalHtml;
-        location.reload();
-    }
-</script>
 </body>
-</html>
 
 {% endblock %}

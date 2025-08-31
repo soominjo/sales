@@ -28,7 +28,7 @@
         <img src="{% static 'media/LOGO.png' %}" alt="Inner SPARC Collage" class="w-48 mx-auto">
         <h2 class="text-2xl font-bold leading-snug text-center">Welcome to Inner SPARC<br>Realty Corporation</h2>
         <p class="text-sm text-center">Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina Salawag, Dasmariñas, Cavite 4114 <br> 0917-853-4875 / 0999-994-3304 / (046)458-0706</p>
-        <p class="text-sm opacity-90 text-center">Access your sales monitoring system to easily track client transactions, monitor tranche progress, and manage commission slips — all in one place to streamline your real estate business growth..</p>
+        <p class="text-sm opacity-90 text-center">Stay on top of your commissions with ease! Track sales, monitor tranches, and manage commission slips all in one place — making real estate success simpler and faster</p>
       </div>
       <!-- Right sign-in panel -->
       <div class="px-8 py-10 bg-white">
@@ -144,10 +144,10 @@
         </form>
 
         <div class="mt-8 text-center">
-          <p class="text-sm text-gray-600">Don't have an account?</p>
-          <a href="{% url 'signup' %}" class="mt-2 inline-flex items-center justify-center px-5 py-2 border border-transparent text-base font-medium rounded-md text-white bg-gradient-to-r from-[#1e3a8a] via-[#2563eb] to-[#3b82f6] hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
-            Create Account
-          </a>
+          <p class="text-sm text-gray-600">
+            Having trouble signing in?
+            <a href="{% url 'report_problem' %}" class="font-medium text-blue-600 hover:text-blue-500">Report a problem</a>
+          </p>
         </div>
       {% endif %}
     </div>

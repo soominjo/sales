@@ -3,7 +3,6 @@ from .models import *
 
 
 admin.site.register(Profile)
-admin.site.register(Sale)
 admin.site.register(CommissionSlip)
 admin.site.register(CommissionDetail)
 admin.site.register(Commission)

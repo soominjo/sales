@@ -5,205 +5,318 @@
 {% block content %}
 {% load humanize %}
 
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div class="p-6">
-            <!-- Header Section -->
-            {% if user.is_superuser or user.is_staff or user == record.created_by %}
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Edit Tranche</h2>
-                <div class="flex space-x-3">
-                    <a href="{% url 'view_tranche' record.id %}" 
-                       class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200">
-                        Cancel
-                    </a>
-                </div>
+<style>
+  .gradient-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .form-section {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .form-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .input-focus {
+    transition: all 0.3s ease;
+  }
+  
+  .input-focus:focus {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  .status-indicator {
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+</style>
+
+<!-- Header -->
+<div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-14">
+  <div>
+    <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
+      <svg class="w-8 h-8 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+      </svg>
+      Edit Tranche
+    </h1>
+    <p class="text-gray-600 mt-2">{{ record.project_name }} - Phase {{ record.phase }}</p>
+  </div>
+</div>
+
+<div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+
+  <div class="p-8">
+    {% if user.is_superuser or user.is_staff or user == record.created_by %}
+    <!-- Action Buttons -->
+    <div class="flex justify-between items-center mb-8">
+      <div class="flex space-x-4">
+        <a href="{% url 'view_tranche' record.id %}" 
+           class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Cancel & Return
+        </a>
+      </div>
+    </div>
+
+    <!-- Enhanced Form -->
+    <form method="POST" class="space-y-8">
+      {% csrf_token %}
+      
+      <!-- Project Information Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl shadow-lg form-section border border-blue-200">
+          <div class="flex items-center mb-6">
+            <div class="p-3 bg-blue-500 rounded-xl mr-4">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+              </svg>
             </div>
-            {% endif %}
-
-            <!-- Project Information -->
-<form method="POST" class="space-y-8">
-    {% csrf_token %}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Project Details</h3>
-                    <div class="space-y-3">
-                        <div>
-        <label class="text-gray-600 block mb-1" for="project_name">Project</label>
-        <input type="text" id="project_name" name="project_name" value="{{ record.project_name }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-    </div>
-                        <div>
-        <label class="text-gray-600 block mb-1" for="agent_name">Agent</label>
-        <input type="text" id="agent_name" name="agent_name" value="{{ record.agent_name }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-    </div>
-                        <div>
-        <label class="text-gray-600 block mb-1" for="buyer_name">Buyer</label>
-        <input type="text" id="buyer_name" name="buyer_name" value="{{ record.buyer_name }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-    </div>
-                    </div>
-                </div>
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">Commission Details</h3>
-                    <div class="space-y-3">
-                        <div>
-        <label class="text-gray-600 block mb-1" for="total_contract_price">Total Contract Price (₱)</label>
-        <input type="number" step="0.01" id="total_contract_price" name="total_contract_price" value="{{ record.total_contract_price }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 comma-format" />
-    </div>
-                        <div>
-        <label class="text-gray-600 block mb-1" for="commission_rate">Commission Rate (%)</label>
-        <input type="number" step="0.01" id="commission_rate" name="commission_rate" value="{{ record.commission_rate }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-    </div>
-                    </div>
-                </div>
+            <h3 class="text-2xl font-bold text-blue-800">Project Details</h3>
+          </div>
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-semibold text-blue-700 mb-2" for="project_name">Project Name</label>
+              <input type="text" id="project_name" name="project_name" value="{{ record.project_name }}" 
+                     class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500 input-focus transition-all bg-white shadow-sm text-gray-800 font-medium" />
             </div>
-
-            
-                
-                
-                <!-- Down Payment Tranches -->
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Down Payment Schedule ({{ record.option1_percentage }}%)</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead>
-                                    <tr class="bg-blue-600 text-white">
-                                        <th class="px-4 py-3 text-left">Tranche #</th>
-                                        <th class="px-4 py-3 text-left">Expected Date</th>
-                                        <th class="px-4 py-3 text-left">Expected Commission</th>
-                                        <th class="px-4 py-3 text-left">Actual Commission</th>
-                                        <th class="px-4 py-3 text-left">Date Received</th>
-                                        <th class="px-4 py-3 text-left">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 bg-white">
-                                    {% for payment in record.payments.all %}
-                                    {% if not payment.is_lto %}
-                                    <tr class="hover:bg-blue-50 transition-colors duration-150">
-                                        <td class="px-4 py-3">{{ payment.tranche_number }}</td>
-                                        <td class="px-4 py-3">{{ payment.expected_date|date:"M d, Y" }}</td>
-                                        <td class="px-4 py-3">
-                                            ₱ {{ payment.expected_amount|floatformat:2|intcomma }}
-                                        </td>                                        
-                                        <td class="px-4 py-3">
-                                            <input type="number" 
-                                                   name="received_amount_{{ payment.id }}" 
-                                                   value="{{ payment.received_amount|default:0 }}"
-                                                   step="0.01"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                   onchange="updateStatus(this, {{ payment.expected_amount }}, 'status_{{ payment.id }}')">
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <input type="date" 
-                                                   name="date_received_{{ payment.id }}" 
-                                                   value="{% if payment.date_received %}{{ payment.date_received|date:'Y-m-d' }}{% endif %}"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span id="status_{{ payment.id }}" 
-                                                  class="inline-block px-2 py-1 text-xs font-semibold rounded
-                                                  {% if payment.status == 'Received' %}text-green-700 bg-green-100
-                                                  {% elif payment.status == 'Partial' %}text-yellow-700 bg-yellow-100
-                                                  {% else %}text-red-700 bg-red-100{% endif %}">
-                                                {{ payment.status }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Loan Take Out Tranche -->
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Loan Take Out Schedule ({{ record.option2_percentage }}%)</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead>
-                                    <tr class="bg-blue-600 text-white">
-                                        <th class="px-4 py-3 text-left">Expected Date</th>
-                                        <th class="px-4 py-3 text-left">Expected Commission</th>
-                                        <th class="px-4 py-3 text-left">Actual Commission</th>
-                                        <th class="px-4 py-3 text-left">Date Received</th>
-                                        <th class="px-4 py-3 text-left">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 bg-white">
-                                    {% for payment in record.payments.all %}
-                                    {% if payment.is_lto %}
-                                    <tr class="hover:bg-blue-50 transition-colors duration-150">
-                                        <td class="px-4 py-3">{{ payment.expected_date|date:"M d, Y" }}</td>
-                                        <td class="px-4 py-3">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</td>
-                                        <td class="px-4 py-3">
-                                            <input type="number" 
-                                                   name="received_amount_{{ payment.id }}" 
-                                                   value="{{ payment.received_amount|default:0 }}"
-                                                   step="0.01"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                   onchange="updateStatus(this, {{ payment.expected_amount }}, 'status_{{ payment.id }}')">
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <input type="date" 
-                                                   name="date_received_{{ payment.id }}" 
-                                                   value="{% if payment.date_received %}{{ payment.date_received|date:'Y-m-d' }}{% endif %}"
-                                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span id="status_{{ payment.id }}" 
-                                                  class="inline-block px-2 py-1 text-xs font-semibold rounded
-                                                  {% if payment.status == 'Received' %}text-green-700 bg-green-100
-                                                  {% elif payment.status == 'Partial' %}text-yellow-700 bg-yellow-100
-                                                  {% else %}text-red-700 bg-red-100{% endif %}">
-                                                {{ payment.status }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                
-
-                
-
-                <!-- Submit Button -->
-                <div class="flex justify-end mt-6">
-                    <button type="submit" 
-                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                        Save Changes
-                    </button>
-                </div>
-            </form>
+            <div>
+              <label class="block text-sm font-semibold text-blue-700 mb-2" for="agent_name">Agent Name</label>
+              <input type="text" id="agent_name" name="agent_name" value="{{ record.agent_name }}" 
+                     class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500 input-focus transition-all bg-white shadow-sm text-gray-800 font-medium" />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-blue-700 mb-2" for="buyer_name">Buyer Name</label>
+              <input type="text" id="buyer_name" name="buyer_name" value="{{ record.buyer_name }}" 
+                     class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500 input-focus transition-all bg-white shadow-sm text-gray-800 font-medium" />
+            </div>
+          </div>
         </div>
-    </div>
+
+        <div class="bg-gradient-to-br from-green-50 to-green-100 p-8 rounded-2xl shadow-lg form-section border border-green-200">
+          <div class="flex items-center mb-6">
+            <div class="p-3 bg-green-500 rounded-xl mr-4">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+              </svg>
+            </div>
+            <h3 class="text-2xl font-bold text-green-800">Commission Details</h3>
+          </div>
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-semibold text-green-700 mb-2" for="total_contract_price">Total Contract Price (₱)</label>
+              <div class="relative">
+                <span class="absolute left-4 top-3 text-green-600 font-bold text-lg">₱</span>
+                <input type="number" step="0.01" id="total_contract_price" name="total_contract_price" value="{{ record.total_contract_price }}" 
+                       class="w-full pl-8 pr-4 py-3 border-2 border-green-200 rounded-xl focus:ring-4 focus:ring-green-500 focus:border-green-500 input-focus transition-all bg-white shadow-sm text-gray-800 font-medium" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-green-700 mb-2" for="commission_rate">Commission Rate (%)</label>
+              <div class="relative">
+                <input type="number" step="0.01" id="commission_rate" name="commission_rate" value="{{ record.commission_rate }}" 
+                       class="w-full px-4 py-3 pr-8 border-2 border-green-200 rounded-xl focus:ring-4 focus:ring-green-500 focus:border-green-500 input-focus transition-all bg-white shadow-sm text-gray-800 font-medium" />
+                <span class="absolute right-4 top-3 text-green-600 font-bold text-lg">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enhanced Down Payment Schedule -->
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-12 form-section border border-gray-200">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
+          <h3 class="text-2xl font-bold text-white flex items-center">
+            <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            Down Payment Schedule ({{ record.option1_percentage }}%)
+          </h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Tranche #</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expected Date</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expected Commission</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actual Commission</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Date Received</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              {% for payment in record.payments.all %}
+              {% if not payment.is_lto %}
+              <tr class="hover:bg-blue-50 transition-colors duration-300">
+                <td class="px-6 py-4 font-bold text-blue-600">{{ payment.tranche_number }}</td>
+                <td class="px-6 py-4 text-gray-700">{{ payment.expected_date|date:"M d, Y" }}</td>
+                <td class="px-6 py-4 font-semibold text-green-600">₱{{ payment.expected_amount|floatformat:2|intcomma }}</td>
+                <td class="px-6 py-4">
+                  <div class="relative">
+                    <span class="absolute left-3 top-3 text-green-600 font-bold">₱</span>
+                    <input type="number" 
+                           name="received_amount_{{ payment.id }}" 
+                           value="{{ payment.received_amount|default:0 }}"
+                           step="0.01"
+                           class="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500 input-focus transition-all bg-white shadow-sm"
+                           onchange="updateStatus(this, '{{ payment.expected_amount }}', 'status_{{ payment.id }}')">
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <input type="date" 
+                         name="date_received_{{ payment.id }}" 
+                         value="{% if payment.date_received %}{{ payment.date_received|date:'Y-m-d' }}{% endif %}"
+                         class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500 input-focus transition-all bg-white shadow-sm">
+                </td>
+                <td class="px-6 py-4">
+                  <span id="status_{{ payment.id }}" 
+                        class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold status-indicator
+                        {% if payment.status == 'Received' %}bg-green-100 text-green-800
+                        {% elif payment.status == 'Partial' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                    {{ payment.status }}
+                  </span>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Enhanced Loan Take Out Schedule -->
+      <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-12 form-section border border-gray-200">
+        <div class="bg-gradient-to-r from-orange-600 to-red-600 p-6">
+          <h3 class="text-2xl font-bold text-white flex items-center">
+            <svg class="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+            </svg>
+            Loan Take Out Schedule ({{ record.option2_percentage }}%)
+          </h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expected Date</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Expected Commission</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Actual Commission</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Date Received</th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-900">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              {% for payment in record.payments.all %}
+              {% if payment.is_lto %}
+              <tr class="hover:bg-orange-50 transition-colors duration-300">
+                <td class="px-6 py-4 text-gray-700">{{ payment.expected_date|date:"M d, Y" }}</td>
+                <td class="px-6 py-4 font-semibold text-green-600">₱{{ lto_deduction_net|floatformat:2|intcomma }}</td>
+                <td class="px-6 py-4">
+                  <div class="relative">
+                    <span class="absolute left-3 top-3 text-green-600 font-bold">₱</span>
+                    <input type="number" 
+                           name="received_amount_{{ payment.id }}" 
+                           value="{{ payment.received_amount|default:0 }}"
+                           step="0.01"
+                           class="w-full pl-8 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-orange-500 focus:border-orange-500 input-focus transition-all bg-white shadow-sm"
+                           onchange="updateStatus(this, '{{ payment.expected_amount }}', 'status_{{ payment.id }}')">
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <input type="date" 
+                         name="date_received_{{ payment.id }}" 
+                         value="{% if payment.date_received %}{{ payment.date_received|date:'Y-m-d' }}{% endif %}"
+                         class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-orange-500 focus:border-orange-500 input-focus transition-all bg-white shadow-sm">
+                </td>
+                <td class="px-6 py-4">
+                  <span id="status_{{ payment.id }}" 
+                        class="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold status-indicator
+                        {% if payment.status == 'Received' %}bg-green-100 text-green-800
+                        {% elif payment.status == 'Partial' %}bg-yellow-100 text-yellow-800
+                        {% else %}bg-red-100 text-red-800{% endif %}">
+                    {{ payment.status }}
+                  </span>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Enhanced Submit Button -->
+      <div class="flex justify-center mt-12">
+        <button type="submit" 
+                class="inline-flex items-center px-12 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold rounded-2xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300">
+          <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+          </svg>
+          Save All Changes
+        </button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
 </div>
 
 <script>
 function updateStatus(input, expectedAmount, statusId) {
     const receivedAmount = parseFloat(input.value) || 0;
     const statusElement = document.getElementById(statusId);
-    let status = 'On Process';
-    let classes = 'inline-block px-2 py-1 text-xs font-semibold rounded ';
+    let status = 'Pending';
+    let classes = 'inline-flex items-center px-4 py-2 rounded-full text-sm font-bold status-indicator ';
 
     if (receivedAmount >= expectedAmount) {
         status = 'Received';
-        classes += 'text-green-700 bg-green-100';
+        classes += 'bg-green-100 text-green-800';
     } else if (receivedAmount > 0) {
         status = 'Partial';
-        classes += 'text-yellow-700 bg-yellow-100';
+        classes += 'bg-yellow-100 text-yellow-800';
     } else {
-        classes += 'text-red-700 bg-red-100';
+        classes += 'bg-yellow-100 text-yellow-800'; // Match 'Pending' style
     }
 
     statusElement.textContent = status;
     statusElement.className = classes;
 }
+
+// Enhanced form interactions
+document.addEventListener('DOMContentLoaded', function() {
+    // Add focus effects to form sections
+    document.querySelectorAll('.form-section').forEach(section => {
+        section.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        section.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+
+    // Add input validation feedback
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', function() {
+            if (this.value && parseFloat(this.value) > 0) {
+                this.style.borderColor = '#10b981';
+                this.style.backgroundColor = '#f0fdf4';
+            } else {
+                this.style.borderColor = '#e5e7eb';
+                this.style.backgroundColor = '#ffffff';
+            }
+        });
+    });
+});
 </script>
-{% endblock %} 
+
+{% endblock %}

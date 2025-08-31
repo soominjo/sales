@@ -3,33 +3,29 @@
 {% block content %}
 
 {% load static %}
-
 {% load widget_tweaks %}
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Manager Commission Breakdown</title>
+    <title>Agent Commission Slip</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* ... existing styles ... */
-    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 
-<body class="bg-gray-100 p-10">
-    {% if edit_mode %}<form method="POST">{% csrf_token %}{% endif %}
-    
-    <div class="min-h-screen bg-gradient-to-br from-blue-100 to-indigo-50 py-8">
+<body class="bg-gray-50">
+    <div class="min-h-screen py-6 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-6xl mx-auto">
             <!-- Header Card -->
-            <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
-                <div class="bg-gradient-to-r from-blue-700 to-indigo-800 p-8">
-                    <div class="flex items-center justify-center space-x-8">
-                        <div class="bg-white p-3 rounded-2xl shadow-inner">
-                            <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-20 h-20 object-contain"> 
-                        </div>
-                        <div class="text-white">
-                            <h2 class="text-3xl font-bold mb-2">Inner SPARC Realty Corporation</h2>
-                            <div class="text-sm opacity-90 space-y-1">
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl shadow-xl overflow-hidden mb-8">
+                <div class="p-6 md:p-8">
+                    <div class="flex flex-col md:flex-row items-center space-y-6 md:space-y-0 md:space-x-8">
+                        <div class="bg-white p-3 rounded-2xl shadow-lg">
+                            <img src="{% static 'media/LOGO.png' %}" alt="Company Logo" class="w-16 h-16 md:w-20 md:h-20 object-contain"> 
+                        </div> 
+                        <div class="text-center md:text-left text-white">
+                            <h2 class="text-2xl md:text-3xl font-bold mb-2">Inner SPARC Realty Corporation</h2>
+                            <div class="text-sm md:text-base space-y-1 opacity-90">
                                 <p>Main Office: Block 26 Lot 4 Phase 3 Avida Residences Sta. Catalina</p>
                                 <p>Salawag, Dasmariñas, Cavite 4114</p>
                                 <p>63917-853-4875/63999-994-3304/(046)458 0706</p>
@@ -40,18 +36,32 @@
             </div>
 
             <!-- Main Form -->
-            <div class="bg-white rounded-2xl shadow-lg p-8">
-                <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">
+            <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+                <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">
                     <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                        Create Commission Slip
+                        Create Agent Commission Slip
                     </span>
                 </h1>
+
+                <!-- Commission Slip Type Selector -->
+                <div class="flex justify-center mb-8">
+                    <div class="flex rounded-xl shadow-sm bg-gray-100 p-1 gap-1">
+                        {% if user.is_superuser or user.is_staff %}
+                            <a href="{% url 'create_commission_slip' %}" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg">Agent</a>
+                            <a href="{% url 'create_commission_slip2' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors">Management</a>
+                            <a href="{% url 'create_commission_slip3' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors">Supervisor-Agent</a>
+                        {% elif user.profile.role == 'Sales Manager' or user.profile.role == 'Sales Supervisor' %}
+                            <a href="{% url 'create_commission_slip' %}" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg">Agent</a>
+                            <a href="{% url 'create_commission_slip3' %}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors">Supervisor-Agent</a>
+                        {% endif %}
+                    </div>
+                </div>
 
                 <form method="POST" action="{% url 'create_commission_slip' %}" class="space-y-8">
                     {% csrf_token %}
 
                     <!-- Project Details Section -->
-                    <div class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+                    <div class="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                         <div class="flex items-center mb-6">
                             <div class="h-8 w-1 bg-blue-600 rounded-full mr-3"></div>
                             <h2 class="text-xl font-semibold text-gray-800">Project Details</h2>
@@ -59,74 +69,105 @@
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Agent Selection -->
-                            <div class="space-y-2">
-                                <label for="agent_select" class="block text-sm font-medium text-gray-700">Select Agent</label>
+                            <div>
+                                <label for="agent_select" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-user-tag mr-2 text-blue-500"></i>Select Agent
+                                </label>
                                 <select name="sales_agent_name" id="sales_agent_name"
-                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
+                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
                                         onchange="updateAgentInfo()">
-                                    <option value="">Select Agent</option>
+                                    <option value="">Select an agent</option>
                                     {% for user in sales_agents %}
-                                        <option value="{{ user.username }}" data-position="{{ user.profile.role }}">{{ user.first_name }} {{ user.last_name }}  ({{ user.profile.team }})</option>
+                                        <option value="{{ user.username }}" 
+                                                data-name="{{ user.get_full_name }}"
+                                                data-position="{{ user.profile.role }}">
+                                            {{ user.get_full_name }} ({{ user.profile.team }})
+                                        </option>
                                     {% endfor %}
                                 </select>
                             </div>
 
-                            <!-- Position -->
-                            <div class="space-y-2">
-                                <label for="position" class="block text-sm font-medium text-gray-700">Position</label>
-                                <input type="text" name="position[]" id="position_display" readonly
-                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
-                            </div>
-
                             <!-- Agent Name -->
-                            <div class="space-y-2">
-                                <label for="sales_agent_name" class="block text-sm font-medium text-gray-700">Name</label>
+                            <div>
+                                <label for="sales_agent_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-signature mr-2 text-blue-500"></i>Agent Name
+                                </label>
                                 <input type="text" name="sales_agent_name" id="agent_name_display" readonly
                                        class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
                             </div>
 
+                            <br>
+
+                            <!-- Position -->
+                            <div>
+                                <label for="position_display" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-user-tie mr-2 text-blue-500"></i>Position
+                                </label>
+                                <input type="text" name="position[]" id="position_display" readonly
+                                       class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
+                            </div> 
+
+
+
                             <!-- Sales Manager Selection -->
-                            <div class="space-y-2">
-                                <label for="manager_select" class="block text-sm font-medium text-gray-700">Select Sales Manager</label>
+                            <div>
+                                <label for="manager_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-user-tie mr-2 text-blue-500"></i>Select Sales Manager
+                                </label>
                                 <select name="sales_manager_name" id="sales_manager_name"
                                         class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
                                         onchange="updateManagerInfo()">
-                                    <option value="">Select Sales Manager</option>
+                                    <option value="">Select a manager</option>
                                     {% for user in sales_managers %}
-                                        <option value="{{ user.username }}" data-position="{{ user.profile.role }}">{{ user.first_name }} {{ user.last_name }} ({{ user.profile.team }})</option>
+                                        <option value="{{ user.username }}" data-name="{{ user.get_full_name }}">
+                                            {{ user.get_full_name }} ({{ user.profile.team }})
+                                        </option>
                                     {% endfor %}
                                 </select>
                             </div>
 
                             <!-- Sales Manager Name -->
-                            <div class="space-y-2">
-                                <label for="sales_manager_name" class="block text-sm font-medium text-gray-700">Sales Manager Name</label>
+                            <div>
+                                <label for="sales_manager_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-signature mr-2 text-blue-500"></i>Sales Manager Name
+                                </label>
                                 <input type="text" name="sales_manager_name" id="manager_name_display" readonly
                                        class="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 shadow-sm">
                             </div>
 
                             <!-- Buyer Name -->
-                            <div class="space-y-2">
-                                <label for="buyer_name" class="block text-sm font-medium text-gray-700">Buyer Name</label>
+                            <div>
+                                <label for="buyer_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-user mr-2 text-blue-500"></i>Buyer Name
+                                </label>
                                 {{ slip_form.buyer_name|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
                             </div>
 
                             <!-- Project Name -->
-                            <div class="space-y-2">
-                                <label for="project_name" class="block text-sm font-medium text-gray-700">Project Name</label>
-                                {{ slip_form.project_name|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
+                            <div>
+                                <label for="project_name" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-building mr-2 text-blue-500"></i>Project Name
+                                </label>
+                                <select name="project_name" id="project_name" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white" required>
+                                    <option value="">Select a project</option>
+                                    {% for property in properties %}
+                                        <option value="{{ property.name }}">{{ property.name }}{% if property.developer %} - {{ property.developer.name }}{% endif %}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
 
                             <!-- Unit ID -->
-                            <div class="space-y-2">
-                                <label for="unit_id" class="block text-sm font-medium text-gray-700">Unit ID</label>
+                            <div>
+                                <label for="unit_id" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-home mr-2 text-blue-500"></i>Unit ID
+                                </label>
                                 {{ slip_form.unit_id|add_class:"w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm" }}
                             </div>
                         </div>
                     </div>
 
                     <!-- Commission Details Section -->
-                    <div class="bg-gray-50 rounded-xl p-6 border border-gray-100 shadow-sm">
+                    <div class="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                         <div class="flex items-center mb-6">
                             <div class="h-8 w-1 bg-blue-600 rounded-full mr-3"></div>
                             <h2 class="text-xl font-semibold text-gray-800">Commission Details</h2>
@@ -134,8 +175,10 @@
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Total Selling Price -->
-                            <div class="space-y-2">
-                                <label for="total_selling_price" class="block text-sm font-medium text-gray-700">Total Selling Price</label>
+                            <div>
+                                <label for="total_selling_price" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-money-bill-wave mr-2 text-blue-500"></i>Total Selling Price
+                                </label>
                                 <div class="relative">
                                     <span class="absolute left-3 top-3 text-gray-500">₱</span>
                                     <input type="number" step="0.01" name="total_selling_price" id="total_selling_price"
@@ -145,27 +188,38 @@
                                 </div>
                             </div>
 
-                            <!-- Commission Rate -->
-                            <div class="space-y-2">
-                                <label for="commission_rate" class="block text-sm font-medium text-gray-700">Commission Rate (%)</label>
-                                <input type="number" step="0.01" name="commission_rate" id="commission_rate" 
-                                       value="3.00" min="0" max="100"
-                                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
-                                       oninput="updateCommissionPreview()">
+                            <!-- Agent Commission Rate -->
+                            <div>
+                                <label for="commission_rate" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-percent mr-2 text-blue-500"></i>Agent Commission Rate
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" name="commission_rate" id="commission_rate" value="3.00"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           placeholder="Enter rate" required
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
                             </div>
 
                             <!-- Sales Manager Commission Rate -->
-                            <div class="space-y-2">
-                                <label for="manager_commission_rate" class="block text-sm font-medium text-gray-700">Sales Manager Commission Rate (%)</label>
-                                <input type="number" step="0.01" name="manager_commission_rate" id="manager_commission_rate" 
-                                       value="0.50" min="0" max="100"
-                                       class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm"
-                                       oninput="updateCommissionPreview()">
+                            <div>
+                                <label for="manager_commission_rate" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-percent mr-2 text-blue-500"></i>Sales Manager Commission Rate
+                                </label>
+                                <div class="relative">
+                                    <input type="number" step="0.01" id="manager_commission_rate" name="manager_commission_rate" value="0.50"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           onchange="updateCommissionPreview()">
+                                    <span class="absolute right-3 top-3 text-gray-500">%</span>
+                                </div>
                             </div>
 
                             <!-- Particulars -->
-                            <div class="space-y-2">
-                                <label for="particulars" class="block text-sm font-medium text-gray-700">Particulars</label>
+                            <div>
+                                <label for="particulars" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-list mr-2 text-blue-500"></i>Particulars
+                                </label>
                                 <select name="particulars[]" id="particulars"
                                         class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
                                         onchange="updateFieldsVisibility(); updateCommissionPreview();">
@@ -176,21 +230,10 @@
                                 </select>
                             </div>
 
-                            <!-- Incentive Amount (Hidden by default) -->
-                            <div class="space-y-2 incentive-field" style="display: none;">
-                                <label for="incentive_amount" class="block text-sm font-medium text-gray-700">Incentive Amount</label>
-                                <div class="relative">
-                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
-                                    <input type="number" step="0.01" name="incentive_amount" id="incentive_amount" value="0"
-                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-                                           onchange="updateCommissionPreview()">
-                                </div>
-                            </div>
-
                             <!-- Percentage for Partial Commission -->
-                            <div class="space-y-2 partial-field" style="display: none;">
-                                <label for="partial_percentage" class="block text-sm font-medium text-gray-700">
-                                    Percentage of Commission Amount
+                            <div class="partial-field" style="display: none;">
+                                <label for="partial_percentage" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-chart-pie mr-2 text-blue-500"></i>Percentage of Commission Amount
                                 </label>
                                 <div class="relative">
                                     <input type="number" step="0.01" name="partial_percentage" id="partial_percentage" value="100"
@@ -201,9 +244,24 @@
                                 </div>
                             </div>
 
+                            <!-- Incentive Amount (Hidden by default) -->
+                            <div class="incentive-field" style="display: none;">
+                                <label for="incentive_amount" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-gift mr-2 text-blue-500"></i>Incentive Amount
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-3 text-gray-500">₱</span>
+                                    <input type="number" step="0.01" name="incentive_amount" id="incentive_amount" value="0"
+                                           class="w-full p-3 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           onchange="updateCommissionPreview()">
+                                </div>
+                            </div>
+
                             <!-- Cash Advance -->
-                            <div class="space-y-2 cash-advance-field" style="display: none;">
-                                <label for="cash_advance" class="block text-sm font-medium text-gray-700">Cash Advance</label>
+                            <div class="cash-advance-field" style="display: none;">
+                                <label for="cash_advance" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-money-check mr-2 text-blue-500"></i>Cash Advance
+                                </label>
                                 <div class="relative">
                                     <span class="absolute left-3 top-3 text-gray-500">₱</span>
                                     <input type="number" step="0.01" name="cash_advance" id="cash_advance"
@@ -211,314 +269,237 @@
                                            placeholder="Enter cash advance amount" value="0"
                                            onchange="updateCommissionPreview()">
                                 </div>
-                                <p class="text-sm text-gray-500">10% tax will be automatically deducted</p>
+                                <p class="text-sm text-gray-500 mt-1">10% tax will be automatically deducted</p>
                             </div>
 
                             <!-- Withholding Tax Rate -->
-                            <div class="space-y-2">
-                                <label for="withholding_tax_rate" class="block text-sm font-medium text-gray-700">Withholding Tax Rate (%)</label>
+                            <div>
+                                <label for="withholding_tax_rate" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-file-invoice-dollar mr-2 text-blue-500"></i>Withholding Tax Rate
+                                </label>
                                 <div class="relative">
                                     <input type="number" step="0.01" name="withholding_tax_rate" id="withholding_tax_rate"
-                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                                           class="w-full p-3 pr-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm bg-white"
                                            placeholder="Enter tax rate" value="10.00" min="0" max="100"
-                                           onchange="updateCommissionPreview()">
+                                           onchange="updateCommissionPreview()" required>
                                     <span class="absolute right-3 top-3 text-gray-500">%</span>
                                 </div>
                             </div>
 
-                            <div class="space-y-2">
-                                <label for="date" class="block text-sm font-medium text-gray-700">Date</label>
+                            <!-- Date -->
+                            <div>
+                                <label for="date" class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-calendar-alt mr-2 text-blue-500"></i>Date
+                                </label>
                                 <input type="date" name="date" id="date"
                                        class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                                        required>
                             </div>
+                        </div>
 
-                            <!-- Commission Breakdown Table -->
-                            <div class="col-span-2 mt-4">
-                                <table class="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
-                                    <thead class="bg-gray-50">
+                        <!-- Commission Preview Table -->
+                        <div class="mt-8 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                            <h3 class="text-lg font-medium text-gray-700 mb-4 flex items-center">
+                                <i class="fas fa-calculator mr-2 text-blue-500"></i>Commission Breakdown Preview
+                            </h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full border-collapse rounded-lg overflow-hidden">
+                                    <thead class="bg-blue-100">
                                         <tr>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Particulars</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cash Advance</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Base Commission</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider incentive-column" style="display: none;">Incentive</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gross Commission</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Net Commission</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Position</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Rate</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Percentage</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Gross Commission</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tax</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Net Commission</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        <tr>
-                                            <td class="px-4 py-2" id="previewPosition">-</td>
-                                            <td class="px-4 py-2" id="previewParticulars">-</td>
-                                            <td class="px-4 py-2" id="previewCashAdvance">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewPercentage">100%</td>
-                                            <td class="px-4 py-2" id="previewBaseCommission">₱0.00</td>
-                                            <td class="px-4 py-2 incentive-column" id="previewIncentive" style="display: none;">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewGrossCommission">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewTax">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewNetCommission">₱0.00</td>
-                                        </tr>
-                                        <tr id="managerRow" style="display: none;">
-                                            <td class="px-4 py-2">Sales Manager</td>
-                                            <td class="px-4 py-2" id="previewManagerParticulars">-</td>
-                                            <td class="px-4 py-2">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewManagerPercentage">100%</td>
-                                            <td class="px-4 py-2" id="previewManagerBaseCommission">₱0.00</td>
-                                            <td class="px-4 py-2 incentive-column" style="display: none;">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewManagerGrossCommission">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewManagerTax">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewManagerNetCommission">₱0.00</td>
-                                        </tr>
+                                    <tbody class="bg-white divide-y divide-gray-200" id="previewTableBody">
+                                        <!-- Preview rows will be populated by JavaScript -->
                                     </tbody>
-                                    <tfoot class="bg-gray-100 font-bold">
-                                        <tr>
-                                            <td class="px-4 py-2 text-right" colspan="4">Total</td>
-                                            <td class="px-4 py-2" id="previewTotalBaseCommission">₱0.00</td>
-                                            <td class="px-4 py-2 incentive-column" style="display: none;"></td>
-                                            <td class="px-4 py-2" id="previewTotalGrossCommission">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewTotalTax">₱0.00</td>
-                                            <td class="px-4 py-2" id="previewTotalNetCommission">₱0.00</td>
+                                    <tfoot class="bg-blue-50 font-semibold">
+                                        <tr id="totalRow">
+                                            <td class="px-4 py-3" colspan="3">TOTAL</td>
+                                            <td class="px-4 py-3" id="totalGrossCommission">₱0.00</td>
+                                            <td class="px-4 py-3" id="totalTax">₱0.00</td>
+                                            <td class="px-4 py-3" id="totalNetCommission">₱0.00</td>
                                         </tr>
                                     </tfoot>
                                 </table>
                             </div>
-
-                            <!-- Calculation Details -->
-                            <div class="col-span-2 text-sm text-gray-600" id="calculationBreakdown"></div>
-
-                            <!-- Date -->
-                    
                         </div>
                     </div>
+            </div>
 
-                    <!-- Submit and Back Buttons -->
-                    <div class="flex justify-center space-x-4">
-                        <a href="{% url 'commission_history' %}" 
-                           class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-lg transform transition hover:-translate-y-0.5">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                            </svg>
-                            Go Back
-                        </a>
-                        <button type="submit" 
-                                class="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg transform transition hover:-translate-y-0.5">
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                            </svg>
-                            Save Commission Slip
-                        </button>
-                    </div>
-                </form>
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-end items-center gap-4 pt-6 mt-6 border-t border-gray-200">
+                <a href="{% url 'commission_history' %}" class="w-full sm:w-auto flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm transition-all duration-200 ease-in-out">
+                    <i class="fas fa-arrow-left mr-2"></i>Go Back
+                </a>
+                <button type="submit" class="w-full sm:w-auto flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 ease-in-out">
+                    <i class="fas fa-save mr-2"></i>Create Commission Slip
+                </button>
+            </div>
+        </form>
 
-                {% if slip_form.errors %}
-                <div class="mt-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">There were errors in your form:</h3>
-                            <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
-                                {% for field in slip_form %}
-                                    {% for error in field.errors %}
-                                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
-                                    {% endfor %}
-                                {% endfor %}
-                                {% for error in slip_form.non_field_errors %}
-                                    <li>{{ error }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    </div>
+        <!-- Form Errors -->
+        {% if slip_form.errors %}
+        <div class="mt-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
                 </div>
-                {% endif %}
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">There were errors in your form:</h3>
+                    <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+                        {% for field in slip_form %}
+                            {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in slip_form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
+        {% endif %}
     </div>
+</div>
 
-    <script>
-        function updateAgentInfo() {
-            const select = document.getElementById('sales_agent_name');
-            const selectedOption = select.options[select.selectedIndex];
-            const agentName = selectedOption.value ? selectedOption.text : '';
-            const agentPosition = selectedOption.getAttribute('data-position') || '';
-
-            document.getElementById('agent_name_display').value = agentName;
-            document.getElementById('position_display').value = agentPosition;
-            updateCommissionPreview(); // Update preview when agent changes
-        }
-
-        function updateManagerInfo() {
-            const select = document.getElementById('sales_manager_name');
-            const selectedOption = select.options[select.selectedIndex];
-            const managerName = selectedOption.value ? selectedOption.text : '';
-
-            document.getElementById('manager_name_display').value = managerName;
-        }
-
-        function updateFieldsVisibility() {
-            const particularsSelect = document.getElementById('particulars');
-            const incentiveField = document.querySelector('.incentive-field');
-            const partialField = document.querySelector('.partial-field');
-            const cashAdvanceField = document.querySelector('.cash-advance-field');
-            const incentiveColumns = document.querySelectorAll('.incentive-column');
-            const selectedValue = particularsSelect.value;
-            
-            // Hide all conditional fields first
-            incentiveField.style.display = 'none';
-            partialField.style.display = 'none';
-            cashAdvanceField.style.display = 'none';
-            
-            // Show appropriate field based on selection
-            if (selectedValue === 'INCENTIVES') {
-                incentiveField.style.display = 'block';
-                incentiveColumns.forEach(col => col.style.display = '');
-            } else if (selectedValue === 'PARTIAL COMM') {
-                partialField.style.display = 'block';
-                incentiveColumns.forEach(col => col.style.display = 'none');
-            } else if (selectedValue === 'CASH ADVANCE') {
-                cashAdvanceField.style.display = 'block';
-                incentiveColumns.forEach(col => col.style.display = 'none');
-            } else {
-                incentiveColumns.forEach(col => col.style.display = 'none');
-            }
-            
-            // Reset values when switching
-            if (selectedValue !== 'PARTIAL COMM') {
-                document.getElementById('partial_percentage').value = '100';
-            }
-            if (selectedValue !== 'INCENTIVES') {
-                document.getElementById('incentive_amount').value = '0';
-            }
-            if (selectedValue !== 'CASH ADVANCE') {
-                document.getElementById('cash_advance').value = '0';
-            }
-            
-            updateCommissionPreview();
-        }
-
-        function formatCurrency(amount) {
-            return amount.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function updateCommissionPreview() {
-            // Get all the necessary values
-            const totalSellingPrice = parseFloat(document.getElementById('total_selling_price').value) || 0;
-            const commissionRate = parseFloat(document.getElementById('commission_rate').value) || 0;
-            const managerCommissionRate = parseFloat(document.getElementById('manager_commission_rate').value) || 0;
-            const particulars = document.getElementById('particulars').value;
-            const partialPercentage = parseFloat(document.getElementById('partial_percentage').value) || 100;
-            const incentiveAmount = parseFloat(document.getElementById('incentive_amount').value) || 0;
-            const cashAdvance = parseFloat(document.getElementById('cash_advance').value) || 0;
-            const withholdingTaxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10;
-            const position = document.getElementById('position_display').value || '-';
-
-            // Update the agent preview table
-            document.getElementById('previewPosition').textContent = position;
-
-            // Agent Calculations
-            const cashAdvanceTax = cashAdvance * 0.10;
-            const netCashAdvance = cashAdvance - cashAdvanceTax;
-            const adjustedTotal = totalSellingPrice - netCashAdvance;
-            let agentBaseCommission = adjustedTotal * (commissionRate / 100);
-
-            if (particulars === 'PARTIAL COMM') {
-                agentBaseCommission *= (partialPercentage / 100);
-            }
-
-            let agentGrossCommission = agentBaseCommission;
-            if (particulars === 'INCENTIVES') {
-                agentGrossCommission += incentiveAmount;
-            }
-
-            const agentWithholdingTax = agentGrossCommission * (withholdingTaxRate / 100);
-            const agentNetCommission = agentGrossCommission - agentWithholdingTax;
-
-
-            document.getElementById('previewParticulars').textContent = particulars;
-            document.getElementById('previewCashAdvance').textContent = formatCurrency(cashAdvance);
-            document.getElementById('previewPercentage').textContent = partialPercentage + '%';
-            document.getElementById('previewBaseCommission').textContent = formatCurrency(agentBaseCommission);
-            document.getElementById('previewIncentive').textContent = formatCurrency(incentiveAmount);
-            document.getElementById('previewGrossCommission').textContent = formatCurrency(agentGrossCommission);
-            document.getElementById('previewTax').textContent = formatCurrency(agentWithholdingTax);
-            document.getElementById('previewNetCommission').textContent = formatCurrency(agentNetCommission);
-
-            // Manager and Total Calculations
-            const managerRow = document.getElementById('managerRow');
-            let managerBaseCommission = 0, managerGrossCommission = 0, managerWithholdingTax = 0, managerNetCommission = 0;
-
-            if (managerCommissionRate > 0) {
-                managerRow.style.display = 'table-row';
-                managerBaseCommission = totalSellingPrice * (managerCommissionRate / 100);
-                if (particulars === 'PARTIAL COMM') {
-                    managerBaseCommission *= (partialPercentage / 100);
-                }
-                managerGrossCommission = managerBaseCommission;
-                managerWithholdingTax = managerGrossCommission * (withholdingTaxRate / 100); // Assuming same tax rate for now
-                managerNetCommission = managerGrossCommission - managerWithholdingTax;
-
-                // Update manager preview row
-                document.getElementById('previewManagerParticulars').textContent = particulars;
-                document.getElementById('previewManagerPercentage').textContent = partialPercentage + '%';
-                document.getElementById('previewManagerBaseCommission').textContent = formatCurrency(managerBaseCommission);
-                document.getElementById('previewManagerGrossCommission').textContent = formatCurrency(managerGrossCommission);
-                document.getElementById('previewManagerTax').textContent = formatCurrency(managerWithholdingTax);
-                document.getElementById('previewManagerNetCommission').textContent = formatCurrency(managerNetCommission);
-            } else {
-                managerRow.style.display = 'none';
-            }
-
-            // Total Calculations
-            const totalBaseCommission = agentBaseCommission + managerBaseCommission;
-            const totalGrossCommission = agentGrossCommission + managerGrossCommission;
-            const totalTax = agentWithholdingTax + managerWithholdingTax;
-            const totalNetCommission = agentNetCommission + managerNetCommission;
-
-            // Update total preview row
-            document.getElementById('previewTotalBaseCommission').textContent = formatCurrency(totalBaseCommission);
-            document.getElementById('previewTotalGrossCommission').textContent = formatCurrency(totalGrossCommission);
-            document.getElementById('previewTotalTax').textContent = formatCurrency(totalTax);
-            document.getElementById('previewTotalNetCommission').textContent = formatCurrency(totalNetCommission);
-
-            // Show calculation breakdown
-            let breakdown = `Calculation: `;
-            if (cashAdvance > 0) {
-                breakdown += `(₱${formatCurrency(totalSellingPrice)} - ₱${formatCurrency(netCashAdvance)} = ₱${formatCurrency(adjustedTotal)}) × `;
-            } else {
-                breakdown += `₱${formatCurrency(totalSellingPrice)} × `;
-            }
-            breakdown += `${commissionRate}%`;
-            if (particulars === 'PARTIAL COMM') {
-                breakdown += ` × ${partialPercentage}%`;
-            }
-            breakdown += ` = ₱${formatCurrency(agentBaseCommission)} (Base Commission)`;
-            if (particulars === 'INCENTIVES') {
-                breakdown += ` + ₱${formatCurrency(incentiveAmount)} (Incentive) = ₱${formatCurrency(agentGrossCommission)} (Gross)`;
-            }
-            breakdown += ` - ${withholdingTaxRate}% tax (₱${formatCurrency(agentWithholdingTax)}) = ₱${formatCurrency(agentNetCommission)} (Net)`;
-            document.getElementById('calculationBreakdown').textContent = breakdown;
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            updateFieldsVisibility();
-            updateCommissionPreview();
-            updateManagerInfo();
-
-            // Set today's date
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
+<script>
+    function formatCurrency(amount) {
+        return amount.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         });
-    </script>
-</body>
+    }
+
+    function updateAgentInfo() {
+        const select = document.getElementById('sales_agent_name');
+        const selectedOption = select.options[select.selectedIndex];
+        const agentName = selectedOption.dataset.name || '';
+        const agentPosition = selectedOption.dataset.position || '';
+        document.getElementById('agent_name_display').value = agentName;
+        document.getElementById('position_display').value = agentPosition;
+        updateCommissionPreview();
+    }
+
+    function updateManagerInfo() {
+        const select = document.getElementById('sales_manager_name');
+        const selectedOption = select.options[select.selectedIndex];
+        const managerName = selectedOption.dataset.name || '';
+        document.getElementById('manager_name_display').value = managerName;
+        updateCommissionPreview();
+    }
+
+    function updateFieldsVisibility() {
+        const particularsSelect = document.getElementById('particulars');
+        const incentiveField = document.querySelector('.incentive-field');
+        const partialField = document.querySelector('.partial-field');
+        const cashAdvanceField = document.querySelector('.cash-advance-field');
+        const selectedValue = particularsSelect.value;
+
+        incentiveField.style.display = selectedValue === 'INCENTIVES' ? 'block' : 'none';
+        partialField.style.display = selectedValue === 'PARTIAL COMM' ? 'block' : 'none';
+        cashAdvanceField.style.display = selectedValue === 'CASH ADVANCE' ? 'block' : 'none';
+
+        if (selectedValue !== 'PARTIAL COMM') {
+            document.getElementById('partial_percentage').value = '100';
+        }
+        if (selectedValue !== 'INCENTIVES') {
+            document.getElementById('incentive_amount').value = '0';
+        }
+        if (selectedValue !== 'CASH ADVANCE') {
+            document.getElementById('cash_advance').value = '0';
+        }
+
+        updateCommissionPreview();
+    }
+
+    function updateCommissionPreview() {
+        const totalSellingPrice = parseFloat(document.getElementById('total_selling_price').value) || 0;
+        const cashAdvance = parseFloat(document.getElementById('cash_advance').value) || 0;
+        const particulars = document.getElementById('particulars').value;
+        const partialPercentage = parseFloat(document.getElementById('partial_percentage').value) || 100;
+        const incentiveAmount = parseFloat(document.getElementById('incentive_amount').value) || 0;
+        const agentRate = parseFloat(document.getElementById('commission_rate').value) || 0;
+        const managerRate = parseFloat(document.getElementById('manager_commission_rate').value) || 0;
+        const taxRate = parseFloat(document.getElementById('withholding_tax_rate').value) || 10;
+
+        const cashAdvanceTax = cashAdvance * 0.10;
+        const netCashAdvance = cashAdvance - cashAdvanceTax;
+        const adjustedTotal = totalSellingPrice - netCashAdvance;
+
+        const tableBody = document.getElementById('previewTableBody');
+        tableBody.innerHTML = '';
+
+        let totalGrossCommission = 0;
+        let totalTax = 0;
+        let totalNetCommission = 0;
+
+        const processCommission = (role, rate) => {
+            if (rate <= 0) return;
+
+            const fullCommission = adjustedTotal * (rate / 100);
+            const baseCommission = fullCommission * (partialPercentage / 100);
+            let grossCommission = baseCommission;
+
+            if (particulars === 'INCENTIVES' && role === 'Agent') {
+                grossCommission += incentiveAmount;
+            }
+
+            const withholdingTax = grossCommission * (taxRate / 100);
+            const netCommission = grossCommission - withholdingTax;
+
+            totalGrossCommission += grossCommission;
+            totalTax += withholdingTax;
+            totalNetCommission += netCommission;
+
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="px-4 py-3 text-sm">${role}</td>
+                <td class="px-4 py-3 text-sm">${rate}%</td>
+                <td class="px-4 py-3 text-sm">${partialPercentage}%</td>
+                <td class="px-4 py-3 text-sm font-medium">₱${formatCurrency(grossCommission)}</td>
+                <td class="px-4 py-3 text-sm text-red-600">₱${formatCurrency(withholdingTax)}</td>
+                <td class="px-4 py-3 text-sm font-bold text-green-600">₱${formatCurrency(netCommission)}</td>
+            `;
+            tableBody.appendChild(row);
+        };
+
+        processCommission('Agent', agentRate);
+        processCommission('Sales Manager', managerRate);
+
+        document.getElementById('totalGrossCommission').textContent = `₱${formatCurrency(totalGrossCommission)}`;
+        document.getElementById('totalTax').textContent = `₱${formatCurrency(totalTax)}`;
+        document.getElementById('totalNetCommission').textContent = `₱${formatCurrency(totalNetCommission)}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateFieldsVisibility();
+        updateCommissionPreview();
+        
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date').value = today;
+
+        // Attach event listeners to all relevant inputs
+        const inputs = [
+            'total_selling_price', 'commission_rate', 'manager_commission_rate',
+            'particulars', 'partial_percentage', 'incentive_amount',
+            'cash_advance', 'withholding_tax_rate'
+        ];
+        inputs.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', updateCommissionPreview);
+            }
+        });
+    });
+</script>
 
 {% endblock %}
