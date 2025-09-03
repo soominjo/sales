@@ -241,7 +241,11 @@
                         {% if user.is_superuser %}
                         You have full administrative privileges to manage all users and teams.
                         {% else %}
+                        {% if user.profile %}
                         You can manage users from your team: <span class="font-semibold">{{ user.profile.team.display_name }}</span>
+                        {% else %}
+                        You need to create a profile to manage team members.
+                        {% endif %}
                         {% endif %}
                     </p>
                 </div>
@@ -290,7 +294,7 @@
                         </div>
                         
                         <div class="flex flex-wrap gap-2">
-                            {% if user.is_superuser or user.profile.team == profile.team %}
+                            {% if user.is_superuser or user.profile and user.profile.team == profile.team %}
                             <a href="{% url 'approve_user' profile.id %}" 
                                class="action-btn flex-1 text-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-all">
                                 <i class="fas fa-check mr-1"></i> Approve
@@ -404,7 +408,7 @@
                         </div>
                         
                         <div class="flex flex-wrap gap-2">
-                            {% if user.is_superuser or user.profile.role == 'Sales Manager' %}
+                            {% if user.is_superuser or user.profile and user.profile.role == 'Sales Manager' %}
                             <button onclick="openRoleModal('{{ profile.id }}')" 
                                     class="action-btn flex-1 text-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-all">
                                 <i class="fas fa-user-tag mr-1"></i> Role

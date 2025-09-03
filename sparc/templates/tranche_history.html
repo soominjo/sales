@@ -79,7 +79,7 @@
       <div>
         <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex items-center">
           <i class="fas fa-history text-blue-500 mr-3"></i>
-          Tranche History Dashboard
+          Tranche Dashboard
         </h1>
         <p class="text-gray-600 mt-2">Track and manage all payment tranches</p>
       </div>
@@ -112,7 +112,7 @@
       <div class="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-2xl border-l-4 border-blue-500">
         <div class="flex justify-between items-center">
           <div>
-            <h3 class="text-lg font-medium text-blue-800">Active Tranches</h3>
+            <h3 class="text-lg font-medium text-blue-800">Active Units</h3>
             <p class="text-3xl font-bold text-gray-800 mt-2">{{ active_tranches }}</p>
           </div>
           <div class="bg-blue-100 p-3 rounded-full">
@@ -125,7 +125,7 @@
       <div class="bg-gradient-to-r from-orange-50 to-orange-100 p-6 rounded-2xl border-l-4 border-orange-500">
         <div class="flex justify-between items-center">
           <div>
-            <h3 class="text-lg font-medium text-orange-800">Total Tranches</h3>
+            <h3 class="text-lg font-medium text-orange-800">Total Units</h3>
             <p class="text-3xl font-bold text-gray-800 mt-2">{{ total_records }}</p>
           </div>
           <div class="bg-orange-100 p-3 rounded-full">
@@ -137,8 +137,69 @@
 
     
     
-    <!-- Filter + Search -->
+    <!-- Filters -->
     <div class="bg-white rounded-xl shadow p-6 mb-8">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">Filters</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <!-- Year Filter -->
+        <div>
+          <label for="yearFilter" class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+          <select id="yearFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Years</option>
+            {% for year in available_years %}
+              <option value="{{ year }}" {% if year|stringformat:"s" == selected_year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Month Filter -->
+        <div>
+          <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+          <select id="monthFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Months</option>
+            {% for month_num, month_name in available_months %}
+              <option value="{{ month_num }}" {% if month_num|stringformat:"s" == selected_month %}selected{% endif %}>{{ month_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Developer Filter -->
+        <div>
+          <label for="developerFilter" class="block text-sm font-medium text-gray-700 mb-2">Developer</label>
+          <select id="developerFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Developers</option>
+            {% for developer in all_developers %}
+              <option value="{{ developer }}" {% if developer == selected_developer %}selected{% endif %}>{{ developer }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Property Filter -->
+        <div>
+          <label for="propertyFilter" class="block text-sm font-medium text-gray-700 mb-2">Property</label>
+          <select id="propertyFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Properties</option>
+            {% for property in all_properties %}
+              <option value="{{ property }}" {% if property == selected_property %}selected{% endif %}>{{ property }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- User Filter (Only for superusers) -->
+        {% if user.is_superuser %}
+        <div>
+          <label for="userFilter" class="block text-sm font-medium text-gray-700 mb-2">User</label>
+          <select id="userFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Users</option>
+            {% for agent in all_users %}
+              <option value="{{ agent.id }}" {% if agent.id|stringformat:"s" == selected_user %}selected{% endif %}>{{ agent.get_full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Search -->
       <div class="flex flex-col md:flex-row gap-4 items-center">
         <div class="relative w-full">
           <input type="text" id="searchInput" placeholder="Search by project, agent, or buyer..." 
@@ -320,13 +381,59 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('searchInput');
   const statusFilter = document.getElementById('statusFilter');
   const dateFilter = document.getElementById('dateFilter');
+  const yearFilter = document.getElementById('yearFilter');
+  const monthFilter = document.getElementById('monthFilter');
+  const developerFilter = document.getElementById('developerFilter');
+  const propertyFilter = document.getElementById('propertyFilter');
+  const userFilter = document.getElementById('userFilter');
   const trancheCards = document.querySelectorAll('.tranche-card');
   
-  // Filter function
+  // Function to update URL parameters and reload page
+  function updateFiltersAndReload() {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Update URL parameters with current filter values
+    const year = yearFilter ? yearFilter.value : '';
+    const month = monthFilter ? monthFilter.value : '';
+    const developer = developerFilter ? developerFilter.value : '';
+    const property = propertyFilter ? propertyFilter.value : '';
+    const user = userFilter ? userFilter.value : '';
+    
+    // Set or remove parameters
+    if (year) params.set('year', year);
+    else params.delete('year');
+    
+    if (month) params.set('month', month);
+    else params.delete('month');
+    
+    if (developer) params.set('developer', developer);
+    else params.delete('developer');
+    
+    if (property) params.set('property', property);
+    else params.delete('property');
+    
+    if (user) params.set('user', user);
+    else params.delete('user');
+    
+    // Reset to page 1 when filters change
+    params.delete('page');
+    
+    // Reload page with new parameters
+    window.location.search = params.toString();
+  }
+  
+  // Add event listeners for filter dropdowns
+  if (yearFilter) yearFilter.addEventListener('change', updateFiltersAndReload);
+  if (monthFilter) monthFilter.addEventListener('change', updateFiltersAndReload);
+  if (developerFilter) developerFilter.addEventListener('change', updateFiltersAndReload);
+  if (propertyFilter) propertyFilter.addEventListener('change', updateFiltersAndReload);
+  if (userFilter) userFilter.addEventListener('change', updateFiltersAndReload);
+  
+  // Filter function for search and status (client-side filtering)
   function filterTranches() {
     const searchTerm = searchInput.value.toLowerCase();
     const statusValue = statusFilter.value;
-    const dateValue = dateFilter.value;
+    const dateValue = dateFilter ? dateFilter.value : '';
     
     trancheCards.forEach(card => {
       const project = card.dataset.project;
@@ -380,10 +487,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Add event listeners
-  searchInput.addEventListener('input', filterTranches);
-  statusFilter.addEventListener('change', filterTranches);
-  dateFilter.addEventListener('change', filterTranches);
+  // Add event listeners for search and status filters
+  if (searchInput) searchInput.addEventListener('input', filterTranches);
+  if (statusFilter) statusFilter.addEventListener('change', filterTranches);
+  if (dateFilter) dateFilter.addEventListener('change', filterTranches);
   
   // Animate progress bars
   document.querySelectorAll('.progress-bar').forEach(bar => {
@@ -392,21 +499,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150);
   });
   
-  // Initialize with any URL parameters
+  // Initialize with any URL parameters for search and status
   const urlParams = new URLSearchParams(window.location.search);
   const searchParam = urlParams.get('search');
   const statusParam = urlParams.get('status');
   const dateParam = urlParams.get('date');
   
-  if (searchParam) {
+  if (searchParam && searchInput) {
     searchInput.value = searchParam;
   }
   
-  if (statusParam) {
+  if (statusParam && statusFilter) {
     statusFilter.value = statusParam;
   }
   
-  if (dateParam) {
+  if (dateParam && dateFilter) {
     dateFilter.value = dateParam;
   }
   

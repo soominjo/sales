@@ -80,12 +80,15 @@ urlpatterns = [
     path('activate/<uidb64>/<token>/', views.activate_account, name='activate_account'),
     path('commission-history/', views.commission_history, name='commission_history'),
     path('add-property/', views.add_property, name='add_property'),
+    path('edit-property/<int:property_id>/', views.edit_property, name='edit_property'),
     path('add-developer/', views.add_developer, name='add_developer'),
+    path('edit-developer/<int:developer_id>/', views.edit_developer, name='edit_developer'),
     path('delete-property/<int:property_id>/', views.delete_property, name='delete_property'),
     path('delete-developer/<int:developer_id>/', views.delete_developer, name='delete_developer'),
     path('manage-teams/', views.manage_teams, name='manage_teams'),
     path('add-team/', views.add_team, name='add_team'),
     path('delete-team/<int:team_id>/', views.delete_team, name='delete_team'),
+    path('fix-commission-assignments/', views.fix_commission_assignments, name='fix_commission_assignments'),
     # Superuser edit other user profile
 
     path('team/<int:pk>/edit/', staff_views.edit_team, name='edit_team'),

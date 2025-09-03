@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.http import require_POST
 from django.db.models import Sum
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -17,6 +17,21 @@ import subprocess
 import base64
 import json
 from pathlib import Path
+
+
+def _extract_payment_terms_from_notes(invoice):
+    """Extract payment terms from invoice notes field."""
+    if invoice.notes:
+        lines = invoice.notes.split('\n')
+        for line in lines:
+            if line.startswith('Payment Terms:'):
+                return line.replace('Payment Terms:', '').strip()
+    
+    # Fallback to tranche option if no payment terms in notes
+    if invoice.tranche and invoice.tranche.tranche_record:
+        return invoice.tranche.tranche_record.tranche_option
+    
+    return "Combined Tranches"
 
 
 def _compute(invoice):
@@ -674,15 +689,43 @@ def create_invoice(request, tranche_id):
     # The reference number can be based on the tranche record ID for uniqueness
     reference_no = f"Tranche-{tranche.tranche_record.id}"
 
+    # Get exact tranche data as calculated in view_tranche
+    tranche_data = _get_tranche_data_for_invoice(tranche)
+    
+    # Use the exact values from tranche calculation
+    unit_price = tranche_data['net_amount']
+    if tranche.is_lto:
+        vat_rate = tranche.tranche_record.option2_tax_rate
+    else:
+        vat_rate = tranche.tranche_record.option1_tax_rate
+
+    # Get developer data for Bill To section
+    client_name = "Client Name"
+    client_address = "Client Address"
+    client_tin = "Client TIN"
+    
+    try:
+        from .models import Property
+        property_obj = Property.objects.filter(name=tranche.tranche_record.project_name).first()
+        if property_obj and property_obj.developer:
+            developer = property_obj.developer
+            client_name = developer.name
+            client_address = developer.address or ""
+            client_tin = developer.tin_number or ""
+    except Exception as e:
+        print(f"Warning: Could not get developer data for invoice: {e}")
+
     invoice = BillingInvoice.objects.create(
         tranche=tranche,
         invoice_no=generate_invoice_number(),
-        reference_no=f"SERVICE INVOICE {reference_no}",
+        reference_no=f"Billing Statement {reference_no}",
+        issue_date=tranche.tranche_record.reservation_date,
         due_date=tranche.expected_date,
-        # store net amount (unit price) so that invoice columns match schedule
-        # Calculate net commission before withholding tax so invoice and schedule align
-        unit_price=(tranche.expected_amount / (1 - (tranche.tranche_record.deduction_tax_rate / Decimal('100')))).quantize(Decimal('0.01')),
-        vat_rate=tranche.tranche_record.deduction_tax_rate,
+        unit_price=unit_price,
+        vat_rate=vat_rate,
+        client_name=client_name,
+        client_address=client_address,
+        client_tin=client_tin,
         prepared_by=request.user,
         prepared_by_date=now()
     )
@@ -754,7 +797,7 @@ def create_combined_invoice(request):
     print(f"DEBUG: Tranche IDs: {[t.id for t in tranches]}")
     print(f"DEBUG: Tranche Record ID: {tranche_record_id}")
     
-    # Calculate combined totals
+    # Calculate combined totals based on Expected Commission from tranche view table
     total_expected_amount = sum(t.expected_amount for t in tranches)
     total_received_amount = sum(t.received_amount or Decimal('0') for t in tranches)
     
@@ -765,19 +808,45 @@ def create_combined_invoice(request):
     primary_tranche = tranches.first()
     reference_no = f"Combined-Tranche-{tranche_record.id}"
     
-    # Calculate combined unit price (net commission before tax)
+    # Calculate combined unit price (net commission before tax) using Expected Commission logic
     try:
-        combined_unit_price = (total_expected_amount / (1 - (tranche_record.deduction_tax_rate / Decimal('100')))).quantize(Decimal('0.01'))
+        combined_net_commission = Decimal('0.00')
+        for tranche in tranches:
+            # Get exact tranche data as calculated in view_tranche
+            tranche_data = _get_tranche_data_for_invoice(tranche)
+            combined_net_commission += tranche_data['net_amount']
+        
+        combined_unit_price = combined_net_commission.quantize(Decimal('0.01'))
         
         print(f"DEBUG: About to create invoice with unit_price: {combined_unit_price}")
         
+        # Get developer data for Bill To section from primary tranche
+        client_name = "Client Name"
+        client_address = "Client Address"
+        client_tin = "Client TIN"
+        
+        try:
+            from .models import Property
+            property_obj = Property.objects.filter(name=primary_tranche.tranche_record.project_name).first()
+            if property_obj and property_obj.developer:
+                developer = property_obj.developer
+                client_name = developer.name
+                client_address = developer.address or ""
+                client_tin = developer.tin_number or ""
+        except Exception as e:
+            print(f"Warning: Could not get developer data for combined invoice: {e}")
+
         invoice = BillingInvoice.objects.create(
             tranche=primary_tranche,  # Primary tranche for reference
             invoice_no=generate_invoice_number(),
-            reference_no=f"COMBINED SERVICE INVOICE {reference_no}",
+            reference_no=f"BILLING STATEMENT {reference_no}",
+            issue_date=primary_tranche.tranche_record.reservation_date,
             due_date=earliest_due_date,
             unit_price=combined_unit_price,
-            vat_rate=tranche_record.deduction_tax_rate,
+            vat_rate=primary_tranche.tranche_record.option1_tax_rate if not primary_tranche.is_lto else primary_tranche.tranche_record.option2_tax_rate,
+            client_name=client_name,
+            client_address=client_address,
+            client_tin=client_tin,
             prepared_by=request.user,
             prepared_by_date=now(),
             # Store additional data for combined invoice
@@ -806,8 +875,139 @@ def create_combined_invoice(request):
         return redirect('view_tranche', tranche_id=tranche_record_id)
 
 
+def _get_dp_tranche_data_from_view_logic(record):
+    """Get DP tranche data using exact view_tranche calculation logic."""
+    # Replicate the exact calculation from views.py lines 2854-2910
+    # Check if net_of_vat_amount is provided (manual divisor)
+    if record.net_of_vat_amount and record.net_of_vat_amount > 0:
+        # Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
+        net_of_vat_base = (Decimal(str(record.total_contract_price)) / Decimal(str(record.net_of_vat_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    else:
+        # Fallback to VAT rate calculation (TCP / (1+VAT))
+        vat_rate_decimal = record.vat_rate / Decimal(100)
+        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
+    
+    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
+    total_selling_price = net_of_vat_base - less_process_fee
+    gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
+    
+    vat_rate_decimal = record.vat_rate / Decimal(100)
+    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
+    
+    tax_rate = record.withholding_tax_rate / Decimal(100)
+    tax = net_of_vat * tax_rate
+    net_commission = gross_commission - tax
+    
+    # Calculate option1 values (DP period)
+    option1_value_before_deduction = net_commission * (record.option1_percentage / Decimal(100))
+    option1_tax_rate = record.option1_tax_rate / Decimal(100)
+    
+    # Apply deductions
+    deduction_tax_rate = record.deduction_tax_rate / Decimal(100)
+    deduction_tax = record.other_deductions * deduction_tax_rate
+    deduction_net = record.other_deductions - deduction_tax
+    
+    option1_value = option1_value_before_deduction - deduction_net
+    option1_monthly = option1_value / Decimal(record.number_months)
+    
+    # Individual tranche values - exact same as view_tranche lines 2898-2900
+    net = option1_monthly
+    tax_amount = net * option1_tax_rate
+    expected_commission = net - tax_amount
+    
+    return {
+        'net_amount': net,
+        'tax_amount': tax_amount,
+        'expected_commission': expected_commission
+    }
+
+
+def _get_lto_tranche_data_from_view_logic(record):
+    """Get LTO tranche data using exact view_tranche calculation logic."""
+    # Replicate the exact calculation from views.py lines 2854-2922
+    # Check if net_of_vat_amount is provided (manual divisor)
+    if record.net_of_vat_amount and record.net_of_vat_amount > 0:
+        # Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
+        net_of_vat_base = (Decimal(str(record.total_contract_price)) / Decimal(str(record.net_of_vat_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    else:
+        # Fallback to VAT rate calculation (TCP / (1+VAT))
+        vat_rate_decimal = record.vat_rate / Decimal(100)
+        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
+    
+    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
+    total_selling_price = net_of_vat_base - less_process_fee
+    gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
+    
+    vat_rate_decimal = record.vat_rate / Decimal(100)
+    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
+    
+    tax_rate = record.withholding_tax_rate / Decimal(100)
+    tax = net_of_vat * tax_rate
+    net_commission = gross_commission - tax
+    
+    # Calculate LTO values - exact same as view_tranche lines 2914-2922
+    option2_value = net_commission * (record.option2_percentage / Decimal(100))
+    option2_tax_rate = record.option2_tax_rate / Decimal(100)
+    lto_deduction_value = option2_value
+    lto_deduction_tax = lto_deduction_value * option2_tax_rate
+    lto_deduction_net = lto_deduction_value - lto_deduction_tax
+    
+    
+    # CRITICAL: Match the exact display mapping from LTO schedule table
+    # LTO Schedule shows: Net Commission (before tax), Less Tax, Expected Commission (after tax)
+    # Invoice needs: Commission (before tax), Less Tax, Total Due (after tax)
+    return {
+        'net_amount': lto_deduction_value.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),     # Commission = ₱23,102.68 (before tax)
+        'tax_amount': lto_deduction_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),       # Less Tax = ₱3,465.40  
+        'expected_commission': lto_deduction_net.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)  # Total Due = ₱19,637.28 (after tax)
+    }
+
+
+def _get_tranche_data_for_invoice(tranche_payment):
+    """Get the exact tranche data as displayed in view_tranche schedule tables."""
+    record = tranche_payment.tranche_record
+    
+    if tranche_payment.is_lto:
+        # LTO calculation - use the pre-calculated data from view logic (same as DP)
+        lto_data = _get_lto_tranche_data_from_view_logic(record)
+        
+        return {
+            'net_amount': lto_data['net_amount'],
+            'tax_amount': lto_data['tax_amount'],
+            'expected_commission': lto_data['expected_commission']
+        }
+    else:
+        # DP calculation - use the pre-calculated data from view logic
+        dp_data = _get_dp_tranche_data_from_view_logic(record)
+        
+        return {
+            'net_amount': dp_data['net_amount'].quantize(Decimal('0.01')),
+            'tax_amount': dp_data['tax_amount'].quantize(Decimal('0.01')),
+            'expected_commission': dp_data['expected_commission'].quantize(Decimal('0.01'))
+        }
+
+
 def _get_invoice_context(invoice, request):
     """Generate the context dictionary for an invoice view."""
+    # Auto-populate Bill To data from developer if not already set
+    if invoice.tranche and invoice.tranche.tranche_record:
+        project_name = invoice.tranche.tranche_record.project_name
+        try:
+            from .models import Property, Developer
+            property_obj = Property.objects.filter(name=project_name).first()
+            if property_obj and property_obj.developer:
+                developer = property_obj.developer
+                # Only update if client data is empty or default
+                if not invoice.client_name or invoice.client_name == "Client Name":
+                    invoice.client_name = developer.name
+                if not invoice.client_address or invoice.client_address == "Client Address":
+                    invoice.client_address = developer.address or ""
+                if not invoice.client_tin or invoice.client_tin == "Client TIN":
+                    invoice.client_tin = developer.tin_number or ""
+                invoice.save()
+        except Exception as e:
+            print(f"Warning: Could not auto-populate developer data: {e}")
+    
     # Check if this is a combined invoice (qty > 1 indicates multiple tranches)
     is_combined_invoice = invoice.qty > 1
     combined_tranches = []
@@ -823,29 +1023,53 @@ def _get_invoice_context(invoice, request):
                 # Fallback to single tranche if parsing fails
                 combined_tranches = [invoice.tranche] if invoice.tranche else []
         
-        # Calculate aggregated amounts from all combined tranches
+        # Calculate amounts based on Expected Commission from tranche view table
         if combined_tranches:
-            # Calculate individual net commissions and tax amounts for each tranche
+            # Calculate totals from the actual tranche expected amounts (Expected Commission column)
+            total_expected_commission = sum(tranche.expected_amount for tranche in combined_tranches)
+            
+            # Calculate net commission before tax for all tranches
+            total_net_commission = Decimal('0.00')
+            total_tax_amount = Decimal('0.00')
+            
+            for tranche in combined_tranches:
+                # Get exact tranche data as calculated in view_tranche
+                tranche_data = _get_tranche_data_for_invoice(tranche)
+                
+                total_net_commission += tranche_data['net_amount']
+                total_tax_amount += tranche_data['tax_amount']
+            
+            net_price = total_net_commission.quantize(Decimal("0.01"))
+            vat_amount = total_tax_amount.quantize(Decimal("0.01"))
+            subtotal = total_expected_commission.quantize(Decimal("0.01"))
+            qty = invoice.qty
+            amount_net_vat = net_price
+            
+            # Calculate individual breakdown for display purposes only
+            # This is for showing individual tranche details, but doesn't affect totals
             individual_net_commissions = []
             individual_tax_amounts = []
             
-            for tranche in combined_tranches:
-                # Calculate net commission before tax for this tranche
-                tranche_net_commission = (tranche.expected_amount / (1 - (tranche.tranche_record.deduction_tax_rate / Decimal('100')))).quantize(Decimal('0.01'))
-                tranche_tax_amount = (tranche_net_commission * (tranche.tranche_record.deduction_tax_rate / Decimal('100'))).quantize(Decimal('0.01'))
-                
-                individual_net_commissions.append(tranche_net_commission)
-                individual_tax_amounts.append(tranche_tax_amount)
-            
-            # Sum up all individual amounts
-            net_price = sum(individual_net_commissions)  # Total net commission
-            vat_amount = sum(individual_tax_amounts)  # Total tax
-            subtotal = (net_price - vat_amount).quantize(Decimal("0.01"))  # Total amount due
-            qty = len(combined_tranches)
-            amount_net_vat = net_price
+            # Calculate proportional breakdown based on stored totals
+            total_expected = sum(tranche.expected_amount for tranche in combined_tranches)
+            if total_expected > 0:
+                for tranche in combined_tranches:
+                    # Calculate proportional share of the stored commission
+                    proportion = tranche.expected_amount / total_expected
+                    tranche_net_commission = (net_price * proportion).quantize(Decimal('0.01'))
+                    tranche_tax_amount = (vat_amount * proportion).quantize(Decimal('0.01'))
+                    
+                    individual_net_commissions.append(tranche_net_commission)
+                    individual_tax_amounts.append(tranche_tax_amount)
+            else:
+                # Fallback if no expected amounts
+                individual_net_commissions = [net_price / len(combined_tranches)] * len(combined_tranches)
+                individual_tax_amounts = [vat_amount / len(combined_tranches)] * len(combined_tranches)
             
             # Store individual commission breakdown for template
             combined_commission_breakdown = list(zip(combined_tranches, individual_net_commissions, individual_tax_amounts))
+            
+            print(f"DEBUG: Combined invoice using stored values - net_price: {net_price}, vat_amount: {vat_amount}, subtotal: {subtotal}")
         else:
             # Fallback to invoice values if no combined tranches found
             net_price = invoice.unit_price
@@ -854,58 +1078,75 @@ def _get_invoice_context(invoice, request):
             qty = invoice.qty
             amount_net_vat = net_price
             combined_commission_breakdown = []
+            
+            print(f"DEBUG: Combined invoice fallback using stored values - net_price: {net_price}, vat_amount: {vat_amount}, subtotal: {subtotal}")
     else:
-        # --- Default compute financials for single tranche ---
-        data = _compute(invoice)
-        qty = data["qty"]
-        net_price = data["net_price"]
-        vat_amount = data["vat_amount"]
-        subtotal = data["subtotal"]
-        amount_net_vat = net_price
-        combined_commission_breakdown = []
-
-    # --- Check if this is a Loan Take Out invoice and override with LTO data ---
-    lto_tranches = []
-    is_lto_invoice = False
-    
-    if invoice.tranche and invoice.tranche.tranche_record and invoice.tranche.is_lto:
-        record = invoice.tranche.tranche_record
-        is_lto_invoice = True
+        # Single tranche invoice
+        tranche = invoice.tranche
+        if invoice.tranche and invoice.tranche.tranche_record:
+            # Get exact tranche data as calculated in view_tranche
+            tranche_data = _get_tranche_data_for_invoice(tranche)
+            
+            # For LTO: net_amount is the commission before tax (₱23,102.68)
+            # For DP: net_amount is the commission before tax 
+            net_price = tranche_data['net_amount']      # Commission (before tax)
+            vat_amount = tranche_data['tax_amount']     # Less Tax
+            subtotal = tranche_data['expected_commission']  # Total Due (after tax)
+            
+            qty = invoice.qty
+            amount_net_vat = net_price
+            combined_commission_breakdown = []
+            
+        # --- Check if this is a Loan Take Out invoice and override with LTO data ---
+        lto_tranches = []
+        is_lto_invoice = False
         
-        # Get LTO tranche data
-        lto_payment = record.payments.filter(is_lto=True).first()
-        if lto_payment:
-            # Calculate LTO values (similar to view_tranche logic)
-            vat_rate_decimal = record.vat_rate / Decimal(100)
-            net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-            less_process_fee = (record.total_contract_price * record.process_fee_percentage) / Decimal(100)
-            total_selling_price = net_of_vat_base - less_process_fee
-            gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
-            net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-            net_commission = gross_commission - (net_of_vat * (record.withholding_tax_rate / Decimal(100)))
+        if invoice.tranche and invoice.tranche.tranche_record and invoice.tranche.is_lto:
+            record = invoice.tranche.tranche_record
+            is_lto_invoice = True
             
-            # Calculate LTO values
-            option2_value = net_commission * (record.option2_percentage / Decimal(100))
-            option2_tax_rate = record.option2_tax_rate / Decimal(100)
-            lto_deduction_value = option2_value
-            lto_deduction_tax = lto_deduction_value * option2_tax_rate
-            lto_deduction_net = lto_deduction_value - lto_deduction_tax
-            lto_expected_commission = lto_deduction_net.quantize(Decimal('0.01'))
-            
-            # Override invoice table data with LTO-specific values
-            net_price = lto_deduction_value  # Net Commission (before tax)
-            vat_amount = lto_deduction_tax   # Less Tax
-            subtotal = lto_expected_commission  # Expected Commission (after tax)
-            amount_net_vat = lto_deduction_value
-            
-            lto_tranches.append({
-                'tranche': lto_payment,
-                'tax_amount': lto_deduction_tax,
-                'net_amount': lto_deduction_net,
-                'expected_commission': lto_expected_commission,
-                'balance': lto_expected_commission - lto_payment.received_amount,
-                'initial_balance': lto_payment.initial_balance
-            })
+            # Get LTO tranche data
+            lto_payment = record.payments.filter(is_lto=True).first()
+            if lto_payment:
+                # Calculate LTO values (similar to view_tranche logic)
+                vat_rate_decimal = record.vat_rate / Decimal(100)
+                net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
+                less_process_fee = (record.total_contract_price * record.process_fee_percentage) / Decimal(100)
+                total_selling_price = net_of_vat_base - less_process_fee
+                gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
+                net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
+                net_commission = gross_commission - (net_of_vat * (record.withholding_tax_rate / Decimal(100)))
+                
+                # Calculate LTO values
+                option2_value = net_commission * (record.option2_percentage / Decimal(100))
+                option2_tax_rate = record.option2_tax_rate / Decimal(100)
+                lto_deduction_value = option2_value
+                lto_deduction_tax = lto_deduction_value * option2_tax_rate
+                lto_deduction_net = lto_deduction_value - lto_deduction_tax
+                lto_expected_commission = lto_deduction_net.quantize(Decimal('0.01'))
+                
+                # Override invoice table data with LTO-specific values
+                net_price = lto_deduction_value  # Net Commission (before tax)
+                vat_amount = lto_deduction_tax   # Less Tax
+                subtotal = lto_expected_commission  # Expected Commission (after tax)
+                amount_net_vat = lto_deduction_value
+                
+                lto_tranches.append({
+                    'tranche': lto_payment,
+                    'tax_amount': lto_deduction_tax,
+                    'net_amount': lto_deduction_net,
+                    'expected_commission': lto_expected_commission,
+                    'balance': lto_expected_commission - lto_payment.received_amount,
+                    'initial_balance': lto_payment.initial_balance
+                })
+        else:
+            # Fallback to stored values if no tranche data
+            qty = invoice.qty
+            net_price = invoice.unit_price
+            vat_amount = (net_price * (invoice.vat_rate / Decimal("100"))).quantize(Decimal("0.01"))
+            subtotal = (net_price - vat_amount).quantize(Decimal("0.01"))
+            amount_net_vat = net_price
+            combined_commission_breakdown = []
 
     # Default values for summary
     summary_gross_commission = Decimal('0.00')
@@ -959,7 +1200,18 @@ def _get_invoice_context(invoice, request):
         # Create combined billing item for current invoice
         combined_expected_amount = sum(t.expected_amount for t in combined_tranches)
         combined_received_amount = sum(t.received_amount or Decimal('0') for t in combined_tranches)
-        combined_percentage = (combined_expected_amount / total_expected_commission) * 100
+        
+        # Calculate percentage based on period type (DP or LTO should each be 50%)
+        # Check if all combined tranches are of the same type
+        is_all_lto = all(t.is_lto for t in combined_tranches)
+        is_all_dp = all(not t.is_lto for t in combined_tranches)
+        
+        if is_all_lto or is_all_dp:
+            # All tranches are of the same type, so this represents 50% of the total commission
+            combined_percentage = Decimal('50.0')
+        else:
+            # Mixed types, calculate based on total expected commission
+            combined_percentage = (combined_expected_amount / total_expected_commission) * Decimal('100')
         
         current_billing_item = {
             'date_received': min(t.date_received for t in combined_tranches if t.date_received) if any(t.date_received for t in combined_tranches) else None,
@@ -972,12 +1224,16 @@ def _get_invoice_context(invoice, request):
         # Add individual tranches to billing statement history if received
         for tranche_payment in all_tranches:
             if tranche_payment.status == 'Received':
-                percentage = (tranche_payment.expected_amount / total_expected_commission) * 100
+                # Calculate percentage based on period type (DP or LTO should each be 50%)
+                same_type_tranches = record.payments.filter(is_lto=tranche_payment.is_lto)
+                same_type_total = same_type_tranches.aggregate(total=Sum('expected_amount'))['total'] or Decimal('1.0')
+                percentage_within_type = (tranche_payment.expected_amount / same_type_total) * Decimal('50.0')
+                
                 billing_statement_items.append({
                     'date_received': tranche_payment.date_received,
                     'amount': tranche_payment.received_amount,
                     'status': tranche_payment.status,
-                    'percentage': percentage,
+                    'percentage': percentage_within_type,
                     'due_date': tranche_payment.expected_date,
                 })
     elif invoice.tranche and invoice.tranche.tranche_record:
@@ -991,14 +1247,19 @@ def _get_invoice_context(invoice, request):
             total_expected_commission = Decimal('1.0') # Avoid division by zero
 
         for tranche_payment in all_tranches:
-            # Calculate the percentage of this tranche relative to the total expected commission
-            percentage = (tranche_payment.expected_amount / total_expected_commission) * 100
+            # Calculate percentage based on period type (DP or LTO should each be 50%)
+            # Get all tranches of the same type (DP or LTO) for this record
+            same_type_tranches = record.payments.filter(is_lto=tranche_payment.is_lto)
+            same_type_total = same_type_tranches.aggregate(total=Sum('expected_amount'))['total'] or Decimal('1.0')
+            
+            # Calculate percentage within the period type (should total 50% for each period)
+            percentage_within_type = (tranche_payment.expected_amount / same_type_total) * Decimal('50.0')
             
             item_data = {
                 'date_received': tranche_payment.date_received,
                 'amount': tranche_payment.received_amount,
                 'status': tranche_payment.status,
-                'percentage': percentage,
+                'percentage': percentage_within_type,
                 'due_date': tranche_payment.expected_date,
             }
 
@@ -1023,7 +1284,10 @@ def _get_invoice_context(invoice, request):
             # Find the invoice associated with that payment
             prev_invoice = payment.invoices.first()
             if prev_invoice:
-                percentage = (payment.expected_amount / total_expected_commission_for_record) * 100 if total_expected_commission_for_record else 0
+                # Calculate percentage based on period type (DP or LTO should each be 50%)
+                same_type_tranches = record.payments.filter(is_lto=payment.is_lto)
+                same_type_total = same_type_tranches.aggregate(total=Sum('expected_amount'))['total'] or Decimal('1.0')
+                percentage = (payment.expected_amount / same_type_total) * Decimal('50.0') if same_type_total else 0
                 
                 previous_invoices.append({
                     'tranche_name': f"Tranche-{record.id}",  # Use the record ID for a consistent name
@@ -1033,30 +1297,43 @@ def _get_invoice_context(invoice, request):
                     'invoice_no': prev_invoice.invoice_no,
                 })
 
+    # Calculate totals
+    total_due = subtotal
+    
+    # Add LTO template variables for direct access
+    lto_deduction_value = Decimal('0.00')
+    lto_deduction_tax = Decimal('0.00') 
+    lto_deduction_net = Decimal('0.00')
+    
+    if is_lto_invoice and invoice.tranche and invoice.tranche.tranche_record:
+        tranche_data = _get_tranche_data_for_invoice(invoice.tranche)
+        lto_deduction_value = tranche_data['net_amount']
+        lto_deduction_tax = tranche_data['tax_amount']
+        lto_deduction_net = tranche_data['expected_commission']
+    
     context = {
         "invoice": invoice,
         "qty": qty,
         "net_price": net_price,
         "vat_amount": vat_amount,
         "subtotal": subtotal,
+        "total_due": total_due,
         "amount_net_vat": amount_net_vat,
-        "total_due": subtotal,
-        "payment_terms": invoice.tranche.tranche_record.tranche_option if invoice.tranche else "Combined Tranches",
-        "today": now().date(),
-        "lto_tranches": lto_tranches,
-        "is_lto_invoice": is_lto_invoice,  # Flag to identify LTO invoices
-        "is_combined_invoice": is_combined_invoice,  # Flag to identify combined invoices
-        "combined_tranches": combined_tranches,  # List of combined tranches
-        "combined_commission_breakdown": combined_commission_breakdown,  # Individual commission breakdown for combined invoices
-        "previous_invoices": previous_invoices,
-        # Enhanced summary fields - Calculated from TrancheRecord
+        "is_combined_invoice": is_combined_invoice,
+        "combined_tranches": combined_tranches,
+        "combined_commission_breakdown": combined_commission_breakdown,
         "summary_gross_commission": summary_gross_commission,
-        "summary_vat_rate": summary_vat_rate,
-        "summary_vat_amount": summary_vat_amount,
         "summary_net_of_vat": summary_net_of_vat,
-        "summary_withholding_tax_rate": summary_withholding_tax_rate,
         "summary_withholding_tax_amount": summary_withholding_tax_amount,
         "summary_net_commission": summary_net_commission,
+        "summary_vat_rate": summary_vat_rate,
+        "summary_vat_amount": summary_vat_amount,
+        "summary_withholding_tax_rate": summary_withholding_tax_rate,
+        "lto_tranches": lto_tranches,
+        "is_lto_invoice": is_lto_invoice,
+        "lto_deduction_value": lto_deduction_value,
+        "lto_deduction_tax": lto_deduction_tax,
+        "lto_deduction_net": lto_deduction_net,
         "billing_statement_items": billing_statement_items,
         "current_billing_item": current_billing_item,
     }
@@ -1086,21 +1363,51 @@ def _get_invoice_context(invoice, request):
                     break
                 except (json.JSONDecodeError, ValueError):
                     pass
-    
+
+    # Get buyer name and unit ID from tranche record for all cases
+    buyer_name = ""
+    unit_id = ""
+    if invoice.tranche and invoice.tranche.tranche_record:
+        buyer_name = invoice.tranche.tranche_record.buyer_name or ""
+        unit_id = invoice.tranche.tranche_record.unit_id or ""
+        print(f"DEBUG: Single invoice - buyer_name: '{buyer_name}', unit_id: '{unit_id}'")
+    elif is_combined_invoice and combined_tranches:
+        # For combined invoices, use the first tranche's data
+        buyer_name = combined_tranches[0].tranche_record.buyer_name or ""
+        unit_id = combined_tranches[0].tranche_record.unit_id or ""
+        print(f"DEBUG: Combined invoice - buyer_name: '{buyer_name}', unit_id: '{unit_id}'")
+
+    # Add buyer_name and unit_id to existing stored_items if they don't have them
+    if stored_items:
+        for item in stored_items:
+            if 'buyer_name' not in item:
+                item['buyer_name'] = buyer_name
+            if 'unit_id' not in item:
+                item['unit_id'] = unit_id
+
     # If no stored items, create default item data
     if not stored_items:
+        # For LTO invoices, the line item amount should be the total due (lto_deduction_net)
+        # For DP invoices, it should be the subtotal (which is also the total due)
+        line_item_amount = lto_deduction_net if is_lto_invoice else subtotal
+
         stored_items = [{
-            'item_code': 'COMBINED DPC' if is_combined_invoice else ('LTO' if context.get('is_lto_invoice') else 'DPC'),
-            'description': f"Downpayment Commission {invoice.due_date.strftime('%B %Y') if invoice.due_date else ''}",
+            'item_code': 'COMBINED DPC' if is_combined_invoice else ('LTO' if is_lto_invoice else 'DPC'),
+            'description': f"Commission for {invoice.due_date.strftime('%B %Y') if invoice.due_date else ''}",
             'quantity': invoice.qty,
-            'amount': float(subtotal),
+            'amount': float(line_item_amount),
             'due_date': current_billing_item.get('due_date').strftime('%Y-%m-%d') if current_billing_item and current_billing_item.get('due_date') else '',
             'status': current_billing_item.get('status', 'Pending') if current_billing_item else 'Pending',
-            'percentage': float(current_billing_item.get('percentage', 0)) if current_billing_item and current_billing_item.get('percentage') else 0.0
+            'percentage': float(current_billing_item.get('percentage', 0)) if current_billing_item and current_billing_item.get('percentage') else 0.0,
+            'buyer_name': buyer_name,
+            'unit_id': unit_id
         }]
-    
+
     context['stored_items'] = stored_items
     
+    # Extract payment terms from notes field
+    context['payment_terms'] = _extract_payment_terms_from_notes(invoice)
+
     return context
 
 
@@ -1133,19 +1440,18 @@ def sign_invoice(request, invoice_id, role):
 
 
 @login_required
-@require_POST
 def upload_signature(request, invoice_id, role):
     invoice = get_object_or_404(BillingInvoice, id=invoice_id)
-    # Handle JSON request for clearing signature
-    if 'application/json' in request.content_type:
-        try:
-            data = json.loads(request.body)
-            action = data.get('action', 'upload')
-        except json.JSONDecodeError:
-            return JsonResponse({'success': False, 'error': 'Invalid JSON.'}, status=400)
-    else:
-        # Handle form data for uploading signature
-        action = request.POST.get('action', 'upload')
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+    
+    # Get action from form data (role comes from URL parameter)
+    action = request.POST.get('action', 'upload')
+    
+    
+    if not role or role not in ['prepared_by', 'checked_by', 'approved_by']:
+        return JsonResponse({'success': False, 'error': 'Invalid role specified.'}, status=400)
 
     # Permission checks
     if role == 'prepared_by' and request.user != invoice.prepared_by:
@@ -1156,58 +1462,76 @@ def upload_signature(request, invoice_id, role):
         return JsonResponse({'success': False, 'error': 'You do not have permission to sign as approved by.'}, status=403)
 
     if action == 'clear':
-        # Clear all signatures and related fields
-        for r in ['prepared_by', 'checked_by', 'approved_by']:
-            sig_field_name = f"{r}_signature"
-            sig_field = getattr(invoice, sig_field_name, None)
-            if sig_field and sig_field.name and os.path.exists(sig_field.path):
-                os.remove(sig_field.path)
-            setattr(invoice, sig_field_name, None)
-
-        invoice.prepared_by_date = None
-        invoice.checked_by = None
-        invoice.checked_by_date = None
-        invoice.approved_by = None
-        invoice.approved_by_date = None
+        # Clear only the specific signature
+        sig_field_name = f"{role}_signature"
+        sig_field = getattr(invoice, sig_field_name, None)
+        if sig_field and sig_field.name and os.path.exists(sig_field.path):
+            os.remove(sig_field.path)
+        setattr(invoice, sig_field_name, None)
+        
+        # Clear related date fields
+        if role == 'prepared_by':
+            invoice.prepared_by_date = None
+        elif role == 'checked_by':
+            invoice.checked_by = None
+            invoice.checked_by_date = None
+        elif role == 'approved_by':
+            invoice.approved_by = None
+            invoice.approved_by_date = None
+            
         invoice.save()
-        return JsonResponse({'success': True, 'message': 'All signatures cleared.'})
+        return JsonResponse({'success': True, 'message': f'{role.replace("_", " ").title()} signature cleared.'})
 
-    elif 'signature_image' in request.FILES:
-        signature_image = request.FILES['signature_image']
+    elif action == 'upload' and ('signature' in request.FILES or 'signature_image' in request.FILES):
+        signature_image = request.FILES.get('signature') or request.FILES.get('signature_image')
 
-        # Delete all old signatures
-        for r in ['prepared_by', 'checked_by', 'approved_by']:
-            sig_field_name = f"{r}_signature"
-            sig_field = getattr(invoice, sig_field_name, None)
-            if sig_field and sig_field.name and os.path.exists(sig_field.path):
-                os.remove(sig_field.path)
+        # Delete only the old signature for this role
+        sig_field_name = f"{role}_signature"
+        sig_field = getattr(invoice, sig_field_name, None)
+        if sig_field and sig_field.name and os.path.exists(sig_field.path):
+            os.remove(sig_field.path)
 
-        # Save the new signature to all three fields
-        invoice.prepared_by_signature = signature_image
-        invoice.checked_by_signature = signature_image
-        invoice.approved_by_signature = signature_image
+        # Save the new signature to the specific role field only
+        setattr(invoice, sig_field_name, signature_image)
 
-        # Update date fields and user fields based on role permissions
-        invoice.prepared_by_date = now()
-        if request.user.is_staff:
+        # Update date fields and user fields based on the specific role
+        if role == 'prepared_by':
+            invoice.prepared_by_date = now()
+        elif role == 'checked_by':
             invoice.checked_by = request.user
             invoice.checked_by_date = now()
-        if request.user.is_superuser:
+        elif role == 'approved_by':
             invoice.approved_by = request.user
             invoice.approved_by_date = now()
 
-        invoice.save()
+        # Save only the specific fields to avoid affecting other signature fields
+        update_fields = [sig_field_name]
+        if role == 'prepared_by':
+            update_fields.append('prepared_by_date')
+        elif role == 'checked_by':
+            update_fields.extend(['checked_by', 'checked_by_date'])
+        elif role == 'approved_by':
+            update_fields.extend(['approved_by', 'approved_by_date'])
+            
+        invoice.save(update_fields=update_fields)
 
         # Refresh to get the new URL
         invoice.refresh_from_db()
         
+        signature_field = getattr(invoice, sig_field_name)
+        signature_url = signature_field.url if signature_field else ''
+        
         return JsonResponse({
             'success': True,
-            'message': 'Signature uploaded successfully for all roles.',
-            'signature_url': invoice.prepared_by_signature.url if invoice.prepared_by_signature else ''
+            'message': f'{role.replace("_", " ").title()} signature uploaded successfully.',
+            'signature_url': signature_url
         })
 
-    return JsonResponse({'success': False, 'error': 'Invalid action.'}, status=400)
+    else:
+        return JsonResponse({
+            'success': False, 
+            'error': f'Invalid action or missing file. Action: {action}, Files: {list(request.FILES.keys())}'
+        }, status=400)
 
 
 @login_required
@@ -1842,7 +2166,7 @@ def update_invoice(request, invoice_id):
             if 'client_tin' in request.POST:
                 invoice.client_tin = request.POST.get('client_tin', invoice.client_tin)
             
-            # Update billing details
+            # Update billing details (dates only - don't recalculate financials)
             if 'issue_date' in request.POST:
                 issue_date = request.POST.get('issue_date')
                 if issue_date:
@@ -1862,23 +2186,27 @@ def update_invoice(request, invoice_id):
             
             # Handle payment terms in notes field
             if 'payment_terms' in request.POST:
-                payment_terms = request.POST.get('payment_terms')
-                if payment_terms:
-                    if invoice.notes:
-                        # Check if payment terms are already in notes
-                        if 'Payment Terms:' not in invoice.notes:
+                payment_terms = request.POST.get('payment_terms', '').strip()
+                # Always update payment terms, even if empty
+                if invoice.notes:
+                    # Check if payment terms are already in notes
+                    if 'Payment Terms:' not in invoice.notes:
+                        if payment_terms:  # Only add if not empty
                             invoice.notes += f"\nPayment Terms: {payment_terms}"
-                        else:
-                            # Update existing payment terms
-                            lines = invoice.notes.split('\n')
-                            updated_lines = []
-                            for line in lines:
-                                if line.startswith('Payment Terms:'):
-                                    updated_lines.append(f'Payment Terms: {payment_terms}')
-                                else:
-                                    updated_lines.append(line)
-                            invoice.notes = '\n'.join(updated_lines)
                     else:
+                        # Update existing payment terms
+                        lines = invoice.notes.split('\n')
+                        updated_lines = []
+                        for line in lines:
+                            if line.startswith('Payment Terms:'):
+                                if payment_terms:  # Only add if not empty
+                                    updated_lines.append(f'Payment Terms: {payment_terms}')
+                                # If empty, skip this line (effectively removing it)
+                            else:
+                                updated_lines.append(line)
+                        invoice.notes = '\n'.join(updated_lines)
+                else:
+                    if payment_terms:  # Only create notes if payment terms is not empty
                         invoice.notes = f"Payment Terms: {payment_terms}"
             
             # Process invoice items
@@ -1923,15 +2251,23 @@ def update_invoice(request, invoice_id):
                     messages.error(request, f'Total percentage ({total_percentage:.2f}%) cannot exceed 100%.')
                     return redirect('invoice_view', invoice_id=invoice.id)
                 
-                # Update invoice with the first item's data (primary item)
-                primary_item = items_data[0]
-                invoice.qty = primary_item['quantity']
+                # Check if this is a financial change based on the flag from frontend
+                is_financial_change = request.POST.get('financial_change', 'false') == 'true'
                 
-                # Calculate new unit price based on total amount
-                total_amount = sum(item['amount'] for item in items_data)
-                if total_amount > 0:
-                    # Update unit price to reflect the new total
-                    invoice.unit_price = Decimal(str(total_amount))
+                # Only update financial fields if this is actually a financial change
+                if is_financial_change:
+                    # Update invoice with the first item's data (primary item)
+                    primary_item = items_data[0]
+                    invoice.qty = primary_item['quantity']
+                    
+                    # Update unit_price for financial changes
+                    total_amount = sum(item['amount'] for item in items_data)
+                    if total_amount > 0:
+                        current_calculated_total = float(invoice.unit_price) if invoice.unit_price else 0.0
+                        invoice.unit_price = Decimal(str(total_amount))
+                        print(f"DEBUG: Financial change detected - Updated unit_price from {current_calculated_total} to {total_amount}")
+                else:
+                    print(f"DEBUG: Non-financial change detected - Preserving original unit_price: {invoice.unit_price}")
                 
                 # Store items data in notes field as JSON for future reference
                 import json
@@ -1950,30 +2286,35 @@ def update_invoice(request, invoice_id):
                 else:
                     invoice.notes = f"Items Data: {items_json}"
                 
-                # Update due date if provided in first item and not already set from billing details
-                if primary_item['due_date'] and 'due_date' not in request.POST:
-                    from datetime import datetime
-                    try:
-                        invoice.due_date = datetime.strptime(primary_item['due_date'], '%Y-%m-%d').date()
-                    except ValueError:
-                        pass  # Keep existing due date if invalid format
-                
-                # Update related tranche payment status if applicable
-                if invoice.tranche:
-                    tranche_payment = invoice.tranche
-                    # Update status based on the primary item status
-                    if primary_item['status'] in ['Received', 'Pending', 'Overdue']:
-                        tranche_payment.status = primary_item['status']
-                        
-                        # Update received amount if status is 'Received'
-                        if primary_item['status'] == 'Received' and primary_item['amount'] > 0:
-                            tranche_payment.received_amount = Decimal(str(primary_item['amount']))
-                            tranche_payment.date_received = now().date()
-                        
-                        tranche_payment.save()
+                # Only update financial-related fields for financial changes
+                if is_financial_change and items_data:
+                    primary_item = items_data[0]
+                    
+                    # Update due date if provided in first item and not already set from billing details
+                    if primary_item['due_date'] and 'due_date' not in request.POST:
+                        from datetime import datetime
+                        try:
+                            invoice.due_date = datetime.strptime(primary_item['due_date'], '%Y-%m-%d').date()
+                        except ValueError:
+                            pass  # Keep existing due date if invalid format
+                    
+                    # Update related tranche payment status if applicable
+                    if invoice.tranche:
+                        tranche_payment = invoice.tranche
+                        # Update status based on the primary item status
+                        if primary_item['status'] in ['Received', 'Pending', 'Overdue']:
+                            tranche_payment.status = primary_item['status']
+                            
+                            # Update received amount if status is 'Received'
+                            if primary_item['status'] == 'Received' and primary_item['amount'] > 0:
+                                tranche_payment.received_amount = Decimal(str(primary_item['amount']))
+                                tranche_payment.date_received = now().date()
+                            
+                            tranche_payment.save()
             
-            # Save the invoice
-            invoice.save()
+            # Save the invoice without triggering recalculations
+            invoice.save(update_fields=['client_name', 'client_address', 'client_tin', 'issue_date', 'due_date', 'reference_no', 'notes'])
+            print(f"DEBUG: Invoice saved with preserved unit_price: {invoice.unit_price}, vat_rate: {invoice.vat_rate}")
             
             # Success message
             updated_sections = []

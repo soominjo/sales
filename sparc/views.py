@@ -15,7 +15,7 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation, ROUND_HALF_UP
 from datetime import datetime, timedelta
 from django.db import IntegrityError
 from django.utils import timezone
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, Concat
 from django.core.mail import send_mail
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -35,6 +35,131 @@ logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import user_passes_test
 from django.core.files.base import ContentFile
 import base64
+
+
+def find_agent_user_by_name(agent_name):
+    """
+    Helper function to find a User object by agent name with multiple fallback strategies.
+    Returns the User object if found, None otherwise.
+    """
+    if not agent_name or not agent_name.strip():
+        return None
+    
+    agent_name = agent_name.strip()
+    
+    # Strategy 1: Try exact full name match (case insensitive)
+    agent_user = User.objects.annotate(
+        full_name=Concat('first_name', models.Value(' '), 'last_name')
+    ).filter(full_name__iexact=agent_name).first()
+    
+    if agent_user:
+        return agent_user
+    
+    # Strategy 2: Try exact first and last name match (case insensitive)
+    name_parts = agent_name.split()
+    if len(name_parts) >= 2:
+        agent_user = User.objects.filter(
+            Q(first_name__iexact=name_parts[0]) &
+            Q(last_name__iexact=name_parts[-1])
+        ).first()
+        
+        if agent_user:
+            return agent_user
+    
+    # Strategy 3: Try username match (case insensitive)
+    agent_user = User.objects.filter(username__iexact=agent_name).first()
+    if agent_user:
+        return agent_user
+    
+    # Strategy 4: Try contains match for first and last name
+    if len(name_parts) >= 2:
+        agent_user = User.objects.filter(
+            Q(first_name__icontains=name_parts[0]) &
+            Q(last_name__icontains=name_parts[-1])
+        ).first()
+        
+        if agent_user:
+            return agent_user
+    
+    # Strategy 5: Try partial full name match
+    users_with_similar_names = User.objects.annotate(
+        full_name=Concat('first_name', models.Value(' '), 'last_name')
+    ).filter(full_name__icontains=agent_name)
+    
+    if users_with_similar_names.exists():
+        return users_with_similar_names.first()
+    
+    return None
+
+
+def fix_orphaned_commissions():
+    """
+    Utility function to fix Commission records that might have incorrect agent assignments
+    and create missing commission records for payments that have been received.
+    """
+    fixed_count = 0
+    error_count = 0
+    created_count = 0
+    
+    # Get all tranche records
+    tranche_records = TrancheRecord.objects.all()
+    
+    for record in tranche_records:
+        # Find the correct agent user
+        agent_user = find_agent_user_by_name(record.agent_name)
+        
+        if agent_user:
+            # Look for commissions with release numbers that match this tranche
+            for payment in record.payments.all():
+                if payment.received_amount > 0:
+                    release_code = f"LTO-{record.id}-1" if payment.is_lto else f"DP-{record.id}-{payment.tranche_number}"
+                    
+                    # Check if commission record exists for the correct agent
+                    existing_commission = Commission.objects.filter(
+                        release_number=release_code,
+                        agent=agent_user
+                    ).first()
+                    
+                    # Also check for any commission with this release code (regardless of agent)
+                    any_commission = Commission.objects.filter(
+                        release_number=release_code
+                    ).first()
+                    
+                    if existing_commission:
+                        # Update existing commission if amount differs
+                        if existing_commission.commission_amount != payment.received_amount:
+                            existing_commission.commission_amount = payment.received_amount
+                            existing_commission.date_released = payment.date_received
+                            existing_commission.save()
+                            fixed_count += 1
+                            logger.info(f'Updated commission {release_code}: amount changed to ₱{payment.received_amount}')
+                    elif any_commission:
+                        # Commission exists but for wrong agent - reassign it
+                        old_agent = any_commission.agent
+                        any_commission.agent = agent_user
+                        any_commission.commission_amount = payment.received_amount
+                        any_commission.date_released = payment.date_received
+                        any_commission.save()
+                        fixed_count += 1
+                        logger.info(f'Fixed commission {release_code}: reassigned from {old_agent.get_full_name()} to {agent_user.get_full_name()}')
+                    else:
+                        # Create missing commission record
+                        new_commission = Commission.objects.create(
+                            date_released=payment.date_received or timezone.now().date(),
+                            release_number=release_code,
+                            project_name=record.project_name,
+                            developer=record.project_name.split()[0] if record.project_name else 'Unknown',
+                            buyer=record.buyer_name,
+                            agent=agent_user,
+                            commission_amount=payment.received_amount
+                        )
+                        created_count += 1
+                        logger.info(f'Created missing commission {release_code}: ₱{payment.received_amount} for {agent_user.get_full_name()}')
+        else:
+            error_count += 1
+            logger.warning(f'Could not find agent user for: {record.agent_name}')
+    
+    return fixed_count + created_count, error_count
 
 
 def perform_excel_tranche_calculations(total_contract_price, commission_rate, vat_rate=12, 
@@ -273,6 +398,71 @@ def signup(request):
         form = SignUpForm()
 
     return render(request, 'signup.html', {'form': form})
+
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def fix_commission_assignments(request):
+    """
+    Superuser-only view to diagnose and fix commission assignment issues.
+    """
+    if request.method == 'POST':
+        try:
+            fixed_count, error_count = fix_orphaned_commissions()
+            if fixed_count > 0:
+                messages.success(request, f'Successfully fixed {fixed_count} commission assignments.')
+            if error_count > 0:
+                messages.warning(request, f'{error_count} agent names could not be matched to user accounts.')
+            if fixed_count == 0 and error_count == 0:
+                messages.info(request, 'No commission assignment issues found.')
+        except Exception as e:
+            messages.error(request, f'Error fixing commission assignments: {str(e)}')
+        
+        return redirect('fix_commission_assignments')
+    
+    # GET request - show diagnostic information
+    # Get all tranche records and check for potential issues
+    tranche_records = TrancheRecord.objects.all()
+    issues = []
+    
+    for record in tranche_records:
+        agent_user = find_agent_user_by_name(record.agent_name)
+        if not agent_user:
+            issues.append({
+                'tranche_id': record.id,
+                'project_name': record.project_name,
+                'agent_name': record.agent_name,
+                'issue': 'Agent name does not match any user account'
+            })
+        else:
+            # Check if commissions exist for this agent
+            for payment in record.payments.all():
+                if payment.received_amount > 0:
+                    release_code = f"LTO-{record.id}-1" if payment.is_lto else f"DP-{record.id}-{payment.tranche_number}"
+                    commission_exists = Commission.objects.filter(
+                        release_number=release_code,
+                        agent=agent_user
+                    ).exists()
+                    
+                    if not commission_exists:
+                        issues.append({
+                            'tranche_id': record.id,
+                            'project_name': record.project_name,
+                            'agent_name': record.agent_name,
+                            'release_code': release_code,
+                            'issue': f'Commission record missing for payment of ₱{payment.received_amount}'
+                        })
+    
+    # Get all active users for reference
+    active_users = User.objects.filter(is_active=True).values('username', 'first_name', 'last_name')
+    
+    context = {
+        'issues': issues,
+        'active_users': active_users,
+        'total_issues': len(issues)
+    }
+    
+    return render(request, 'fix_commission_assignments.html', context)
 
 
 @login_required
@@ -536,11 +726,18 @@ def edit_user_profile(request, profile_id):
 @login_required(login_url='signin')
 def approve_users_list(request):
     # Extended permission to include Sales Supervisor
-    if not (request.user.is_superuser or request.user.profile.role in ['Sales Manager', 'Sales Supervisor']):
-        return HttpResponseForbidden("You don't have permission to view this page.")
+    # Handle superuser without profile
+    if request.user.is_superuser:
+        user_profile = None
+    else:
+        try:
+            user_profile = request.user.profile
+            if user_profile.role not in ['Sales Manager', 'Sales Supervisor']:
+                return HttpResponseForbidden("You don't have permission to view this page.")
+        except Profile.DoesNotExist:
+            return HttpResponseForbidden("You don't have permission to view this page.")
 
     context = {}
-    user_profile = request.user.profile
 
     if request.user.is_superuser or request.user.is_staff:
         # Superusers/Staff see all users and all stats
@@ -898,7 +1095,7 @@ def commission_history(request):
         
         managers_commission = commission_details.filter(
             position='Sales Manager'
-        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        ).exclude(slip__source='full_breakdown').aggregate(total=models.Sum('gross_commission'))['total'] or 0
 
   
         operations_commission = commission_details.filter(
@@ -925,13 +1122,17 @@ def commission_history(request):
         supervisors_commission += commission_details3.filter(
             position='Sales Supervisor'
         ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
-
-        # Calculate team totals
-        sales_team_total = sales_agents_commission + supervisors_commission + managers_commission
+        
+        managers_commission += commission_details3.filter(
+            position='Sales Manager'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        
+        # Calculate team totals - now "Total" includes all commissions
+        sales_team_total = sales_agents_commission + supervisors_commission + managers_commission + operations_commission + cofounder_commission + founder_commission + funds_commission
         management_team_total =  operations_commission + cofounder_commission + founder_commission + funds_commission
         
-        # Calculate grand total (sum of both team totals)
-        total_gross_commission = sales_team_total + management_team_total
+        # Calculate grand total (all commissions)
+        total_gross_commission = sales_team_total
         
     elif request.user.profile.role == 'Sales Manager':
         # For Sales Managers, show team commissions based on filtered slips
@@ -949,7 +1150,7 @@ def commission_history(request):
         
         managers_commission = commission_details.filter(
             position='Sales Manager'
-        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
+        ).exclude(slip__source='full_breakdown').exclude(slip__source='manual_breakdown').aggregate(total=models.Sum('gross_commission'))['total'] or 0
         
         # Add commissions from CommissionDetail3
         sales_agents_commission += commission_details3.filter(
@@ -960,8 +1161,9 @@ def commission_history(request):
             position='Sales Supervisor'
         ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
         
-        # Calculate team totals (Sales Manager focuses on sales team)
-        sales_team_total = sales_agents_commission + supervisors_commission + managers_commission
+        managers_commission += commission_details3.filter(
+            position='Sales Manager'
+        ).aggregate(total=models.Sum('gross_commission'))['total'] or 0
         
         # For management team, get all other positions
         operations_commission = commission_details.filter(
@@ -982,8 +1184,11 @@ def commission_history(request):
         
         management_team_total = operations_commission + cofounder_commission + founder_commission + funds_commission
         
-        # Calculate grand total
-        total_gross_commission = sales_team_total + management_team_total
+        # Calculate team totals - now "Total" includes all commissions
+        sales_team_total = sales_agents_commission + supervisors_commission + managers_commission + operations_commission + cofounder_commission + founder_commission + funds_commission
+        
+        # Calculate grand total (all commissions)
+        total_gross_commission = sales_team_total
         
     else:
         # For regular users, only show their commissions
@@ -1065,6 +1270,8 @@ def commission_history(request):
                 slip__sales_agent_name=member_name,
                 position=member.profile.role
             )
+            if member.profile.role == 'Sales Manager':
+                member_commission_details = member_commission_details.exclude(slip__source='full_breakdown')
             
             member_commission_details3 = CommissionDetail3.objects.filter(
                 slip__in=commission_slips3
@@ -1102,6 +1309,8 @@ def commission_history(request):
                 slip__sales_agent_name=member_name,
                 position=member.profile.role
             )
+            if member.profile.role == 'Sales Manager':
+                member_commission_details = member_commission_details.exclude(slip__source='full_breakdown')
             
             member_commission_details3 = CommissionDetail3.objects.filter(
                 slip__in=commission_slips3
@@ -1392,6 +1601,7 @@ def create_commission_slip2(request):
             slip = slip_form.save(commit=False)
             slip.created_by = request.user
             slip.is_full_breakdown = True
+            slip.source = 'full_breakdown'  # Set the source
             slip.position = request.POST.get('position', '')
             slip.save()
 
@@ -1778,8 +1988,8 @@ def tranches_view(request):
                         number_months=form.cleaned_data['number_months'],
                         deduction_type=form.cleaned_data.get('deduction_type'),
                         other_deductions=form.cleaned_data.get('other_deductions', 0),
-                        # Store computed Net of VAT in the record so it can be displayed later
-                        net_of_vat_amount=net_of_vat_base,
+                        # Store the raw Net of VAT divisor input from the form
+                        net_of_vat_amount=form.cleaned_data.get('net_of_vat_amount', 0),
                         vat_rate=form.cleaned_data['vat_rate'],
                         deduction_tax_rate=form.cleaned_data.get('deduction_tax_rate', 10),
                         created_by=request.user
@@ -1900,7 +2110,7 @@ def tranches_view(request):
                             is_lto=False,
                             initial_balance=total_expected_commission,
                             status="Received" if commission_received >= expected_commission else
-                                   "Partial" if commission_received > 0 else "On Process"
+                                   "Partial" if commission_received > 0 else "Pending"
                         )
                         dp_tranches.append({
                             'tranche': tranche,
@@ -1948,7 +2158,7 @@ def tranches_view(request):
                         is_lto=True,
                         initial_balance=lto_expected_commission,
                         status="Received" if commission_received2 >= lto_expected_commission else
-                               "Partial" if commission_received2 > 0 else "On Process"
+                               "Partial" if commission_received2 > 0 else "Pending"
                     )
 
                     print("Created LTO tranche")
@@ -2459,6 +2669,13 @@ def view_tranche_voucher(request, tranche_id):
 
 @login_required
 def receivables(request):
+    # Get filter parameters
+    developer_filter = request.GET.get('developer', '')
+    property_filter = request.GET.get('property', '')
+    month_filter = request.GET.get('month', '')
+    year_filter = request.GET.get('year', '')
+    user_filter = request.GET.get('user', '')
+    
     # Determine scope of data based on permissions
     if request.user.is_superuser:
         commission_entries = Commission.objects.all().order_by('-date_released')
@@ -2467,7 +2684,118 @@ def receivables(request):
     else:
         user_full_name = request.user.get_full_name()
         commission_entries = Commission.objects.filter(agent=request.user).order_by('-date_released')
-        tranche_records = TrancheRecord.objects.filter(agent_name=user_full_name)
+        
+        # Use robust agent lookup to find all tranche records that should belong to this user
+        # This handles cases where agent_name in TrancheRecord doesn't exactly match user's full name
+        user_name_variations = [
+            user_full_name,
+            request.user.username,
+            f"{request.user.first_name} {request.user.last_name}".strip(),
+            request.user.first_name,
+            request.user.last_name
+        ]
+        
+        # Filter out empty strings and create case-insensitive lookup
+        valid_variations = [name for name in user_name_variations if name]
+        tranche_records = TrancheRecord.objects.filter(
+            agent_name__in=valid_variations
+        ).distinct()
+        
+        # If no exact matches, try case-insensitive partial matching
+        if not tranche_records.exists():
+            from django.db.models import Q
+            q_objects = Q()
+            for variation in valid_variations:
+                q_objects |= Q(agent_name__icontains=variation)
+            tranche_records = TrancheRecord.objects.filter(q_objects).distinct()
+    
+    # Apply developer/property filters
+    if developer_filter:
+        commission_entries = commission_entries.filter(developer__icontains=developer_filter)
+        tranche_records = tranche_records.filter(project_name__icontains=developer_filter)
+    
+    if property_filter:
+        commission_entries = commission_entries.filter(project_name__icontains=property_filter)
+        tranche_records = tranche_records.filter(project_name__icontains=property_filter)
+    
+    # Apply date filters
+    if year_filter:
+        commission_entries = commission_entries.filter(date_released__year=year_filter)
+        # For tranche records, we need to filter based on payment dates
+        # We'll filter the payments later when calculating totals
+    
+    if month_filter:
+        # If month is selected, apply month filter (with or without year)
+        if year_filter:
+            # Both year and month selected
+            commission_entries = commission_entries.filter(
+                date_released__year=year_filter,
+                date_released__month=month_filter
+            )
+        else:
+            # Only month selected (across all years)
+            commission_entries = commission_entries.filter(date_released__month=month_filter)
+    
+    # Apply user filter (only for superusers - regular users already see their own data)
+    if user_filter and request.user.is_superuser:
+        commission_entries = commission_entries.filter(agent__id=user_filter)
+        # For tranche records, filter by agent name
+        try:
+            selected_user = User.objects.get(id=user_filter)
+            user_name_variations = [
+                selected_user.get_full_name(),
+                selected_user.username,
+                f"{selected_user.first_name} {selected_user.last_name}".strip(),
+                selected_user.first_name,
+                selected_user.last_name
+            ]
+            valid_variations = [name for name in user_name_variations if name]
+            tranche_records = tranche_records.filter(agent_name__in=valid_variations)
+        except User.DoesNotExist:
+            pass
+    
+    # Get all unique developers and properties for filter dropdowns
+    if request.user.is_superuser:
+        all_developers = Commission.objects.values_list('developer', flat=True).distinct().order_by('developer')
+        all_properties = Commission.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
+    else:
+        all_developers = Commission.objects.filter(agent=request.user).values_list('developer', flat=True).distinct().order_by('developer')
+        all_properties = Commission.objects.filter(agent=request.user).values_list('project_name', flat=True).distinct().order_by('project_name')
+    
+    # Remove empty values and None
+    all_developers = [dev for dev in all_developers if dev and dev.strip()]
+    all_properties = [prop for prop in all_properties if prop and prop.strip()]
+    
+    # Get all users for user filter dropdown (only for superusers)
+    all_users = []
+    if request.user.is_superuser:
+        all_users = User.objects.filter(
+            is_active=True,
+            commission__isnull=False
+        ).distinct().order_by('first_name', 'last_name')
+    
+    # Get available years and months for date filters
+    if request.user.is_superuser:
+        available_years = Commission.objects.dates('date_released', 'year', order='DESC')
+        available_months = Commission.objects.dates('date_released', 'month', order='DESC')
+    else:
+        available_years = Commission.objects.filter(agent=request.user).dates('date_released', 'year', order='DESC')
+        available_months = Commission.objects.filter(agent=request.user).dates('date_released', 'month', order='DESC')
+    
+    # Extract unique years and months
+    years_list = [date.year for date in available_years]
+    months_list = []
+    
+    # If a year is selected, get months for that year only
+    if year_filter:
+        if request.user.is_superuser:
+            year_months = Commission.objects.filter(date_released__year=year_filter).dates('date_released', 'month', order='ASC')
+        else:
+            year_months = Commission.objects.filter(agent=request.user, date_released__year=year_filter).dates('date_released', 'month', order='ASC')
+        months_list = [(date.month, date.strftime('%B')) for date in year_months]
+    else:
+        # Get all months if no year is selected
+        months_list = [(i, datetime(2000, i, 1).strftime('%B')) for i in range(1, 13)]
 
     # Calculate totals
     total_commission = sum(entry.commission_amount for entry in commission_entries)
@@ -2547,11 +2875,11 @@ def receivables(request):
     dp_count = sum(1 for comm in commissions_with_type if comm['payment_type'] == 'Down Payment')
     lto_count = sum(1 for comm in commissions_with_type if comm['payment_type'] == 'Loan Take Out')
 
-    # --- Monthly Trend Chart Data ---
+    # --- Monthly Trend Chart Data (with filters applied) ---
     six_months_ago = timezone.now() - timedelta(days=180)
+    monthly_query = commission_entries.filter(date_released__gte=six_months_ago)
     monthly_data = (
-        Commission.objects
-        .filter(date_released__gte=six_months_ago)
+        monthly_query
         .annotate(month=TruncMonth('date_released'))
         .values('month')
         .annotate(total=Sum('commission_amount'))
@@ -2569,15 +2897,29 @@ def receivables(request):
             monthly_labels.append(month_name)
             monthly_collections.append(float(month_map.get(month_name, 0)))
 
+    # Calculate total commissions (received + remaining)
+    total_commissions = total_commission + total_remaining
+
     context = {
         'page_obj': page_obj,
         'commission_count': commission_count,
         'total_commission': total_commission,
         'total_remaining': total_remaining,
+        'total_commissions': total_commissions,
         'dp_count': dp_count,
         'lto_count': lto_count,
         'monthly_labels': monthly_labels,
         'monthly_collections': monthly_collections,
+        'all_developers': all_developers,
+        'all_properties': all_properties,
+        'selected_developer': developer_filter,
+        'selected_property': property_filter,
+        'available_years': years_list,
+        'available_months': months_list,
+        'selected_year': year_filter,
+        'selected_month': month_filter,
+        'all_users': all_users,
+        'selected_user': user_filter,
     }
     return render(request, 'receivables.html', context)
 
@@ -2758,6 +3100,13 @@ def delete_profile(request, profile_id):
 
 @login_required(login_url='signin')
 def tranche_history(request):
+    # Get filter parameters
+    developer_filter = request.GET.get('developer', '')
+    property_filter = request.GET.get('property', '')
+    month_filter = request.GET.get('month', '')
+    year_filter = request.GET.get('year', '')
+    user_filter = request.GET.get('user', '')
+    
     # Base queryset
     tranche_records = TrancheRecord.objects.all()
     
@@ -2788,6 +3137,43 @@ def tranche_history(request):
             agent_name=request.user.get_full_name()
         )
     
+    # Apply filters before ordering
+    # Apply developer/property filters
+    if developer_filter:
+        tranche_records = tranche_records.filter(project_name__icontains=developer_filter)
+    
+    if property_filter:
+        tranche_records = tranche_records.filter(project_name__icontains=property_filter)
+    
+    # Apply date filters (filter by created_at date)
+    if year_filter:
+        tranche_records = tranche_records.filter(created_at__year=year_filter)
+    
+    if month_filter:
+        if year_filter:
+            tranche_records = tranche_records.filter(
+                created_at__year=year_filter,
+                created_at__month=month_filter
+            )
+        else:
+            tranche_records = tranche_records.filter(created_at__month=month_filter)
+    
+    # Apply user filter (only for superusers)
+    if user_filter and request.user.is_superuser:
+        try:
+            selected_user = User.objects.get(id=user_filter)
+            user_name_variations = [
+                selected_user.get_full_name(),
+                selected_user.username,
+                f"{selected_user.first_name} {selected_user.last_name}".strip(),
+                selected_user.first_name,
+                selected_user.last_name
+            ]
+            valid_variations = [name for name in user_name_variations if name]
+            tranche_records = tranche_records.filter(agent_name__in=valid_variations)
+        except User.DoesNotExist:
+            pass
+    
     # Order by most recent first
     tranche_records = tranche_records.order_by('-created_at')
     
@@ -2816,6 +3202,52 @@ def tranche_history(request):
     active_tranches = sum(1 for r in records_with_stats if r['status'] == 'In Progress')
     total_contract_value = sum(r['record'].total_contract_price for r in records_with_stats)
     
+    # Get filter dropdown data
+    # Get all unique developers and properties for filter dropdowns
+    if request.user.is_superuser:
+        all_developers = TrancheRecord.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
+        all_properties = TrancheRecord.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
+    else:
+        user_records = TrancheRecord.objects.filter(agent_name=request.user.get_full_name())
+        all_developers = user_records.values_list('project_name', flat=True).distinct().order_by('project_name')
+        all_properties = user_records.values_list('project_name', flat=True).distinct().order_by('project_name')
+    
+    # Remove empty values and None
+    all_developers = [dev for dev in all_developers if dev and dev.strip()]
+    all_properties = [prop for prop in all_properties if prop and prop.strip()]
+    
+    # Get all users for user filter dropdown (only for superusers)
+    all_users = []
+    if request.user.is_superuser:
+        all_users = User.objects.filter(
+            is_active=True,
+            commission__isnull=False
+        ).distinct().order_by('first_name', 'last_name')
+    
+    # Get available years and months for date filters
+    if request.user.is_superuser:
+        available_years = TrancheRecord.objects.dates('created_at', 'year', order='DESC')
+        available_months = TrancheRecord.objects.dates('created_at', 'month', order='DESC')
+    else:
+        user_records = TrancheRecord.objects.filter(agent_name=request.user.get_full_name())
+        available_years = user_records.dates('created_at', 'year', order='DESC')
+        available_months = user_records.dates('created_at', 'month', order='DESC')
+    
+    # Extract unique years and months
+    years_list = [date.year for date in available_years]
+    months_list = []
+    
+    # If a year is selected, get months for that year only
+    if year_filter:
+        if request.user.is_superuser:
+            year_months = TrancheRecord.objects.filter(created_at__year=year_filter).dates('created_at', 'month', order='ASC')
+        else:
+            year_months = TrancheRecord.objects.filter(agent_name=request.user.get_full_name(), created_at__year=year_filter).dates('created_at', 'month', order='ASC')
+        months_list = [(date.month, date.strftime('%B')) for date in year_months]
+    else:
+        # Get all months if no year is selected
+        months_list = [(i, datetime(2000, i, 1).strftime('%B')) for i in range(1, 13)]
+
     # --- Pagination ---
     paginator = Paginator(records_with_stats, 25)  # 25 rows per page
     page_number = request.GET.get('page')
@@ -2828,6 +3260,16 @@ def tranche_history(request):
         'total_contract_value': total_contract_value,
         'user_full_name': request.user.get_full_name(),
         'user_team': request.user.profile.team if hasattr(request.user, 'profile') else None,
+        'all_developers': all_developers,
+        'all_properties': all_properties,
+        'selected_developer': developer_filter,
+        'selected_property': property_filter,
+        'available_years': years_list,
+        'available_months': months_list,
+        'selected_year': year_filter,
+        'selected_month': month_filter,
+        'all_users': all_users,
+        'selected_user': user_filter,
     }
     return render(request, 'tranche_history.html', context)
 
@@ -2849,9 +3291,17 @@ def view_tranche(request, tranche_id):
     # Format tranche option
     formatted_tranche_option = record.tranche_option.replace('_', ' ').title()
 
-    # Calculate base values using the new Net of VAT computation (TCP / (1+VAT))
-    vat_rate_decimal = record.vat_rate / Decimal(100)
-    net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
+    # Calculate base values using the Net of VAT divisor input field
+    # If net_of_vat_amount is provided, use it as divisor; otherwise use VAT rate calculation
+    if record.net_of_vat_amount and record.net_of_vat_amount > 0:
+        # Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
+        # Ensure proper decimal precision for the calculation
+        net_of_vat_base = (Decimal(str(record.total_contract_price)) / Decimal(str(record.net_of_vat_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    else:
+        # Fallback to VAT rate calculation (TCP / (1+VAT))
+        vat_rate_decimal = record.vat_rate / Decimal(100)
+        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
+    
     less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
     total_selling_price = net_of_vat_base - less_process_fee
     tax_rate = record.withholding_tax_rate / Decimal(100)
@@ -2943,12 +3393,12 @@ def view_tranche(request, tranche_id):
         'record': record,
         'total_contract_price': record.total_contract_price,
         'less_process_fee': less_process_fee,
-        'net_of_vat_amount': record.net_of_vat_amount,
+        'net_of_vat_amount': net_of_vat_base,  # Use net_of_vat_base (from TCP) instead of record.net_of_vat_amount
         'total_selling_price': total_selling_price,
         'commission_rate': record.commission_rate,
         'gross_commission': gross_commission,
         'vat_rate': record.vat_rate,
-        'net_of_vat': net_of_vat,
+        'net_of_vat': net_of_vat,  # This is for commission-based Net of VAT
         'withholding_tax_rate': record.withholding_tax_rate,
         'withholding_tax_amount': withholding_tax_amount,
         'net_of_withholding_tax': net_of_withholding_tax,
@@ -3046,12 +3496,9 @@ def edit_tranche(request, tranche_id):
                     if (payment.received_amount != old_received_amount or
                         payment.date_received != old_date_received) and payment.received_amount > 0:
 
-                        # Find the agent user
+                        # Find the agent user with improved lookup logic
                         try:
-                            agent_user = User.objects.filter(
-                                Q(first_name__icontains=record.agent_name.split()[0]) &
-                                Q(last_name__icontains=record.agent_name.split()[-1])
-                            ).first()
+                            agent_user = find_agent_user_by_name(record.agent_name)
 
                             if agent_user:
                                 # Create or update commission record
@@ -3068,9 +3515,10 @@ def edit_tranche(request, tranche_id):
                                     existing_commission.commission_amount = payment.received_amount
                                     existing_commission.date_released = payment.date_received
                                     existing_commission.save()
+                                    logger.info(f'Updated commission for {agent_user.get_full_name()}: {release_code} - ₱{payment.received_amount}')
                                 else:
                                     # Create new commission with the actual received amount
-                                    Commission.objects.create(
+                                    new_commission = Commission.objects.create(
                                         date_released=payment.date_received,
                                         release_number=release_code,
                                         project_name=record.project_name,
@@ -3079,9 +3527,16 @@ def edit_tranche(request, tranche_id):
                                         agent=agent_user,
                                         commission_amount=payment.received_amount
                                     )
+                                    logger.info(f'Created new commission for {agent_user.get_full_name()}: {release_code} - ₱{payment.received_amount}')
+                            else:
+                                # Log detailed information about the failed lookup
+                                available_users = [f"{u.get_full_name()} ({u.username})" for u in User.objects.filter(is_active=True)]
+                                logger.warning(f'Could not find user account for agent: "{record.agent_name}". Available active users: {available_users}')
+                                messages.warning(request, f'Could not find user account for agent: "{record.agent_name}". Please verify the agent name matches an active user account.')
 
-                        except User.DoesNotExist:
-                            messages.warning(request, f'Could not find user account for agent: {record.agent_name}')
+                        except Exception as e:
+                            logger.error(f'Error finding agent user for {record.agent_name}: {str(e)}')
+                            messages.error(request, f'Error processing commission for agent: {record.agent_name} - {str(e)}')
 
             messages.success(request, 'Tranche record and commissions updated successfully!')
             return redirect('view_tranche', tranche_id=tranche_id)
@@ -3247,7 +3702,8 @@ def create_commission_slip3(request):
                 created_at=timezone.now(),
                 withholding_tax_rate=agent_tax_rate,
                 supervisor_withholding_tax_rate=supervisor_tax_rate,
-                manager_tax_rate=manager_tax_rate
+                manager_tax_rate=manager_tax_rate,
+                source='manual_breakdown'  # Set the source
             )
                     
             # Get commission rates for agent, supervisor and manager
@@ -3529,17 +3985,18 @@ def add_developer(request):
         
     if request.method == 'POST':
         name = request.POST.get('name')
+        address = request.POST.get('address')
+        tin_number = request.POST.get('tin_number')
         image = request.FILES.get('image')
         
         if name:
-            try:
-                developer = Developer.objects.create(name=name, image=image)
-                messages.success(request, f'Developer "{developer.name}" added successfully!')
-                return redirect('add_developer')
-            except Exception as e:
-                messages.error(request, f'Error adding developer: {str(e)}')
-        else:
-            messages.error(request, 'Developer name is required.')
+            developer = Developer.objects.create(
+                name=name,
+                address=address,
+                tin_number=tin_number,
+                image=image
+            )
+            return redirect('add_developer')
     
     # Get all developers for display
     developers = Developer.objects.all().order_by('name')
@@ -3548,6 +4005,67 @@ def add_developer(request):
         'developers': developers,
     }
     return render(request, 'add_developer.html', context)
+
+@login_required
+@require_http_methods(["POST"])
+def edit_developer(request, developer_id):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'success': False, 'error': 'Permission denied'})
+    
+    try:
+        developer = Developer.objects.get(id=developer_id)
+        
+        # Update fields
+        developer.name = request.POST.get('name', developer.name)
+        developer.address = request.POST.get('address', developer.address)
+        developer.tin_number = request.POST.get('tin_number', developer.tin_number)
+        
+        # Handle image upload
+        if 'image' in request.FILES:
+            developer.image = request.FILES['image']
+        
+        developer.save()
+        
+        return JsonResponse({'success': True})
+    except Developer.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Developer not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+@require_http_methods(["POST"])
+def edit_property(request, property_id):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'success': False, 'error': 'Permission denied'})
+    
+    try:
+        property_obj = Property.objects.get(id=property_id)
+        
+        # Update fields
+        property_obj.name = request.POST.get('name', property_obj.name)
+        
+        # Handle developer assignment
+        developer_id = request.POST.get('developer')
+        if developer_id:
+            try:
+                developer = Developer.objects.get(id=developer_id)
+                property_obj.developer = developer
+            except Developer.DoesNotExist:
+                property_obj.developer = None
+        else:
+            property_obj.developer = None
+        
+        # Handle image upload
+        if 'image' in request.FILES:
+            property_obj.image = request.FILES['image']
+        
+        property_obj.save()
+        
+        return JsonResponse({'success': True})
+    except Property.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Property not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
 def delete_property(request, property_id):
@@ -3755,7 +4273,8 @@ def create_commission_slip3(request):
                 created_at=timezone.now(),
                 withholding_tax_rate=agent_tax_rate,
                 supervisor_withholding_tax_rate=supervisor_tax_rate,
-                manager_tax_rate=manager_tax_rate
+                manager_tax_rate=manager_tax_rate,
+                source='manual_breakdown'  # Set the source
             )
                     
             # Get commission rates for agent, supervisor and manager

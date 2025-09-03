@@ -191,9 +191,19 @@
                             
                             <!-- Overlay Actions -->
                             {% if user.is_superuser %}
-                            <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                <button onclick="deleteProperty({{ property.id }}, '{{ property.name }}')" 
-                                        class="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-200 transition-all duration-200 transform hover:scale-110 shadow-lg"
+                            <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex space-x-2">
+                                <button type="button" class="edit-property-btn p-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-200 transform hover:scale-110 shadow-lg"
+                                        data-property-id="{{ property.id }}"
+                                        data-property-name="{{ property.name }}"
+                                        data-property-developer="{{ property.developer.id|default:'' }}"
+                                        title="Edit Property">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                </button>
+                                <button type="button" class="delete-property-btn p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-200 transition-all duration-200 transform hover:scale-110 shadow-lg"
+                                        data-property-id="{{ property.id }}"
+                                        data-property-name="{{ property.name }}"
                                         title="Delete Property">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -242,6 +252,70 @@
             </div>
         </div>
     </div>
+
+    <!-- Edit Property Modal -->
+    <div id="editPropertyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-gray-900">Edit Property</h3>
+                    <button type="button" onclick="closeEditPropertyModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <form id="editPropertyForm" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" id="editPropertyId" name="property_id">
+                
+                <div class="p-6 space-y-6">
+                    <!-- Property Name -->
+                    <div class="space-y-2">
+                        <label for="editPropertyName" class="block text-sm font-semibold text-gray-700">Property Name</label>
+                        <input type="text" name="name" id="editPropertyName" required
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200">
+                    </div>
+                    
+                    <!-- Developer Selection -->
+                    <div class="space-y-2">
+                        <label for="editPropertyDeveloper" class="block text-sm font-semibold text-gray-700">Developer</label>
+                        <select name="developer" id="editPropertyDeveloper"
+                                class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200">
+                            <option value="">Select a Developer (Optional)</option>
+                            {% for developer in developers %}
+                            <option value="{{ developer.id }}">{{ developer.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Property Image -->
+                    <div class="space-y-2">
+                        <label for="editPropertyImage" class="block text-sm font-semibold text-gray-700">Property Image</label>
+                        <input type="file" name="image" id="editPropertyImage" accept="image/*"
+                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <p class="text-xs text-gray-500 mt-1">Leave empty to keep current image</p>
+                    </div>
+                </div>
+                
+                <div class="p-6 border-t border-gray-200 flex justify-end space-x-4">
+                    <button type="button" onclick="closeEditPropertyModal()"
+                            class="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors duration-200 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Update Property
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- Enhanced Loading States -->
@@ -262,6 +336,41 @@
     
     function hideLoading() {
         document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+
+    // Event listeners for edit and delete buttons
+    document.addEventListener('DOMContentLoaded', function() {
+        // Edit property buttons
+        document.querySelectorAll('.edit-property-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const propertyId = this.dataset.propertyId;
+                const propertyName = this.dataset.propertyName;
+                const propertyDeveloper = this.dataset.propertyDeveloper;
+                openEditPropertyModal(propertyId, propertyName, propertyDeveloper);
+            });
+        });
+
+        // Delete property buttons
+        document.querySelectorAll('.delete-property-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const propertyId = this.dataset.propertyId;
+                const propertyName = this.dataset.propertyName;
+                deleteProperty(propertyId, propertyName);
+            });
+        });
+    });
+
+    function openEditPropertyModal(propertyId, name, developerId) {
+        document.getElementById('editPropertyId').value = propertyId;
+        document.getElementById('editPropertyName').value = name || '';
+        document.getElementById('editPropertyDeveloper').value = developerId || '';
+        document.getElementById('editPropertyModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeEditPropertyModal() {
+        document.getElementById('editPropertyModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
     }
 
     function deleteProperty(propertyId, propertyName) {
@@ -335,6 +444,51 @@
             };
             reader.readAsDataURL(file);
         }
+    });
+
+    // Close modal when clicking outside
+    document.getElementById('editPropertyModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeEditPropertyModal();
+        }
+    });
+
+    // Handle edit property form submission
+    document.getElementById('editPropertyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const propertyId = document.getElementById('editPropertyId').value;
+        
+        showLoading();
+        
+        fetch(`/edit-property/${propertyId}/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                closeEditPropertyModal();
+                // Add success animation before reload
+                const successDiv = document.createElement('div');
+                successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg z-50';
+                successDiv.innerHTML = '✅ Property updated successfully!';
+                document.body.appendChild(successDiv);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                alert('❌ Error updating property: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            console.error('Error:', error);
+            alert('❌ Network error occurred while updating property');
+        });
     });
 </script>
 {% endif %}

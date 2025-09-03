@@ -161,7 +161,7 @@
           <h3 class="font-bold text-gray-500 mb-2">BILLING DETAILS</h3>
           <!-- View Mode -->
           <div id="billing-details-view" class="edit-section">
-            <p><span class="font-semibold">Date Started:</span> {{ invoice.issue_date|date:'M d, Y' }}</p>
+            <p><span class="font-semibold">Reservation Date:</span> {{ invoice.issue_date|date:'M d, Y' }}</p>
             <p><span class="font-semibold">Due Date:</span> {{ invoice.due_date|date:'M d, Y' }}</p>
             <p><span class="font-semibold">Terms:</span> {{ payment_terms }}</p>
           </div>
@@ -223,8 +223,7 @@
                 <input type="text" class="item-code-edit hidden w-full px-1 py-0.5 text-xs border border-gray-300 rounded" value="{{ item.item_code }}">
               </td>
               <td class="p-3 border-b border-gray-200 item-view">
-                <span class="item-description-display">
-                  {{ item.description|linebreaksbr }}
+                <span class="item-description-display">Commission Claim for Unit ({{ item.unit_id }}) <br> sold to ({{ item.buyer_name }})
                   {% if is_combined_invoice %}
                     <div class="text-xs text-gray-500 mt-1">
                       Commission: 
@@ -252,7 +251,7 @@
                 <span class="item-status-display">
                   {% if item.status %}
                   <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full 
-                    {% if item.status == 'Received' %}bg-green-100 text-green-800{% elif item.status == 'Pending' %}bg-yellow-100 text-yellow-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                    {% if item.status == 'Received' %}bg-green-100 text-green-800{% elif item.status == 'Overdue' %}bg-red-100 text-red-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
                     {{ item.status }}
                   </span>
                   {% else %}-{% endif %}
@@ -296,15 +295,9 @@
               <h3 class="font-bold text-sm text-gray-600">SUMMARY</h3>
             </div>
             <div class="p-4 space-y-2 text-sm">
-              {% if is_combined_invoice and combined_commission_breakdown %}
-                <!-- Combined Invoice Summary with Individual Breakdown -->
-                {% for tranche, net_commission, tax_amount in combined_commission_breakdown %}
+              {% if is_combined_invoice %}
+                <!-- Combined Invoice Summary (Simplified) -->
                 <div class="flex justify-between">
-                  <span class="text-gray-600">Commission #{{ tranche.tranche_number }}:</span>
-                  <span class="font-medium text-gray-800">₱ {{ net_commission|floatformat:2|intcomma }}</span>
-                </div>
-                {% endfor %}
-                <div class="flex justify-between pt-2 mt-2 border-t border-gray-300">
                   <span class="font-semibold text-gray-700">Total Commission:</span>
                   <span class="font-semibold text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
                 </div>
@@ -318,18 +311,35 @@
                 </div>
               {% else %}
                 <!-- Single Invoice Summary -->
-                <div class="flex justify-between">
-                  <span class="text-gray-600"> Commission:</span>
-                  <span class="font-medium text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
-                  <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
-                </div>
-                <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
-                  <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
-                  <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
-                </div>
+                {% if is_lto_invoice %}
+                  <!-- LTO Invoice Summary -->
+                  <div class="flex justify-between">
+                    <span class="text-gray-600"> Commission:</span>
+                    <span class="font-medium text-gray-800">₱ {{ lto_deduction_value|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
+                    <span class="font-medium text-gray-800">₱ {{ lto_deduction_tax|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
+                    <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                    <span class="font-bold text-blue-600">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</span>
+                  </div>
+                {% else %}
+                  <!-- DP Invoice Summary -->
+                  <div class="flex justify-between">
+                    <span class="text-gray-600"> Commission:</span>
+                    <span class="font-medium text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
+                    <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
+                  </div>
+                  <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
+                    <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                    <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
+                  </div>
+                {% endif %}
               {% endif %}
             </div>
           </div>
@@ -503,20 +513,23 @@ document.addEventListener('DOMContentLoaded', function() {
             dueDate: document.getElementById('edit-due-date')?.value || '',
             paymentTerms: document.getElementById('edit-payment-terms')?.value || '',
             referenceNo: document.getElementById('edit-reference-no')?.value || '',
-            items: []
+            items: [],
+            originalAmounts: []  // Track original amounts to detect financial changes
         };
         
         // Store item data
         document.querySelectorAll('.item-row').forEach((row, index) => {
+            const amount = row.querySelector('.item-amount-edit')?.value || '';
             originalData.items.push({
                 code: row.querySelector('.item-code-edit')?.value || '',
                 description: row.querySelector('.item-description-edit')?.value || '',
                 quantity: row.querySelector('.item-quantity-edit')?.value || '',
-                amount: row.querySelector('.item-amount-edit')?.value || '',
+                amount: amount,
                 dueDate: row.querySelector('.item-due-date-edit')?.value || '',
                 status: row.querySelector('.item-status-edit')?.value || '',
                 percentage: row.querySelector('.item-percentage-edit')?.value || ''
             });
+            originalData.originalAmounts.push(parseFloat(amount) || 0);
         });
     }
 
@@ -599,12 +612,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Check if financial data has changed
+    function hasFinancialChanges() {
+        let currentAmounts = [];
+        document.querySelectorAll('.item-row').forEach((row) => {
+            const amount = row.querySelector('.item-amount-edit')?.value || '';
+            currentAmounts.push(parseFloat(amount) || 0);
+        });
+        
+        if (currentAmounts.length !== originalData.originalAmounts.length) {
+            return true; // Different number of items
+        }
+        
+        for (let i = 0; i < currentAmounts.length; i++) {
+            if (Math.abs(currentAmounts[i] - originalData.originalAmounts[i]) > 0.01) {
+                return true; // Amount changed significantly
+            }
+        }
+        
+        return false;
+    }
+    
     // Save all changes
     function saveAllChanges() {
         const formData = new FormData();
         
         // Add CSRF token
         formData.append('csrfmiddlewaretoken', csrftoken);
+        
+        // Add a flag to indicate if this is a financial change
+        formData.append('financial_change', hasFinancialChanges() ? 'true' : 'false');
         
         // Add bill-to data (with null checks)
         const clientName = document.getElementById('edit-client-name');
@@ -664,7 +701,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => {
             if (response.ok) {
                 showAlert('Invoice updated successfully!');
-                setTimeout(() => location.reload(), 1000);
+                // Only reload if there were financial changes to update calculations
+                if (hasFinancialChanges()) {
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    // For non-financial changes, just exit edit mode
+                    setTimeout(() => {
+                        toggleEditMode();
+                    }, 1000);
+                }
             } else {
                 response.text().then(text => {
                     console.error('Server response:', text);
@@ -1147,5 +1192,105 @@ document.addEventListener('DOMContentLoaded', function() {
           alertDiv.remove();
       }, 5000);
   }
+
+  // Signature upload functionality
+  document.querySelectorAll('input[type="file"][id^="signature-upload-"]').forEach(input => {
+      input.addEventListener('change', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const file = e.target.files[0];
+          if (!file) return;
+          
+          const role = this.id.replace('signature-upload-', '');
+          
+          // Immediately show a preview in only the correct container
+          const reader = new FileReader();
+          reader.onload = function(event) {
+              const targetImg = document.getElementById(`signature-${role}`);
+              if (targetImg) {
+                  targetImg.src = event.target.result;
+              }
+          };
+          reader.readAsDataURL(file);
+          
+          const formData = new FormData();
+          formData.append('signature', file);
+          formData.append('csrfmiddlewaretoken', csrftoken);
+          
+          fetch(`/invoice/{{ invoice.id }}/upload-signature/${role}/`, {
+              method: 'POST',
+              body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  showAlert(data.message, 'success');
+                  
+                  // Update with the server URL
+                  const targetImg = document.getElementById(`signature-${role}`);
+                  if (targetImg && data.signature_url) {
+                      targetImg.src = data.signature_url + '?v=' + Date.now();
+                  }
+              } else {
+                  showAlert(data.error, 'error');
+                  // Revert to placeholder on error
+                  const targetImg = document.getElementById(`signature-${role}`);
+                  if (targetImg) {
+                      targetImg.src = "{% static 'media/placeholder.png' %}";
+                  }
+              }
+              
+              // Reset the file input
+              e.target.value = '';
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              showAlert('Error uploading signature', 'error');
+              // Revert to placeholder on error
+              const targetImg = document.getElementById(`signature-${role}`);
+              if (targetImg) {
+                  targetImg.src = "{% static 'media/placeholder.png' %}";
+              }
+              e.target.value = '';
+          });
+      });
+  });
+
+  // Clear signature functionality
+  document.querySelectorAll('.clear-signature-btn').forEach(button => {
+      button.addEventListener('click', function(e) {
+          const container = this.closest('.signature-container');
+          const role = container.dataset.role;
+          
+          if (!confirm('Are you sure you want to clear this signature?')) return;
+          
+          const formData = new FormData();
+          formData.append('action', 'clear');
+          formData.append('csrfmiddlewaretoken', csrftoken);
+          
+          fetch(`/invoice/{{ invoice.id }}/upload-signature/${role}/`, {
+              method: 'POST',
+              body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  showAlert(data.message, 'success');
+                  // Reset only the specific role's signature image to placeholder
+                  const signatureImg = document.getElementById(`signature-${role}`);
+                  if (signatureImg) {
+                      signatureImg.src = "{% static 'media/placeholder.png' %}";
+                  }
+              } else {
+                  showAlert(data.error, 'error');
+              }
+          })
+          .catch(error => {
+              console.error('Error:', error);
+              showAlert('Error clearing signature', 'error');
+          });
+      });
+  });
 </script>
 {% endblock %}

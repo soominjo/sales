@@ -546,10 +546,6 @@
                         <td class="p-3 text-lg font-bold text-green-800">Net Commission Payable</td>
                         <td id="preview-net-commission" class="p-3 text-right text-2xl font-extrabold text-green-800">₱0.00</td>
                     </tr>
-                    <tr class="bg-red-50 hover:bg-red-100">
-                        <td class="p-3 font-medium text-red-700">Other Deductions</td>
-                        <td id="preview-other-deductions" class="p-3 text-right font-bold text-red-800">₱0.00</td>
-                    </tr>
                 </tbody>
             </table>
         </div>
@@ -791,8 +787,6 @@
             const commissionRate = getFloatValue('id_commission_rate') / 100;
             const vatRate = getFloatValue('id_vat_rate') / 100;
             const withholdingTaxRate = getFloatValue('id_withholding_tax_rate') / 100;
-            const otherDeductions = getFloatValue('id_other_deductions');
-
             // --- Calculations ---
             const baseAmount = netOfVatDivisor > 0 ? totalContractPrice / netOfVatDivisor : 0;
             const lmfAmount = baseAmount * processFeePercentage;
@@ -801,7 +795,7 @@
             const commissionNetVat = grossCommission / (1 + vatRate);
             const commissionVatAmount = grossCommission - commissionNetVat;
             const withholdingTax = commissionNetVat * withholdingTaxRate;
-            const netCommissionPayable = grossCommission - withholdingTax - otherDeductions;
+            const netCommissionPayable = grossCommission - withholdingTax;
 
             // --- UI Update ---
             const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
@@ -814,7 +808,6 @@
             document.getElementById('preview-commission-net-vat').textContent = formatCurrency(commissionNetVat);
             document.getElementById('preview-commission-vat').textContent = formatCurrency(commissionVatAmount);
             document.getElementById('preview-withholding-tax').textContent = formatCurrency(withholdingTax);
-            document.getElementById('preview-other-deductions').textContent = formatCurrency(otherDeductions);
             document.getElementById('preview-net-commission').textContent = formatCurrency(netCommissionPayable);
         };
 

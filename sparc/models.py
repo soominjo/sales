@@ -29,6 +29,8 @@ class Team(models.Model):
 
 class Developer(models.Model):
     name = models.CharField(max_length=200, unique=True)
+    address = models.TextField(blank=True, null=True)
+    tin_number = models.CharField(max_length=50, blank=True, null=True)
     image = models.ImageField(upload_to='developer_images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -113,6 +115,7 @@ class CommissionSlip(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_slips')
     created_at = models.DateTimeField(null=True, blank=True)
     is_full_breakdown = models.BooleanField(default=False)
+    source = models.CharField(max_length=50, default='standard', help_text="Source of the commission slip (e.g., 'standard', 'full_breakdown')")
     withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Agent tax rate
     operation_manager_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Operation Manager tax rate
     co_founder_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Co-Founder tax rate
@@ -280,6 +283,7 @@ class CommissionSlip3(models.Model):
     withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # Agent tax rate
     supervisor_withholding_tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)  # New supervisor tax rate
     signature = models.ImageField(upload_to='signatures/', null=True, blank=True)
+    source = models.CharField(max_length=50, default='standard', help_text="Source of the commission slip (e.g., 'standard', 'manual_breakdown')")
 
     def __str__(self):
         return f"Commission Slip for {self.sales_agent_name} with Supervisor {self.supervisor_name}"

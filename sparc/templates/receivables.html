@@ -22,7 +22,7 @@
 </div>
 
 <!-- Enhanced Stats Cards with Charts -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
     <!-- Total Received Card -->
     <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
         <div class="flex items-center justify-between">
@@ -60,6 +60,27 @@
             <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Commissions Card -->
+    <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition-shadow">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-600 mb-1">Total Commissions</p>
+                <p class="text-2xl font-bold text-yellow-600">₱{{ total_commissions|floatformat:2|intcomma }}</p>
+                <div class="flex items-center mt-2">
+                    <svg class="w-4 h-4 text-yellow-500 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="text-xs text-yellow-500 font-medium">Overall</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
                 </svg>
             </div>
         </div>
@@ -118,7 +139,51 @@
                 </div>
             </div>
         </div>
-        <div class="flex gap-3">
+        <div class="flex gap-3 flex-wrap">
+            <!-- User Filter (only for superusers) -->
+            {% if user.is_superuser and all_users %}
+            <select id="userFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[150px]">
+                <option value="">All Users</option>
+                {% for agent in all_users %}
+                <option value="{{ agent.id }}" {% if agent.id|stringformat:"s" == selected_user %}selected{% endif %}>
+                    {{ agent.get_full_name|default:agent.username }}
+                </option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            
+            <!-- Year Filter -->
+            <select id="yearFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[120px]">
+                <option value="">All Years</option>
+                {% for year in available_years %}
+                <option value="{{ year }}" {% if year|stringformat:"s" == selected_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+            
+            <!-- Month Filter -->
+            <select id="monthFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[130px]">
+                <option value="">All Months</option>
+                {% for month_num, month_name in available_months %}
+                <option value="{{ month_num }}" {% if month_num|stringformat:"s" == selected_month %}selected{% endif %}>{{ month_name }}</option>
+                {% endfor %}
+            </select>
+            
+            <!-- Developer Filter -->
+            <select id="developerFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[150px]">
+                <option value="">All Developers</option>
+                {% for developer in all_developers %}
+                <option value="{{ developer }}" {% if developer == selected_developer %}selected{% endif %}>{{ developer }}</option>
+                {% endfor %}
+            </select>
+            
+            <!-- Property Filter -->
+            <select id="propertyFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[150px]">
+                <option value="">All Properties</option>
+                {% for property in all_properties %}
+                <option value="{{ property }}" {% if property == selected_property %}selected{% endif %}>{{ property }}</option>
+                {% endfor %}
+            </select>
+            
             <select id="typeFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
                 <option value="">All Types</option>
                 <option value="down-payment">Down Payment</option>
@@ -334,6 +399,82 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', filterTable);
     typeFilter.addEventListener('change', filterTable);
     statusFilter.addEventListener('change', filterTable);
+
+    // All filter event listeners
+    const developerFilter = document.getElementById('developerFilter');
+    const propertyFilter = document.getElementById('propertyFilter');
+    const yearFilter = document.getElementById('yearFilter');
+    const monthFilter = document.getElementById('monthFilter');
+    const userFilter = document.getElementById('userFilter');
+
+    function handleAllFilters() {
+        const developer = developerFilter.value;
+        const property = propertyFilter.value;
+        const year = yearFilter.value;
+        const month = monthFilter.value;
+        const user = userFilter ? userFilter.value : '';
+        
+        // Build URL with current filters
+        const url = new URL(window.location);
+        
+        if (developer) {
+            url.searchParams.set('developer', developer);
+        } else {
+            url.searchParams.delete('developer');
+        }
+        
+        if (property) {
+            url.searchParams.set('property', property);
+        } else {
+            url.searchParams.delete('property');
+        }
+        
+        if (year) {
+            url.searchParams.set('year', year);
+        } else {
+            url.searchParams.delete('year');
+        }
+        
+        if (month) {
+            url.searchParams.set('month', month);
+        } else {
+            url.searchParams.delete('month');
+        }
+        
+        if (user) {
+            url.searchParams.set('user', user);
+        } else {
+            url.searchParams.delete('user');
+        }
+        
+        // Reset page to 1 when filtering
+        url.searchParams.delete('page');
+        
+        // Reload page with new filters
+        window.location.href = url.toString();
+    }
+
+    // Special handler for year filter to update month options
+    function handleYearFilter() {
+        const year = yearFilter.value;
+        
+        if (year) {
+            // Clear month selection when year changes
+            monthFilter.value = '';
+        }
+        
+        handleAllFilters();
+    }
+
+    developerFilter.addEventListener('change', handleAllFilters);
+    propertyFilter.addEventListener('change', handleAllFilters);
+    yearFilter.addEventListener('change', handleYearFilter);
+    monthFilter.addEventListener('change', handleAllFilters);
+    
+    // Add user filter event listener (only if userFilter exists)
+    if (userFilter) {
+        userFilter.addEventListener('change', handleAllFilters);
+    }
 
     // Commission Status Distribution Chart (Received vs Remaining)
     const statusCtx = document.getElementById('statusChart');
