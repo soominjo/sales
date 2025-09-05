@@ -1012,6 +1012,10 @@ def _get_invoice_context(invoice, request):
     is_combined_invoice = invoice.qty > 1
     combined_tranches = []
     
+    # Initialize variables that are used throughout the function
+    is_lto_invoice = False
+    lto_tranches = []
+    
     if is_combined_invoice:
         # Extract tranche IDs from the notes field
         if invoice.notes and "Combined invoice for tranches:" in invoice.notes:
@@ -1098,8 +1102,6 @@ def _get_invoice_context(invoice, request):
             combined_commission_breakdown = []
             
         # --- Check if this is a Loan Take Out invoice and override with LTO data ---
-        lto_tranches = []
-        is_lto_invoice = False
         
         if invoice.tranche and invoice.tranche.tranche_record and invoice.tranche.is_lto:
             record = invoice.tranche.tranche_record

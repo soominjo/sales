@@ -1021,10 +1021,21 @@ def commission_history(request):
     if not request.user.is_authenticated:
         return redirect('signin')
 
+    # Import Q at the top of the function to avoid UnboundLocalError
+    from django.db.models import Q
+
     # Get search parameters
     search_agent = request.GET.get('search_agent', '')
     start_date = request.GET.get('start_date', '')
     end_date = request.GET.get('end_date', '')
+    # Extra filter parameters
+    team_filter = request.GET.get('team', '')
+    user_filter = request.GET.get('user', '')
+    year_filter = request.GET.get('year', '')
+    month_filter = request.GET.get('month', '')
+    developer_filter = request.GET.get('developer', '')
+    property_filter = request.GET.get('property', '')
+    type_filter = request.GET.get('type', '')
 
     # Query CommissionSlip
     commission_slips = CommissionSlip.objects.all().order_by('-date')
@@ -1051,6 +1062,47 @@ def commission_history(request):
     if end_date:
         commission_slips = commission_slips.filter(date__lte=end_date)
         commission_slips3 = commission_slips3.filter(date__lte=end_date)
+
+    # Apply additional pre-permission filters
+    if year_filter:
+        commission_slips = commission_slips.filter(date__year=year_filter)
+        commission_slips3 = commission_slips3.filter(date__year=year_filter)
+    if month_filter:
+        commission_slips = commission_slips.filter(date__month=month_filter)
+        commission_slips3 = commission_slips3.filter(date__month=month_filter)
+    if developer_filter:
+        # Filter by developer name using Property model relationship
+        from .models import Property
+        
+        # Get all properties that belong to the selected developer
+        developer_properties = Property.objects.filter(
+            developer__name__icontains=developer_filter
+        ).values_list('name', flat=True)
+        
+        if developer_properties:
+            # Filter commission slips by matching project names with developer's properties
+            property_query = Q()
+            for prop_name in developer_properties:
+                property_query |= Q(project_name__icontains=prop_name)
+            commission_slips = commission_slips.filter(property_query)
+            commission_slips3 = commission_slips3.filter(property_query)
+        else:
+            # If no properties found for this developer, return empty querysets
+            commission_slips = commission_slips.none()
+            commission_slips3 = commission_slips3.none()
+    if property_filter:
+        commission_slips = commission_slips.filter(project_name__icontains=property_filter)
+        commission_slips3 = commission_slips3.filter(project_name__icontains=property_filter)
+    # Apply type filter using available fields
+    if type_filter == 'regular':
+        commission_slips = commission_slips.filter(is_full_breakdown=False)
+        commission_slips3 = commission_slips3.none()
+    elif type_filter == 'management':
+        commission_slips = commission_slips.filter(is_full_breakdown=True)
+        commission_slips3 = commission_slips3.none()
+    elif type_filter == 'supervisor_agent':
+        commission_slips = commission_slips.none()
+        # keep commission_slips3 as is
 
     # Filter based on user role and permissions
     if request.user.is_superuser or request.user.is_staff:
@@ -1086,6 +1138,31 @@ def commission_history(request):
             Q(created_by=request.user)
         )
 
+    # Apply user/team filters post-permission scoping
+    if user_filter:
+        try:
+            selected_user = User.objects.get(id=user_filter)
+            selected_name = selected_user.get_full_name()
+            commission_slips = commission_slips.filter(Q(sales_agent_name=selected_name) | Q(created_by=selected_user))
+            commission_slips3 = commission_slips3.filter(
+                Q(sales_agent_name=selected_name) | Q(supervisor_name=selected_name) | Q(created_by=selected_user)
+            )
+        except User.DoesNotExist:
+            pass
+    if team_filter and (request.user.is_superuser or request.user.is_staff):
+        try:
+            selected_team = Team.objects.get(id=team_filter)
+            team_members = User.objects.filter(profile__team=selected_team, is_active=True)
+            member_names = [m.get_full_name() for m in team_members if m.get_full_name()]
+            commission_slips = commission_slips.filter(
+                Q(created_by__profile__team=selected_team) | Q(sales_agent_name__in=member_names)
+            )
+            commission_slips3 = commission_slips3.filter(
+                Q(created_by__profile__team=selected_team) | Q(sales_agent_name__in=member_names) | Q(supervisor_name__in=member_names)
+            )
+        except Team.DoesNotExist:
+            pass
+
     # Initialize all commission variables
     total_gross_commission = 0
     sales_agents_commission = 0
@@ -1101,9 +1178,9 @@ def commission_history(request):
     
     # Get commission details based on user permissions
     if request.user.is_superuser or request.user.is_staff:
-        # For superusers and staff, show all commissions
-        commission_details = CommissionDetail.objects.all()
-        commission_details3 = CommissionDetail3.objects.all()
+        # For superusers and staff, show commissions from filtered slips
+        commission_details = CommissionDetail.objects.filter(slip__in=commission_slips)
+        commission_details3 = CommissionDetail3.objects.filter(slip__in=commission_slips3)
         
         # Calculate role-based commissions from CommissionDetail
         sales_agents_commission = commission_details.filter(
@@ -1376,6 +1453,40 @@ def commission_history(request):
     # Calculate total slips count
     total_slips = regular_commission_count + management_commission_count + supervisor_agent_commission_count
 
+    # Build dropdown data
+    all_teams = Team.objects.filter(is_active=True).order_by('name') if (request.user.is_superuser or request.user.is_staff) else []
+    all_users = User.objects.filter(is_active=True).order_by('first_name', 'last_name') if (request.user.is_superuser or request.user.is_staff) else []
+    # Build available years without union().dates() (not supported with annotate/union)
+    years_slips = list(commission_slips.dates('date', 'year', order='DESC'))
+    years_slips3 = list(commission_slips3.dates('date', 'year', order='DESC'))
+    years_set = {d.year for d in years_slips} | {d.year for d in years_slips3}
+    years_list = sorted(list(years_set), reverse=True)
+    months_list = [(i, datetime(2000, i, 1).strftime('%B')) for i in range(1, 13)]
+    # Get properties from project names and developers from Developer model
+    from .models import Developer
+    dev1 = list(commission_slips.values_list('project_name', flat=True))
+    dev2 = list(commission_slips3.values_list('project_name', flat=True))
+    all_properties = sorted(list({d for d in dev1 + dev2 if d}))
+    # Get developers from Developer model
+    all_developers = list(Developer.objects.values_list('name', flat=True).order_by('name'))
+
+    # Handle AJAX requests for chart data
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.http import JsonResponse
+        return JsonResponse({
+            'total_gross_commission': float(total_gross_commission),
+            'sales_agents_commission': float(sales_agents_commission),
+            'supervisors_commission': float(supervisors_commission),
+            'managers_commission': float(managers_commission),
+            'operations_commission': float(operations_commission),
+            'cofounder_commission': float(cofounder_commission),
+            'founder_commission': float(founder_commission),
+            'funds_commission': float(funds_commission),
+            'sales_team_total': float(sales_team_total),
+            'management_team_total': float(management_team_total),
+            'user_commission': float(user_commission),
+        })
+
     context = {
         'commission_slips': paginated_slips,
         'search_agent': search_agent,
@@ -1402,6 +1513,20 @@ def commission_history(request):
         'management_commission': management_team_total,  # Add this for chart compatibility
         # User-specific commission
         'user_commission': user_commission,
+        # Filter dropdowns
+        'all_teams': all_teams,
+        'all_users': all_users,
+        'available_years': years_list,
+        'available_months': months_list,
+        'all_developers': all_developers,
+        'all_properties': all_properties,
+        'selected_team': team_filter,
+        'selected_user': user_filter,
+        'selected_year': year_filter,
+        'selected_month': month_filter,
+        'selected_developer': developer_filter,
+        'selected_property': property_filter,
+        'selected_type': type_filter,
     }
     return render(request, 'commission_history.html', context)
 
@@ -2696,6 +2821,7 @@ def receivables(request):
     month_filter = request.GET.get('month', '')
     year_filter = request.GET.get('year', '')
     user_filter = request.GET.get('user', '')
+    team_filter = request.GET.get('team', '')
     
     # Determine scope of data based on permissions
     if request.user.is_superuser:
@@ -2724,7 +2850,6 @@ def receivables(request):
         
         # If no exact matches, try case-insensitive partial matching
         if not tranche_records.exists():
-            from django.db.models import Q
             q_objects = Q()
             for variation in valid_variations:
                 q_objects |= Q(agent_name__icontains=variation)
@@ -2732,8 +2857,31 @@ def receivables(request):
     
     # Apply developer/property filters
     if developer_filter:
+        # Filter commission entries by developer
         commission_entries = commission_entries.filter(developer__icontains=developer_filter)
-        tranche_records = tranche_records.filter(project_name__icontains=developer_filter)
+        
+        # For tranche records, we need to find all projects associated with this developer
+        # First, get all project names from commission entries for this developer
+        developer_projects = Commission.objects.filter(
+            developer__icontains=developer_filter
+        ).values_list('project_name', flat=True).distinct()
+        
+        print(f"DEBUG: Developer projects from commissions: {list(developer_projects)}")
+        
+        if developer_projects:
+            # Filter tranche records by matching project names
+            project_query = Q()
+            for project_name in developer_projects:
+                if project_name:  # Make sure project_name is not None or empty
+                    project_query |= Q(project_name__icontains=project_name)
+            
+            if project_query:
+                tranche_records = tranche_records.filter(project_query)
+            else:
+                tranche_records = tranche_records.none()
+        else:
+            # No commission entries found for this developer
+            tranche_records = tranche_records.none()
     
     if property_filter:
         commission_entries = commission_entries.filter(project_name__icontains=property_filter)
@@ -2742,8 +2890,10 @@ def receivables(request):
     # Apply date filters
     if year_filter:
         commission_entries = commission_entries.filter(date_released__year=year_filter)
-        # For tranche records, we need to filter based on payment dates
-        # We'll filter the payments later when calculating totals
+        # For tranche records, include all records that have payments in the selected year (regardless of received amount)
+        tranche_records = tranche_records.filter(
+            payments__date_received__year=year_filter
+        ).distinct()
     
     if month_filter:
         # If month is selected, apply month filter (with or without year)
@@ -2753,9 +2903,18 @@ def receivables(request):
                 date_released__year=year_filter,
                 date_released__month=month_filter
             )
+            # Filter tranche records by payments in specific year and month (regardless of received amount)
+            tranche_records = tranche_records.filter(
+                payments__date_received__year=year_filter,
+                payments__date_received__month=month_filter
+            ).distinct()
         else:
             # Only month selected (across all years)
             commission_entries = commission_entries.filter(date_released__month=month_filter)
+            # Filter tranche records by payments in specific month (any year, regardless of received amount)
+            tranche_records = tranche_records.filter(
+                payments__date_received__month=month_filter
+            ).distinct()
     
     # Apply user filter (only for superusers - regular users already see their own data)
     if user_filter and request.user.is_superuser:
@@ -2774,17 +2933,50 @@ def receivables(request):
             tranche_records = tranche_records.filter(agent_name__in=valid_variations)
         except User.DoesNotExist:
             pass
+
+    # Apply team filter (only for superusers)
+    if team_filter and request.user.is_superuser:
+        try:
+            selected_team = Team.objects.get(id=team_filter)
+            # Filter commissions by agents in this team
+            commission_entries = commission_entries.filter(agent__profile__team=selected_team)
+
+            # For tranche records, build a list of agent full names for team members
+            team_members = User.objects.filter(profile__team=selected_team, is_active=True)
+            name_variations = []
+            for member in team_members:
+                variations = [
+                    member.get_full_name(),
+                    member.username,
+                    f"{member.first_name} {member.last_name}".strip(),
+                    member.first_name,
+                    member.last_name
+                ]
+                name_variations.extend([n for n in variations if n])
+            
+            if name_variations:
+                tranche_records = tranche_records.filter(agent_name__in=name_variations)
+            else:
+                # If no team members found or no valid name variations, return empty queryset
+                tranche_records = tranche_records.none()
+        except Team.DoesNotExist:
+            # If team doesn't exist, return empty querysets
+            commission_entries = commission_entries.none()
+            tranche_records = tranche_records.none()
     
     # Get all unique developers and properties for filter dropdowns
+    from .models import Developer
+    
     if request.user.is_superuser:
-        all_developers = Commission.objects.values_list('developer', flat=True).distinct().order_by('developer')
+        # Get developers from Developer model
+        all_developers = list(Developer.objects.values_list('name', flat=True).order_by('name'))
         all_properties = Commission.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
     else:
-        all_developers = Commission.objects.filter(agent=request.user).values_list('developer', flat=True).distinct().order_by('developer')
+        # Get developers from Developer model
+        all_developers = list(Developer.objects.values_list('name', flat=True).order_by('name'))
         all_properties = Commission.objects.filter(agent=request.user).values_list('project_name', flat=True).distinct().order_by('project_name')
     
-    # Remove empty values and None
-    all_developers = [dev for dev in all_developers if dev and dev.strip()]
+    # Remove empty values and None for properties
     all_properties = [prop for prop in all_properties if prop and prop.strip()]
     
     # Get all users for user filter dropdown (only for superusers)
@@ -2794,6 +2986,11 @@ def receivables(request):
             is_active=True,
             commission__isnull=False
         ).distinct().order_by('first_name', 'last_name')
+
+    # Get all teams for team filter dropdown (only for superusers)
+    all_teams = []
+    if request.user.is_superuser:
+        all_teams = Team.objects.filter(is_active=True).order_by('name')
     
     # Get available years and months for date filters
     if request.user.is_superuser:
@@ -2827,6 +3024,17 @@ def receivables(request):
 
     # Create a dictionary to store project totals
     project_totals = {}
+    
+    # Debug: Add some logging to understand what's being filtered
+    print(f"DEBUG: Developer filter: {developer_filter}")
+    print(f"DEBUG: Commission entries count: {commission_entries.count()}")
+    print(f"DEBUG: Tranche records count: {tranche_records.count()}")
+    if developer_filter:
+        print(f"DEBUG: Total commission for developer: {total_commission}")
+        if commission_entries.exists():
+            print(f"DEBUG: First commission entry: {commission_entries.first().project_name} - {commission_entries.first().developer}")
+        if tranche_records.exists():
+            print(f"DEBUG: First tranche record: {tranche_records.first().project_name}")
 
     # First pass: Calculate total expected commission for each project
     for record in tranche_records:
@@ -2840,13 +3048,34 @@ def receivables(request):
 
         # Get all payments for this tranche
         payments = record.payments.all()
+        
+        # Apply date filters to payments if they exist, but prioritize developer filter
+        if developer_filter:
+            # When developer filter is active, show all payments for that developer
+            # regardless of date filters to show complete receivables picture
+            filtered_payments = payments
+        elif year_filter and month_filter:
+            # Filter payments by specific year and month
+            filtered_payments = payments.filter(
+                date_received__year=year_filter,
+                date_received__month=month_filter
+            )
+        elif year_filter:
+            # Filter payments by year only
+            filtered_payments = payments.filter(date_received__year=year_filter)
+        elif month_filter:
+            # Filter payments by month only (any year)
+            filtered_payments = payments.filter(date_received__month=month_filter)
+        else:
+            # No date filter, use all payments
+            filtered_payments = payments
 
-        # Calculate total expected for this project
-        project_total_expected = sum(payment.expected_amount for payment in payments)
+        # Calculate total expected for this project (from filtered payments)
+        project_total_expected = sum(payment.expected_amount for payment in filtered_payments)
         project_totals[project_key]['total_expected'] += project_total_expected
 
-        # Store payment info and update received amounts
-        for payment in payments:
+        # Store payment info and update received amounts (from filtered payments)
+        for payment in filtered_payments:
             key = f"DP-{record.id}-{payment.tranche_number}" if not payment.is_lto else f"LTO-{record.id}-1"
             project_totals[project_key]['payments'][key] = {
                 'expected': payment.expected_amount,
@@ -2854,38 +3083,50 @@ def receivables(request):
             }
             project_totals[project_key]['total_received'] += payment.received_amount
 
-        # Update total remaining
-        total_remaining += (project_total_expected - sum(payment.received_amount for payment in payments))
+        # Update total remaining (from filtered payments)
+        total_remaining += (project_total_expected - sum(payment.received_amount for payment in filtered_payments))
 
     # Prepare commission entries with payment type and completion percentage
     commissions_with_type = []
     for entry in commission_entries:
-        # Get project key from release number
-        project_id = entry.release_number.split('-')[1]  # Extract project ID from release number
-        project_record = tranche_records.filter(id=project_id).first()
+        project_record = None
+        release_number_value = entry.release_number or ''
+
+        # Try to extract a plausible TrancheRecord id from the release number safely
+        parts = [p for p in str(release_number_value).split('-') if p]
+        numeric_ids = []
+        for part in parts:
+            if part.isdigit():
+                try:
+                    numeric_ids.append(int(part))
+                except ValueError:
+                    pass
+
+        if numeric_ids:
+            project_record = tranche_records.filter(id__in=numeric_ids).first()
+
+        project_info = {}
+        completion_percentage = 0
 
         if project_record:
             project_key = f"{project_record.project_name}-{project_record.buyer_name}"
             project_info = project_totals.get(project_key, {})
+            if project_info and project_info.get('total_expected', 0) > 0:
+                completion_percentage = (project_info.get('total_received', 0) / project_info.get('total_expected', 0)) * 100
 
-            # Calculate completion percentage based on total project commission
-            completion_percentage = 0
-            if project_info and project_info['total_expected'] > 0:
-                completion_percentage = (project_info['total_received'] / project_info['total_expected']) * 100
-
-            commissions_with_type.append({
-                'date_released': entry.date_released,
-                'release_number': entry.release_number,
-                'project_name': entry.project_name,
-                'developer': entry.developer,
-                'buyer': entry.buyer,
-                'agent_name': entry.agent.get_full_name() or entry.agent.username,
-                'commission_amount': entry.commission_amount,
-                'payment_type': 'Loan Take Out' if 'LTO' in entry.release_number else 'Down Payment',
-                'completion_percentage': completion_percentage,
-                'total_expected': project_info.get('total_expected', 0),
-                'total_received': project_info.get('total_received', 0)
-            })
+        commissions_with_type.append({
+            'date_released': entry.date_released,
+            'release_number': entry.release_number,
+            'project_name': entry.project_name,
+            'developer': entry.developer,
+            'buyer': entry.buyer,
+            'agent_name': entry.agent.get_full_name() or entry.agent.username,
+            'commission_amount': entry.commission_amount,
+            'payment_type': 'Loan Take Out' if 'LTO' in release_number_value else 'Down Payment',
+            'completion_percentage': completion_percentage,
+            'total_expected': project_info.get('total_expected', 0),
+            'total_received': project_info.get('total_received', 0)
+        })
 
     # --- Pagination ---
     paginator = Paginator(commissions_with_type, 25)  # 25 rows per page
@@ -2941,6 +3182,8 @@ def receivables(request):
         'selected_month': month_filter,
         'all_users': all_users,
         'selected_user': user_filter,
+        'all_teams': all_teams,
+        'selected_team': team_filter,
     }
     return render(request, 'receivables.html', context)
 
@@ -3127,13 +3370,14 @@ def tranche_history(request):
     month_filter = request.GET.get('month', '')
     year_filter = request.GET.get('year', '')
     user_filter = request.GET.get('user', '')
+    team_filter = request.GET.get('team', '')
     
     # Base queryset
     tranche_records = TrancheRecord.objects.all()
     
     # Filter based on user role and permissions
     if request.user.is_superuser:
-        # Superusers can see all records
+        # Superusers can see all records initially
         pass
     elif request.user.is_staff:
         # Staff can see:
@@ -3161,7 +3405,23 @@ def tranche_history(request):
     # Apply filters before ordering
     # Apply developer/property filters
     if developer_filter:
-        tranche_records = tranche_records.filter(project_name__icontains=developer_filter)
+        # Filter by developer name using Property model relationship
+        from .models import Property
+        
+        # Get all properties that belong to the selected developer
+        developer_properties = Property.objects.filter(
+            developer__name__icontains=developer_filter
+        ).values_list('name', flat=True)
+        
+        if developer_properties:
+            # Filter tranche records by matching project names with developer's properties
+            property_query = Q()
+            for prop_name in developer_properties:
+                property_query |= Q(project_name__icontains=prop_name)
+            tranche_records = tranche_records.filter(property_query)
+        else:
+            # If no properties found for this developer, return empty queryset
+            tranche_records = tranche_records.none()
     
     if property_filter:
         tranche_records = tranche_records.filter(project_name__icontains=property_filter)
@@ -3195,6 +3455,101 @@ def tranche_history(request):
         except User.DoesNotExist:
             pass
     
+    # Apply team filter (only for superusers)
+    if team_filter and request.user.is_superuser:
+        try:
+            # Get the team object by name (team_filter is team name from template)
+            from .models import Team
+            selected_team = Team.objects.get(name=team_filter, is_active=True)
+            
+            # Debug logging
+            print(f"DEBUG: Team filter applied: {team_filter}")
+            print(f"DEBUG: Selected team: {selected_team.name}")
+            
+            # Get all users in the selected team
+            team_members = User.objects.filter(
+                profile__team=selected_team,
+                profile__is_approved=True
+            )
+            
+            if team_members.exists():
+                print(f"DEBUG: Found {team_members.count()} team members")
+                
+                # Create name variations for exact and partial matching
+                team_name_variations = []
+                for member in team_members:
+                    variations = [
+                        member.get_full_name(),
+                        f"{member.first_name} {member.last_name}".strip(),
+                        member.username,
+                        member.first_name,
+                        member.last_name
+                    ]
+                    # Add non-empty variations
+                    valid_variations = [name for name in variations if name]
+                    team_name_variations.extend(valid_variations)
+                    print(f"DEBUG: Member {member.get_full_name()} variations: {valid_variations}")
+                
+                if team_name_variations:
+                    print(f"DEBUG: All team name variations: {team_name_variations}")
+                    
+                    # Get all tranche records before filtering to see what exists
+                    all_tranche_agents = TrancheRecord.objects.values_list('agent_name', flat=True).distinct()
+                    print(f"DEBUG: All tranche record agent names: {list(all_tranche_agents)}")
+                    
+                    # First try exact matches
+                    exact_match_query = Q()
+                    for name in team_name_variations:
+                        exact_match_query |= Q(agent_name__iexact=name)
+                    
+                    filtered_records = tranche_records.filter(exact_match_query)
+                    print(f"DEBUG: Exact matches found: {filtered_records.count()}")
+                    
+                    # If no exact matches, try case-insensitive partial matching
+                    if not filtered_records.exists():
+                        print("DEBUG: No exact matches, trying partial matches")
+                        partial_match_query = Q()
+                        for name in team_name_variations:
+                            partial_match_query |= Q(agent_name__icontains=name)
+                        
+                        # Start fresh from all records for partial matching
+                        base_queryset = TrancheRecord.objects.all()
+                        
+                        # Apply base permission filters first
+                        if not request.user.is_superuser:
+                            if request.user.is_staff:
+                                user_team = request.user.profile.team
+                                staff_team_members = User.objects.filter(
+                                    profile__team=user_team,
+                                    profile__is_approved=True
+                                ).values_list('first_name', 'last_name')
+                                staff_team_full_names = [f"{first} {last}".strip() for first, last in staff_team_members]
+                                
+                                base_queryset = base_queryset.filter(
+                                    Q(created_by=request.user) |
+                                    Q(agent_name=request.user.get_full_name()) |
+                                    Q(agent_name__in=staff_team_full_names)
+                                ).distinct()
+                            else:
+                                base_queryset = base_queryset.filter(
+                                    agent_name=request.user.get_full_name()
+                                )
+                        
+                        filtered_records = base_queryset.filter(partial_match_query).distinct()
+                        print(f"DEBUG: Partial matches found: {filtered_records.count()}")
+                    
+                    tranche_records = filtered_records
+                else:
+                    print("DEBUG: No valid team name variations found")
+                    tranche_records = tranche_records.none()
+            else:
+                # If no team members found, return empty queryset
+                tranche_records = tranche_records.none()
+                
+        except (Team.DoesNotExist, ValueError):
+            # If team doesn't exist or invalid ID, return empty queryset
+            tranche_records = tranche_records.none()
+    
     # Order by most recent first
     tranche_records = tranche_records.order_by('-created_at')
     
@@ -3225,17 +3580,21 @@ def tranche_history(request):
     
     # Get filter dropdown data
     # Get all unique developers and properties for filter dropdowns
+    from .models import Developer, Property
+    
     if request.user.is_superuser:
-        all_developers = TrancheRecord.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
-        all_properties = TrancheRecord.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
+        project_names = TrancheRecord.objects.values_list('project_name', flat=True).distinct().order_by('project_name')
+        all_properties = [proj for proj in project_names if proj and proj.strip()]
+        
+        # Get developers from Developer model
+        all_developers = list(Developer.objects.values_list('name', flat=True).order_by('name'))
     else:
         user_records = TrancheRecord.objects.filter(agent_name=request.user.get_full_name())
-        all_developers = user_records.values_list('project_name', flat=True).distinct().order_by('project_name')
-        all_properties = user_records.values_list('project_name', flat=True).distinct().order_by('project_name')
-    
-    # Remove empty values and None
-    all_developers = [dev for dev in all_developers if dev and dev.strip()]
-    all_properties = [prop for prop in all_properties if prop and prop.strip()]
+        project_names = user_records.values_list('project_name', flat=True).distinct().order_by('project_name')
+        all_properties = [proj for proj in project_names if proj and proj.strip()]
+        
+        # Get developers from Developer model
+        all_developers = list(Developer.objects.values_list('name', flat=True).order_by('name'))
     
     # Get all users for user filter dropdown (only for superusers)
     all_users = []
@@ -3244,6 +3603,12 @@ def tranche_history(request):
             is_active=True,
             commission__isnull=False
         ).distinct().order_by('first_name', 'last_name')
+    
+    # Get all teams for team filter dropdown (only for superusers)
+    all_teams = []
+    if request.user.is_superuser:
+        from .models import Team
+        all_teams = Team.objects.filter(is_active=True).order_by('name')
     
     # Get available years and months for date filters
     if request.user.is_superuser:
@@ -3291,6 +3656,8 @@ def tranche_history(request):
         'selected_month': month_filter,
         'all_users': all_users,
         'selected_user': user_filter,
+        'all_teams': all_teams,
+        'selected_team': team_filter,
     }
     return render(request, 'tranche_history.html', context)
 

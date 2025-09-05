@@ -205,57 +205,35 @@
       </div>
     </div>
 
-    <div>
-      <div class="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-md text-xs text-gray-700 h-full">
-        <h4 class="font-bold text-sm text-gray-800 mb-2 flex items-center">
-          <i class="fas fa-info-circle mr-2 text-blue-600"></i> Notes & Payment Information
-        </h4>
-        <ul class="list-disc list-inside space-y-1">
-          <li>If you have any questions concerning this invoice, please contact our billing department at <a href="mailto:innersparcrealtyservices@gmail.com" class="text-blue-600 hover:underline">innersparcrealtyservices@gmail.com</a>.</li>
-        </ul>
-        <p class="mt-3 italic text-gray-500">Thank you for your prompt payment.</p>
+      <!-- Authorization -->
+      <div class="grid grid-cols-3 gap-6 mt-10 pt-6 border-t border-gray-300">
+        <div class="text-center">
+          <p class="font-semibold text-dark mb-1">Prepared By</p>
+          <div class="mt-4 mb-2 border-b border-gray-400 w-4/5 mx-auto"></div>
+          <p class="font-semibold text-primary">{{ invoice.prepared_by.get_full_name|default:'-' }}</p>
+        </div>
+        <div class="text-center">
+          <p class="font-semibold text-dark mb-1">Approved By</p>
+          <div class="mt-4 mb-2 border-b border-gray-400 w-4/5 mx-auto"></div>
+          <p class="font-semibold text-primary">Inner SPARC Realty Corporation</p>
+        </div>
+        <div class="text-center">
+          <p class="font-semibold text-dark mb-1">Checked By</p>
+          <div class="mt-4 mb-2 border-b border-gray-400 w-4/5 mx-auto"></div>
+          <p class="font-semibold text-primary">Inner SPARC Realty Corporation</p>
+        </div>
       </div>
     </div>
 
-    <!-- Signatures -->
-    <section class="grid grid-cols-3 gap-6 text-center text-xs pt-6 border-t-2 border-gray-200">
-      <div class="signature-container">
-        <img src="{% if invoice.prepared_by_signature %}{{ invoice.prepared_by_signature.url }}{% else %}{% static 'media/placeholder.png' %}{% endif %}" alt="Signature" class="h-16 w-auto mx-auto mb-2 border-b pb-2">
-        <p class="font-bold">Prepared By</p>
-        <p class="text-gray-600">{{ invoice.prepared_by.get_full_name }}</p>
-        <p class="text-gray-500">{{ invoice.created_at|date:"m/d/Y" }}</p>
-      </div>
-      <div class="signature-container">
-        <img src="{% if invoice.checked_by_signature %}{{ invoice.checked_by_signature.url }}{% else %}{% static 'media/placeholder.png' %}{% endif %}" alt="Signature" class="h-16 w-auto mx-auto mb-2 border-b pb-2">
-        <p class="font-bold">Checked By</p>
-        {% if invoice.checked_by_signature %}
-        <p class="text-gray-600">Inner SPARC Realty Corporation</p>
-        <p class="text-gray-500">{{ invoice.checked_by_date|date:"m/d/Y" }}</p>
-        {% else %}
-        <p class="text-gray-400 italic">(Not yet checked)</p>
-        {% endif %}
-      </div>
-      <div class="signature-container">
-        <img src="{% if invoice.approved_by_signature %}{{ invoice.approved_by_signature.url }}{% else %}{% static 'media/placeholder.png' %}{% endif %}" alt="Signature" class="h-16 w-auto mx-auto mb-2 border-b pb-2">
-        <p class="font-bold">Approved By</p>
-        {% if invoice.approved_by_signature %}
-        <p class="text-gray-600">Inner SPARC Realty Corporation</p>
-        <p class="text-gray-500">{{ invoice.approved_by_date|date:"m/d/Y" }}</p>
-        {% else %}
-        <p class="text-gray-400 italic">(Not yet approved)</p>
-        {% endif %}
-      </div>
-    </section>
-
     <!-- Footer -->
-    <footer class="text-center text-xs text-gray-500 mt-8 pt-6 border-t-2 border-gray-200">
+    <div class="bg-gray-100 p-4 text-center text-sm text-gray-600 border-t border-gray-300">
       <p>Thank you for your business! • Payment due by {{ invoice.due_date|date:'M d, Y' }}</p>
-      <div class="flex justify-center items-center space-x-4 mt-2">
-        <p><i class="fas fa-phone-alt mr-1"></i>(046) 458-0706</p>
-        <p><i class="fas fa-envelope mr-1"></i>innersparcrealtyservices@gmail.com</p>
-        <p><i class="fas fa-globe mr-1"></i>https://www.innersparcrealty.com/</p>
-      </div>
-    </footer>
+      <p class="mt-1">
+        Contact: (046) 458-0706 • 
+        innersparcrealtyservices@gmail.com • 
+        https://www.innersparcrealty.com/
+      </p>
+    </div>
   </div>
 </body>
 </html>

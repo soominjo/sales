@@ -1,3 +1,5 @@
+receivables voucher - particulars , like partial comm
+pdf invoice - size
 {% extends "index.html" %}
 
 {% block content %}
@@ -121,6 +123,8 @@
     </div>
 </div>
 
+<!-- moved filters into Commission Records controls below -->
+
 <!-- Sales Manager Dashboard Section -->
 {% if user.profile and user.profile.role == 'Sales Manager' or user.is_superuser or user.is_staff %}
 <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
@@ -131,13 +135,13 @@
    
     
     {% if user.is_superuser or user.is_staff %}
-    <div class="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-4">
+    <div class="bg-gradient-to-r from-teal-50 to-teal-100 rounded-xl p-4">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-purple-600 text-sm font-medium">Operations Manager</p>
-          <p class="text-2xl font-bold text-purple-800">₱{{ operations_commission|default:0|floatformat:2|intcomma }}</p>
+          <p class="text-teal-600 text-sm font-medium">Operations Manager</p>
+          <p class="text-2xl font-bold text-teal-800">₱{{ operations_commission|default:0|floatformat:2|intcomma }}</p>
         </div>
-        <i class="fas fa-cogs text-purple-500 text-xl"></i>
+        <i class="fas fa-cogs text-teal-500 text-xl"></i>
       </div>
     </div>
     
@@ -214,65 +218,6 @@
     </div>
     </div>
 
-  <!-- Sales Team Members Overview -->
-  <div class="bg-white rounded-lg p-4 border border-gray-200">
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-      {% for member in team_members %}
-        {% if member.profile and member.profile.role == 'Sales Agent' or member.profile and member.profile.role == 'Sales Supervisor' or member.profile and member.profile.role == 'Sales Manager' %}
-        <div class="{% if member.profile and member.profile.role == 'Sales Agent' %}bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:from-green-100 hover:to-green-200{% elif member.profile and member.profile.role == 'Sales Supervisor' %}bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:from-blue-100 hover:to-blue-200{% elif member.profile and member.profile.role == 'Sales Manager' %}bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 hover:from-orange-100 hover:to-orange-200{% else %}bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200 hover:from-gray-100 hover:to-gray-200{% endif %} rounded-xl p-3 border-2 transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer h-48 flex flex-col">
-          <div class="flex flex-col items-center text-center h-full">
-            <!-- Profile Photo -->
-            <div class="mb-2 relative flex-shrink-0">
-              {% if member.profile and member.profile.image and member.profile.image.url != '/media/default.jpg' %}
-                <img src="{{ member.profile.image.url }}" 
-                     alt="{{ member.get_full_name }}" 
-                     class="w-10 h-10 rounded-full object-cover border-2 {% if member.profile and member.profile.role == 'Sales Agent' %}border-green-300 shadow-green-200{% elif member.profile and member.profile.role == 'Sales Supervisor' %}border-blue-300 shadow-blue-200{% elif member.profile and member.profile.role == 'Sales Manager' %}border-orange-300 shadow-orange-200{% else %}border-gray-300 shadow-gray-200{% endif %} shadow-md">
-              {% else %}
-                <div class="w-10 h-10 rounded-full {% if member.profile and member.profile.role == 'Sales Agent' %}bg-green-200{% elif member.profile and member.profile.role == 'Sales Supervisor' %}bg-blue-200{% elif member.profile and member.profile.role == 'Sales Manager' %}bg-orange-200{% else %}bg-gray-200{% endif %} flex items-center justify-center border-2 {% if member.profile and member.profile.role == 'Sales Agent' %}border-green-300{% elif member.profile and member.profile.role == 'Sales Supervisor' %}border-blue-300{% elif member.profile and member.profile.role == 'Sales Manager' %}border-orange-300{% else %}border-gray-300{% endif %} shadow-md">
-                  <i class="fas fa-user {% if member.profile and member.profile.role == 'Sales Agent' %}text-green-600{% elif member.profile and member.profile.role == 'Sales Supervisor' %}text-blue-600{% elif member.profile and member.profile.role == 'Sales Manager' %}text-orange-600{% else %}text-gray-600{% endif %} text-sm"></i>
-                </div>
-              {% endif %}
-              <!-- Role Badge -->
-              <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full {% if member.profile and member.profile.role == 'Sales Agent' %}bg-green-500{% elif member.profile and member.profile.role == 'Sales Supervisor' %}bg-blue-500{% elif member.profile and member.profile.role == 'Sales Manager' %}bg-orange-500{% else %}bg-gray-500{% endif %} flex items-center justify-center border-2 border-white shadow-sm">
-                <i class="{% if member.profile and member.profile.role == 'Sales Agent' %}fas fa-user-tie{% elif member.profile and member.profile.role == 'Sales Supervisor' %}fas fa-user-shield{% elif member.profile and member.profile.role == 'Sales Manager' %}fas fa-crown{% else %}fas fa-user{% endif %} text-white text-xs"></i>
-              </div>
-            </div>
-            
-            <!-- Member Info -->
-            <div class="w-full flex-1 flex flex-col justify-between">
-              <div>
-                <h4 class="font-bold {% if member.profile and member.profile.role == 'Sales Agent' %}text-green-800{% elif member.profile and member.profile.role == 'Sales Supervisor' %}text-blue-800{% elif member.profile and member.profile.role == 'Sales Manager' %}text-orange-800{% else %}text-gray-800{% endif %} text-xs mb-1 truncate leading-tight">
-                  {{ member.get_full_name|default:member.username }}
-                </h4>
-                <div class="inline-block px-2 py-1 rounded-full text-xs font-medium mb-2 {% if member.profile and member.profile.role == 'Sales Agent' %}bg-green-200 text-green-800{% elif member.profile and member.profile.role == 'Sales Supervisor' %}bg-blue-200 text-blue-800{% elif member.profile and member.profile.role == 'Sales Manager' %}bg-orange-200 text-orange-800{% else %}bg-gray-200 text-gray-800{% endif %}">
-                  {% if member.profile and member.profile.role == 'Sales Agent' %}Agent
-                  {% elif member.profile and member.profile.role == 'Sales Supervisor' %}Supervisor
-                  {% elif member.profile and member.profile.role == 'Sales Manager' %}Manager
-                  {% else %}No Role
-                  {% endif %}
-                </div>
-              </div>
-              
-              <!-- Commission Display -->
-              <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border {% if member.profile and member.profile.role == 'Sales Agent' %}border-green-200{% elif member.profile and member.profile.role == 'Sales Supervisor' %}border-blue-200{% elif member.profile and member.profile.role == 'Sales Manager' %}border-orange-200{% else %}border-gray-200{% endif %} shadow-sm mt-auto">
-                <div class="text-xs {% if member.profile and member.profile.role == 'Sales Agent' %}text-green-600{% elif member.profile and member.profile.role == 'Sales Supervisor' %}text-blue-600{% elif member.profile and member.profile.role == 'Sales Manager' %}text-orange-600{% else %}text-gray-600{% endif %} font-medium mb-1">Commission</div>
-                <div class="text-sm font-bold {% if member.profile and member.profile.role == 'Sales Agent' %}text-green-800{% elif member.profile and member.profile.role == 'Sales Supervisor' %}text-blue-800{% elif member.profile and member.profile.role == 'Sales Manager' %}text-orange-800{% else %}text-gray-800{% endif %}">
-                  ₱{{ member.total_commission|default:0|floatformat:0|intcomma }}
-                </div>
-            
-              </div>
-            </div>
-          </div>
-        </div>
-        {% endif %}
-      {% empty %}
-        <div class="col-span-full text-center text-gray-500 py-8">
-          <i class="fas fa-users text-gray-400 text-3xl mb-2"></i>
-          <p>No team members found</p>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
 </div>
 {% endif %}
 
@@ -309,9 +254,9 @@
       </div>
       {% if user.is_superuser or user.is_staff %}
       <div class="text-center">
-        <div class="w-4 h-4 bg-purple-500 rounded-full mx-auto mb-1"></div>
-        <p class="text-xs text-purple-600 font-medium">Operations Manager</p>
-        <p class="text-sm font-bold text-purple-700">₱{{ operations_commission|default:0|floatformat:0|intcomma }}</p>
+        <div class="w-4 h-4 bg-cyan-500 rounded-full mx-auto mb-1"></div>
+        <p class="text-xs text-cyan-600 font-medium">Operations Manager</p>
+        <p class="text-sm font-bold text-cyan-700">₱{{ operations_commission|default:0|floatformat:0|intcomma }}</p>
       </div>
       <div class="text-center">
         <div class="w-4 h-4 bg-indigo-500 rounded-full mx-auto mb-1"></div>
@@ -356,35 +301,110 @@
 <!-- Commission Table Section -->
 <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
   <div class="p-6">
-    <!-- Table Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5">
-      <h2 class="text-xl font-semibold text-gray-800 mb-3 md:mb-0">Commission Records</h2>
-      
-      <div class="w-full md:w-auto">
-        <div class="flex flex-col md:flex-row gap-3 filter-controls">
-          <div class="relative flex-1">
+    <!-- Filters -->
+    <div class="bg-white rounded-xl shadow p-6 mb-8">
+      <h3 class="text-lg font-semibold text-gray-800 mb-4">Filters</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+        <!-- Year Filter -->
+        <div>
+          <label for="yearFilter" class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+          <select id="yearFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Years</option>
+            {% for year in available_years %}
+              <option value="{{ year }}" {% if year|stringformat:"s" == selected_year %}selected{% endif %}>{{ year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Month Filter -->
+        <div>
+          <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+          <select id="monthFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Months</option>
+            {% for month_num, month_name in available_months %}
+              <option value="{{ month_num }}" {% if month_num|stringformat:"s" == selected_month %}selected{% endif %}>{{ month_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Developer Filter -->
+        <div>
+          <label for="developerFilter" class="block text-sm font-medium text-gray-700 mb-2">Developer</label>
+          <select id="developerFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Developers</option>
+            {% for developer in all_developers %}
+              <option value="{{ developer }}" {% if developer == selected_developer %}selected{% endif %}>{{ developer }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Property Filter -->
+        <div>
+          <label for="propertyFilter" class="block text-sm font-medium text-gray-700 mb-2">Property</label>
+          <select id="propertyFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Properties</option>
+            {% for property in all_properties %}
+              <option value="{{ property }}" {% if property == selected_property %}selected{% endif %}>{{ property }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Team Filter (Only for superusers) -->
+        {% if user.is_superuser and all_teams %}
+        <div>
+          <label for="teamFilter" class="block text-sm font-medium text-gray-700 mb-2">Team</label>
+          <select id="teamFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Teams</option>
+            {% for team in all_teams %}
+              <option value="{{ team.id }}" {% if team.id|stringformat:"s" == selected_team %}selected{% endif %}>{{ team.display_name|default:team.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <!-- User Filter (Only for superusers) -->
+        {% if user.is_superuser or user.is_staff %}
+        {% if all_users %}
+        <div>
+          <label for="userFilter" class="block text-sm font-medium text-gray-700 mb-2">User</label>
+          <select id="userFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Users</option>
+            {% for agent in all_users %}
+              <option value="{{ agent.id }}" {% if agent.id|stringformat:"s" == selected_user %}selected{% endif %}>{{ agent.get_full_name|default:agent.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <!-- Type Filter -->
+        <div>
+          <label for="typeFilter" class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+          <select id="typeFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+            <option value="">All Types</option>
+            <option value="regular" {% if selected_type == 'regular' %}selected{% endif %}>Agent</option>
+            <option value="supervisor_agent" {% if selected_type == 'supervisor_agent' %}selected{% endif %}>Supervisor</option>
+            <option value="management" {% if selected_type == 'management' %}selected{% endif %}>Management</option>
+          </select>
+        </div>
+
+        <!-- Search -->
+        <div>
+          <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+          <div class="relative">
             <input type="text" id="searchInput" placeholder="Search records..." 
-                   class="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <i class="fas fa-search text-gray-400"></i>
             </div>
           </div>
-          <div class="flex gap-2">
-            <select id="statusFilter" class="px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">All Types</option>
-              <option value="regular">Agent</option>
-              <option value="supervisor_agent">Supervisor</option>
-              <option value="management">Management</option>
-            </select>
-            <select id="dateFilter" class="px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option value="">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </select>
-          </div>
         </div>
       </div>
+    </div>
+
+    <!-- Table Header -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-5">
+      <h2 class="text-xl font-semibold text-gray-800 mb-3 md:mb-0">Commission Records</h2>
     </div>
 
     <!-- Commission Table -->
@@ -459,8 +479,17 @@
             
             <td class="px-4 py-3">
               <div class="flex items-center">
-                <div class="bg-gray-200 border-2 border-dashed rounded-xl w-8 h-8 mr-3">                  
-          </div>
+                {% if slip.agent.profile.profile_picture %}
+                  <img src="{{ slip.agent.profile.profile_picture.url }}" 
+                       alt="{{ slip.sales_agent_name }}" 
+                       class="w-8 h-8 rounded-full object-cover mr-3 border-2 border-gray-200">
+                {% else %}
+                  <div class="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 border-2 border-gray-200">
+                    <span class="text-white text-xs font-semibold">
+                      {{ slip.sales_agent_name|first|upper }}
+                    </span>
+                  </div>
+                {% endif %}
                 <div>
                   <div class="font-medium text-gray-900">{{ slip.sales_agent_name }}</div>
                   <div class="text-xs text-gray-500">{{ slip.agent_role }}</div>
@@ -562,6 +591,288 @@
 
 <!-- JavaScript for Charts and Filtering -->
 <script>
+  // Global chart variables
+  let distributionChart = null;
+  let trendChart = null;
+
+  // Function to update commission cards
+  function updateCommissionCards(data) {
+    console.log('Updating commission cards with data:', data);
+    
+    // Update Operations Manager - more specific selector
+    const operationsElements = document.querySelectorAll('.text-purple-800');
+    console.log('Found operations elements:', operationsElements.length);
+    operationsElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-purple-50')) {
+        element.textContent = `₱${data.operations_commission.toLocaleString()}`;
+        console.log('Updated operations commission to:', data.operations_commission);
+      }
+    });
+    
+    // Update Co-Founder - more specific selector
+    const cofounderElements = document.querySelectorAll('.text-indigo-800');
+    console.log('Found cofounder elements:', cofounderElements.length);
+    cofounderElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-indigo-50')) {
+        element.textContent = `₱${data.cofounder_commission.toLocaleString()}`;
+        console.log('Updated cofounder commission to:', data.cofounder_commission);
+      }
+    });
+    
+    // Update Founder - more specific selector
+    const founderElements = document.querySelectorAll('.text-yellow-800');
+    console.log('Found founder elements:', founderElements.length);
+    founderElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-yellow-50')) {
+        element.textContent = `₱${data.founder_commission.toLocaleString()}`;
+        console.log('Updated founder commission to:', data.founder_commission);
+      }
+    });
+    
+    // Update Funds - more specific selector
+    const fundsElements = document.querySelectorAll('.text-teal-800');
+    console.log('Found funds elements:', fundsElements.length);
+    fundsElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-teal-50')) {
+        element.textContent = `₱${data.funds_commission.toLocaleString()}`;
+        console.log('Updated funds commission to:', data.funds_commission);
+      }
+    });
+    
+    // Update Agents Commission - more specific selector
+    const agentsElements = document.querySelectorAll('.text-green-800');
+    console.log('Found agents elements:', agentsElements.length);
+    agentsElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-green-50')) {
+        element.textContent = `₱${data.sales_agents_commission.toLocaleString()}`;
+        console.log('Updated agents commission to:', data.sales_agents_commission);
+      }
+    });
+    
+    // Update Supervisors Commission - more specific selector
+    const supervisorsElements = document.querySelectorAll('.text-blue-800');
+    console.log('Found supervisors elements:', supervisorsElements.length);
+    supervisorsElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-blue-50')) {
+        element.textContent = `₱${data.supervisors_commission.toLocaleString()}`;
+        console.log('Updated supervisors commission to:', data.supervisors_commission);
+      }
+    });
+    
+    // Update Managers Commission - more specific selector
+    const managersElements = document.querySelectorAll('.text-orange-800');
+    console.log('Found managers elements:', managersElements.length);
+    managersElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-orange-50')) {
+        element.textContent = `₱${data.managers_commission.toLocaleString()}`;
+        console.log('Updated managers commission to:', data.managers_commission);
+      }
+    });
+    
+    // Update Total - more specific selector
+    const totalElements = document.querySelectorAll('.text-gray-800');
+    console.log('Found total elements:', totalElements.length);
+    totalElements.forEach(element => {
+      if (element.closest('.bg-gradient-to-r.from-gray-50')) {
+        element.textContent = `₱${data.total_gross_commission.toLocaleString()}`;
+        console.log('Updated total commission to:', data.total_gross_commission);
+      }
+    });
+
+    // Update chart legend values
+    const chartLegends = document.querySelectorAll('.text-sm.font-bold');
+    chartLegends.forEach(legend => {
+      if (legend.textContent.includes('Sales Agents')) {
+        legend.textContent = `₱${data.sales_agents_commission.toLocaleString()}`;
+      } else if (legend.textContent.includes('Sales Supervisors')) {
+        legend.textContent = `₱${data.supervisors_commission.toLocaleString()}`;
+      } else if (legend.textContent.includes('Sales Managers')) {
+        legend.textContent = `₱${data.managers_commission.toLocaleString()}`;
+      } else if (legend.textContent.includes('Operations Manager')) {
+        legend.textContent = `₱${data.operations_commission.toLocaleString()}`;
+      } else if (legend.textContent.includes('Co-Founder')) {
+        legend.textContent = `₱${data.cofounder_commission.toLocaleString()}`;
+      } else if (legend.textContent.includes('Founder')) {
+        legend.textContent = `₱${data.founder_commission.toLocaleString()}`;
+      } else if (legend.textContent.includes('Funds')) {
+        legend.textContent = `₱${data.funds_commission.toLocaleString()}`;
+      }
+    });
+  }
+
+  // Function to create/update distribution chart
+  function updateDistributionChart(data) {
+    const distCtx = document.getElementById('distributionChart').getContext('2d');
+    
+    {% if user.profile and user.profile.role == 'Sales Manager' %}
+    // Sales Manager view - focus on sales team breakdown
+    if (distributionChart) {
+      distributionChart.destroy();
+    }
+    
+    distributionChart = new Chart(distCtx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [data.sales_agents_commission, data.supervisors_commission, data.managers_commission],
+          backgroundColor: ['#10b981', '#305CDE', '#f59e0b'],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { 
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${context.label}: ₱${context.raw.toLocaleString()}`;
+              }
+            }
+          }
+        }
+      }
+    });
+    {% elif user.is_superuser or user.is_staff %}
+    // Superuser/Staff view - include management breakdown
+    if (distributionChart) {
+      distributionChart.destroy();
+    }
+    
+    distributionChart = new Chart(distCtx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [data.operations_commission, data.cofounder_commission, data.founder_commission, data.funds_commission, data.sales_agents_commission, data.supervisors_commission, data.managers_commission],
+          backgroundColor: ['#008080', '#6366f1', '#f59e0b', '#14b8a6', '#10b981', '#3b82f6', '#f97316'],
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { 
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((context.raw / total) * 100).toFixed(1);
+                return `${context.label}: ₱${context.raw.toLocaleString()} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+    {% else %}
+    // Regular view - general distribution
+    if (distributionChart) {
+      distributionChart.destroy();
+    }
+    
+    distributionChart = new Chart(distCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Sales Team', 'Management'],
+        datasets: [{
+          data: [data.sales_team_total, data.management_team_total],
+          backgroundColor: ['#4cc9f0', '#f72585'],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right' },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${context.label}: ₱${context.raw.toLocaleString()}`;
+              }
+            }
+          }
+        }
+      }
+    });
+    {% endif %}
+  }
+
+  // Function to fetch updated commission data
+  function fetchCommissionData() {
+    const url = new URL(window.location);
+    url.searchParams.set('ajax', 'true');
+    
+    console.log('Fetching commission data from:', url.toString());
+    
+    fetch(url.toString(), {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      }
+    })
+    .then(response => {
+      console.log('Response status:', response.status);
+      return response.json();
+    })
+    .then(data => {
+      console.log('Received commission data:', data);
+      updateCommissionCards(data);
+      updateDistributionChart(data);
+    })
+    .catch(error => {
+      console.error('Error fetching commission data:', error);
+    });
+  }
+
+  // Function to update URL and fetch data without page reload
+  function updateFiltersAndCharts() {
+    const url = new URL(window.location);
+    const setOrDelete = (key, val) => {
+      if (val) url.searchParams.set(key, val); else url.searchParams.delete(key);
+    };
+    
+    const teamFilter = document.getElementById('teamFilter');
+    const userFilter = document.getElementById('userFilter');
+    const yearFilter = document.getElementById('yearFilter');
+    const monthFilter = document.getElementById('monthFilter');
+    const developerFilter = document.getElementById('developerFilter');
+    const propertyFilter = document.getElementById('propertyFilter');
+    const typeFilter = document.getElementById('typeFilter');
+    const statusFilter2 = document.getElementById('statusFilter2');
+    
+    setOrDelete('team', teamFilter ? teamFilter.value : '');
+    setOrDelete('user', userFilter ? userFilter.value : '');
+    setOrDelete('year', yearFilter ? yearFilter.value : '');
+    setOrDelete('month', monthFilter ? monthFilter.value : '');
+    setOrDelete('developer', developerFilter ? developerFilter.value : '');
+    setOrDelete('property', propertyFilter ? propertyFilter.value : '');
+    setOrDelete('type', typeFilter ? typeFilter.value : '');
+    setOrDelete('status', statusFilter2 ? statusFilter2.value : '');
+    url.searchParams.delete('page');
+    
+    // Update the URL without reloading
+    window.history.pushState({}, '', url.toString());
+    
+    // Fetch updated commission data
+    fetchCommissionData();
+    
+    // Reload the page to update the table
+    window.location.reload();
+  }
+
   // Initialize charts
   document.addEventListener('DOMContentLoaded', function() {
     // Commission Distribution Chart
@@ -573,7 +884,7 @@
     const supervisorsComm = {{ supervisors_commission|default:0 }};
     const managersComm = {{ managers_commission|default:0 }};
     
-    new Chart(distCtx, {
+    distributionChart = new Chart(distCtx, {
       type: 'doughnut',
       data: {
         datasets: [{
@@ -613,12 +924,12 @@
     const founderComm = {{ founder_commission|default:0 }};
     const fundsComm = {{ funds_commission|default:0 }};
 
-    new Chart(distCtx, {
+    distributionChart = new Chart(distCtx, {
       type: 'doughnut',
       data: {
         datasets: [{
           data: [operationsComm, cofounderComm, founderComm, fundsComm, salesAgentsComm, supervisorsComm, managersComm],
-          backgroundColor: ['#8b5cf6', '#6366f1', '#f59e0b', '#14b8a6', '#10b981', '#3b82f6', '#f97316'],
+          backgroundColor: ['#008080', '#6366f1', '#f59e0b', '#14b8a6', '#10b981', '#3b82f6', '#f97316'],
           borderWidth: 2,
           borderColor: '#ffffff'
         }]
@@ -647,7 +958,7 @@
     });
     {% else %}
     // Regular view - general distribution
-    new Chart(distCtx, {
+    distributionChart = new Chart(distCtx, {
       type: 'doughnut',
       data: {
         labels: ['Sales Team', 'Management'],
@@ -773,8 +1084,8 @@
     
     // Filtering functionality
     const searchInput = document.getElementById('searchInput');
-    const statusFilter = document.getElementById('statusFilter');
-    const dateFilter = document.getElementById('dateFilter');
+    const statusFilter = document.getElementById('localTypeFilter');
+    const dateFilter = document.getElementById('localDateFilter');
     const tableBody = document.querySelector('#commissionTable tbody');
     
     if (tableBody) {
@@ -832,6 +1143,24 @@
       dateFilter.addEventListener('change', filterTable);
     }
   });
+</script>
+
+<script>
+// Filter bar handlers
+document.addEventListener('DOMContentLoaded', function() {
+  const teamFilter = document.getElementById('teamFilter');
+  const userFilter = document.getElementById('userFilter');
+  const yearFilter = document.getElementById('yearFilter');
+  const monthFilter = document.getElementById('monthFilter');
+  const developerFilter = document.getElementById('developerFilter');
+  const propertyFilter = document.getElementById('propertyFilter');
+  const typeFilter = document.getElementById('typeFilter');
+  const statusFilter2 = document.getElementById('statusFilter2');
+
+  [teamFilter, userFilter, yearFilter, monthFilter, developerFilter, propertyFilter, typeFilter, statusFilter2]
+    .filter(Boolean)
+    .forEach(el => el.addEventListener('change', updateFiltersAndCharts));
+});
 </script>
 
 {% endblock %}

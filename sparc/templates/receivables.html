@@ -91,8 +91,12 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm font-medium text-gray-600 mb-1">Collection Rate</p>
-                {% widthratio total_commission total_commission|add:total_remaining 100 as collection_rate %}
-                <p class="text-2xl font-bold text-blue-600">{{ collection_rate|floatformat:1 }}%</p>
+                {% if total_commission|add:total_remaining > 0 %}
+                    {% widthratio total_commission total_commission|add:total_remaining 100 as collection_rate %}
+                    <p class="text-2xl font-bold text-blue-600">{{ collection_rate|floatformat:1 }}%</p>
+                {% else %}
+                    <p class="text-2xl font-bold text-blue-600">0.0%</p>
+                {% endif %}
                 <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
                     <div id="collectionRateBar" class="bg-blue-600 h-2 rounded-full transition-all duration-500"></div>
                 </div>
@@ -125,78 +129,115 @@
     </div>
 </div>
 
-<!-- Enhanced Search and Filter -->
-<div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-    <div class="flex flex-col lg:flex-row gap-4 items-center">
-        <div class="flex-1">
-            <div class="relative">
-                <input type="text" id="searchInput" placeholder="Search by project, buyer, or release code..." 
-                       class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                </div>
-            </div>
-        </div>
-        <div class="flex gap-3 flex-wrap">
-            <!-- User Filter (only for superusers) -->
-            {% if user.is_superuser and all_users %}
-            <select id="userFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[150px]">
-                <option value="">All Users</option>
-                {% for agent in all_users %}
-                <option value="{{ agent.id }}" {% if agent.id|stringformat:"s" == selected_user %}selected{% endif %}>
-                    {{ agent.get_full_name|default:agent.username }}
-                </option>
-                {% endfor %}
-            </select>
-            {% endif %}
-            
-            <!-- Year Filter -->
-            <select id="yearFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[120px]">
-                <option value="">All Years</option>
-                {% for year in available_years %}
-                <option value="{{ year }}" {% if year|stringformat:"s" == selected_year %}selected{% endif %}>{{ year }}</option>
-                {% endfor %}
-            </select>
-            
-            <!-- Month Filter -->
-            <select id="monthFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[130px]">
-                <option value="">All Months</option>
-                {% for month_num, month_name in available_months %}
-                <option value="{{ month_num }}" {% if month_num|stringformat:"s" == selected_month %}selected{% endif %}>{{ month_name }}</option>
-                {% endfor %}
-            </select>
-            
-            <!-- Developer Filter -->
-            <select id="developerFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[150px]">
-                <option value="">All Developers</option>
-                {% for developer in all_developers %}
-                <option value="{{ developer }}" {% if developer == selected_developer %}selected{% endif %}>{{ developer }}</option>
-                {% endfor %}
-            </select>
-            
-            <!-- Property Filter -->
-            <select id="propertyFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white min-w-[150px]">
-                <option value="">All Properties</option>
-                {% for property in all_properties %}
-                <option value="{{ property }}" {% if property == selected_property %}selected{% endif %}>{{ property }}</option>
-                {% endfor %}
-            </select>
-            
-            <select id="typeFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                <option value="">All Types</option>
-                <option value="down-payment">Down Payment</option>
-                <option value="loan-take-out">Loan Take Out</option>
-            </select>
-            <select id="statusFilter" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                <option value="">All Status</option>
-                <option value="completed">Completed</option>
-                <option value="partial">Partial</option>
-                <option value="pending">Pending</option>
-            </select>
-        </div>
+<!-- Filters -->
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+  <h3 class="text-lg font-semibold text-gray-800 mb-4">Filters</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+    <!-- Year Filter -->
+    <div>
+      <label for="yearFilter" class="block text-sm font-medium text-gray-700 mb-2">Year</label>
+      <select id="yearFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Years</option>
+        {% for year in available_years %}
+          <option value="{{ year }}" {% if year|stringformat:"s" == selected_year %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+      </select>
     </div>
+
+    <!-- Month Filter -->
+    <div>
+      <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+      <select id="monthFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Months</option>
+        {% for month_num, month_name in available_months %}
+          <option value="{{ month_num }}" {% if month_num|stringformat:"s" == selected_month %}selected{% endif %}>{{ month_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Developer Filter -->
+    <div>
+      <label for="developerFilter" class="block text-sm font-medium text-gray-700 mb-2">Developer</label>
+      <select id="developerFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Developers</option>
+        {% for developer in all_developers %}
+          <option value="{{ developer }}" {% if developer == selected_developer %}selected{% endif %}>{{ developer }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Property Filter -->
+    <div>
+      <label for="propertyFilter" class="block text-sm font-medium text-gray-700 mb-2">Property</label>
+      <select id="propertyFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Properties</option>
+        {% for property in all_properties %}
+          <option value="{{ property }}" {% if property == selected_property %}selected{% endif %}>{{ property }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Team Filter (Only for superusers) -->
+    {% if user.is_superuser and all_teams %}
+    <div>
+      <label for="teamFilter" class="block text-sm font-medium text-gray-700 mb-2">Team</label>
+      <select id="teamFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Teams</option>
+        {% for team in all_teams %}
+          <option value="{{ team.id }}" {% if team.id|stringformat:"s" == selected_team %}selected{% endif %}>{{ team.display_name|default:team.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <!-- User Filter (Only for superusers) -->
+    {% if user.is_superuser and all_users %}
+    <div>
+      <label for="userFilter" class="block text-sm font-medium text-gray-700 mb-2">User</label>
+      <select id="userFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Users</option>
+        {% for agent in all_users %}
+          <option value="{{ agent.id }}" {% if agent.id|stringformat:"s" == selected_user %}selected{% endif %}>{{ agent.get_full_name|default:agent.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <!-- Type Filter -->
+    <div>
+      <label for="typeFilter" class="block text-sm font-medium text-gray-700 mb-2">Type</label>
+      <select id="typeFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Types</option>
+        <option value="down-payment">Down Payment</option>
+        <option value="loan-take-out">Loan Take Out</option>
+      </select>
+    </div>
+
+    <!-- Status Filter -->
+    <div>
+      <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+      <select id="statusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <option value="">All Status</option>
+        <option value="completed">Completed</option>
+        <option value="partial">Partial</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
+
+    <!-- Search -->
+    <div class="md:col-span-2 lg:col-span-2">
+      <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+      <div class="relative">
+        <input type="text" id="searchInput" placeholder="Search by project, buyer, or release code..." 
+               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modern Data Table -->
@@ -406,6 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const yearFilter = document.getElementById('yearFilter');
     const monthFilter = document.getElementById('monthFilter');
     const userFilter = document.getElementById('userFilter');
+    const teamFilter = document.getElementById('teamFilter');
 
     function handleAllFilters() {
         const developer = developerFilter.value;
@@ -413,6 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const year = yearFilter.value;
         const month = monthFilter.value;
         const user = userFilter ? userFilter.value : '';
+        const team = teamFilter ? teamFilter.value : '';
         
         // Build URL with current filters
         const url = new URL(window.location);
@@ -446,6 +489,11 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             url.searchParams.delete('user');
         }
+        if (team) {
+            url.searchParams.set('team', team);
+        } else {
+            url.searchParams.delete('team');
+        }
         
         // Reset page to 1 when filtering
         url.searchParams.delete('page');
@@ -474,6 +522,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add user filter event listener (only if userFilter exists)
     if (userFilter) {
         userFilter.addEventListener('change', handleAllFilters);
+    }
+    if (teamFilter) {
+        teamFilter.addEventListener('change', handleAllFilters);
     }
 
     // Commission Status Distribution Chart (Received vs Remaining)
