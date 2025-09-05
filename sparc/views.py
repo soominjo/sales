@@ -302,7 +302,10 @@ def activate_account(request, uidb64, token):
 def home(request):
     # If the visitor is not logged in, send them to the sign-in page instead of showing the main app shell
     if not request.user.is_authenticated:
-        return render(request, 'index.html')
+        return render(request, 'signin.html')
+    else:
+        # Redirect authenticated users to their profile/dashboard
+        return redirect('profile')
 
 def navbar(request):
     return render(request, 'navbar.html')
@@ -315,44 +318,62 @@ def signin(request):
         username_or_email = request.POST.get("username_or_email")
         password = request.POST.get("password")
 
+        print(f"DEBUG: Login attempt - Username/Email: {username_or_email}")
+
         if not username_or_email or not password:
             messages.error(request, 'Both username/email and password are required')
             return render(request, "signin.html")
         
         try:
+            # Find user by email or username
             if '@' in username_or_email:
                 user = User.objects.get(email=username_or_email)
+                print(f"DEBUG: Found user by email: {user.username}")
             else:
                 user = User.objects.get(username=username_or_email)
+                print(f"DEBUG: Found user by username: {user.username}")
+            
+            print(f"DEBUG: User is_superuser: {user.is_superuser}, is_staff: {user.is_staff}, is_active: {user.is_active}")
             
             # Now authenticate with the found user's username
             auth_user = authenticate(request, username=user.username, password=password)
             
+            print(f"DEBUG: Authentication result: {auth_user is not None}")
+            
             if auth_user is None:
-                messages.error(request, 'Invalid password')
+                messages.error(request, f'Invalid password for user: {user.username}')
                 return render(request, "signin.html")
             
-            # Skip approval check for superusers
-            if auth_user.is_superuser:
+            if not auth_user.is_active:
+                messages.error(request, 'Your account has been deactivated. Please contact administrator.')
+                return render(request, "signin.html")
+            
+            # Skip approval check for superusers and staff
+            if auth_user.is_superuser or auth_user.is_staff:
+                print(f"DEBUG: Logging in superuser/staff: {auth_user.username}")
                 login(request, auth_user)
+                messages.success(request, f'Welcome back, {auth_user.get_full_name() or auth_user.username}!')
                 return redirect("profile")
             
-            # Check if user is approved
-            if hasattr(auth_user, 'profile'):
+            # Check if user is approved (for regular users)
+            try:
                 if auth_user.profile.is_approved:
                     login(request, auth_user)
-                    # Show welcome back message for approved users
                     messages.success(request, f'Welcome back, {auth_user.get_full_name() or auth_user.username}!')
                     return redirect("profile")
                 else:
                     messages.warning(request, 'Your account is pending approval. Please wait for administrator approval.')
                     return render(request, "signin.html")
-            else:
-                messages.error(request, 'User profile not found')
+            except AttributeError:
+                messages.error(request, 'User profile not found. Please contact administrator.')
                 return render(request, "signin.html")
                 
         except User.DoesNotExist:
-            messages.error(request, 'No account found with this username/email')
+            messages.error(request, f'No account found with username/email: {username_or_email}')
+            return render(request, "signin.html")
+        except Exception as e:
+            print(f"DEBUG: Unexpected error during signin: {str(e)}")
+            messages.error(request, f'An error occurred during signin: {str(e)}')
             return render(request, "signin.html")
 
     return render(request, "signin.html")

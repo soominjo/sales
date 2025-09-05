@@ -87,7 +87,7 @@
         </div>
         {% endif %}
         <h2 class="text-center text-3xl font-extrabold text-gray-900 mb-8">Sign In</h2>
-        <form method="POST" class="space-y-6">
+        <form method="POST" action="{% url 'signin' %}" class="space-y-6">
           {% csrf_token %}
           <div>
             <div class="relative">
