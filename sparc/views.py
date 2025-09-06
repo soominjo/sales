@@ -2110,10 +2110,6 @@ def tranches_view(request):
             form = CommissionForm(request.POST)
             if form.is_valid():
                 try:
-                    # Compute Net of VAT based on Total Contract Price and VAT rate
-                    vat_rate_decimal = form.cleaned_data.get('vat_rate', Decimal(12)) / Decimal(100)
-                    net_of_vat_base = form.cleaned_data['total_contract_price'] / (Decimal(1) + vat_rate_decimal)
-
                     # Create TrancheRecord
                     tranche_record = TrancheRecord.objects.create(
                         project_name=form.cleaned_data['project_name'],
@@ -2142,20 +2138,34 @@ def tranches_view(request):
                     )
                     print("Created TrancheRecord:", tranche_record.id)
 
-                    # Calculate base values using the new Net of VAT computation (TCP / (1+VAT))
-                    less_process_fee = (net_of_vat_base * form.cleaned_data.get('process_fee_percentage', 0)) / Decimal(100)
-                    net_of_vat_amount = net_of_vat_base
-                    total_selling_price = net_of_vat_base - less_process_fee
+                    # Calculate base values using two paths based on Net of VAT input
+                    net_of_vat_divisor = form.cleaned_data.get('net_of_vat_amount', 0)
+                    total_contract_price = form.cleaned_data['total_contract_price']
+                    
+                    if net_of_vat_divisor and net_of_vat_divisor > 0:
+                        # Path 1: Use Net of VAT divisor calculation
+                        net_of_vat_base = total_contract_price / net_of_vat_divisor
+                        less_process_fee = (net_of_vat_base * form.cleaned_data.get('process_fee_percentage', 0)) / Decimal(100)
+                        total_selling_price = net_of_vat_base - less_process_fee
+                        gross_commission = total_selling_price * (form.cleaned_data['commission_rate'] / Decimal(100))
+                    else:
+                        # Path 2: Use Total Contract Price directly
+                        net_of_vat_base = total_contract_price
+                        less_process_fee = total_contract_price * (form.cleaned_data.get('process_fee_percentage', 0) / Decimal(100))
+                        total_selling_price = total_contract_price - less_process_fee
+                        gross_commission = total_contract_price * (form.cleaned_data['commission_rate'] / Decimal(100))
+
+                    # Common calculations for both paths
                     tax_rate = form.cleaned_data['withholding_tax_rate'] / Decimal(100)
-                    gross_commission = total_selling_price * (form.cleaned_data['commission_rate'] / Decimal(100))
-
-                    # Incorporate VAT (default 12%) before withholding tax
                     vat_rate_decimal = form.cleaned_data.get('vat_rate', Decimal(12)) / Decimal(100)
+                    
+                    # Calculate VAT and Net of VAT from gross commission
                     vat_amount = gross_commission * vat_rate_decimal
-                    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-
+                    net_of_vat = gross_commission - vat_amount
+                    
+                    # Calculate withholding tax and final net commission
                     tax = net_of_vat * tax_rate
-                    net_commission = gross_commission - tax
+                    net_commission = net_of_vat - tax
 
                     print("Base calculations completed")
 
@@ -3680,29 +3690,33 @@ def view_tranche(request, tranche_id):
     formatted_tranche_option = record.tranche_option.replace('_', ' ').title()
 
     # Calculate base values using the Net of VAT divisor input field
-    # If net_of_vat_amount is provided, use it as divisor; otherwise use VAT rate calculation
+    # If net_of_vat_amount is provided, use it as divisor; otherwise use Total Contract Price directly
     if record.net_of_vat_amount and record.net_of_vat_amount > 0:
-        # Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
-        # Ensure proper decimal precision for the calculation
+        # Path 1: Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
         net_of_vat_base = (Decimal(str(record.total_contract_price)) / Decimal(str(record.net_of_vat_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
+        total_selling_price = net_of_vat_base - less_process_fee
+        gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
     else:
-        # Fallback to VAT rate calculation (TCP / (1+VAT))
-        vat_rate_decimal = record.vat_rate / Decimal(100)
-        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-    
-    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
-    total_selling_price = net_of_vat_base - less_process_fee
+        # Path 2: Use Total Contract Price directly when Net of VAT is 0 or empty
+        net_of_vat_base = record.total_contract_price
+        less_process_fee = record.total_contract_price * (record.process_fee_percentage / Decimal(100))
+        total_selling_price = record.total_contract_price - less_process_fee
+        gross_commission = record.total_contract_price * (record.commission_rate / Decimal(100))
+
+    # Common calculations for both paths
     tax_rate = record.withholding_tax_rate / Decimal(100)
-    gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
-
     vat_rate_decimal = record.vat_rate / Decimal(100)
-    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-    vat_amount = gross_commission - net_of_vat
-
+    
+    # Calculate VAT and Net of VAT from gross commission
+    vat_amount = gross_commission * vat_rate_decimal
+    net_of_vat = gross_commission - vat_amount
+    
+    # Calculate withholding tax and final net commission
     tax = net_of_vat * tax_rate
     withholding_tax_amount = tax
     net_of_withholding_tax = net_of_vat - withholding_tax_amount
-    net_commission = gross_commission - tax
+    net_commission = net_of_vat - tax
 
     # Get DP tranches and calculate values
     dp_payments = record.payments.filter(is_lto=False).order_by('tranche_number')

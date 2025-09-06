@@ -36,8 +36,7 @@
             #print-button,
             .back-button,
             .action-buttons,
-            #edit-button, 
-            #delete-button {
+            .edit-delete-buttons {
                 display: none !important;
             }
 
@@ -69,27 +68,11 @@
             color: white;
         }
 
-        .edit-button {
-            background-color: #eab308;
-            color: white;
-        }
-
-        .delete-button {
-            background-color: #dc2626;
-            color: white;
-        }
 
         .print-button:hover {
             background-color: #16a34a;
         }
 
-        .edit-button:hover {
-            background-color: #ca8a04;
-        }
-
-        .delete-button:hover {
-            background-color: #991b1b;
-        }
 
         /* Add specific styling for content */
         #printable-content {
@@ -263,18 +246,6 @@
     <div class="mt-8 flex flex-wrap justify-center items-center gap-3 sm:gap-4 no-print">
         {% if not edit_mode %}
             
-        <a href="{% url 'edit_commission_slip' slip.id %}" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-yellow-500 text-white font-semibold rounded-lg shadow-md hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
-            <span class="hidden sm:inline">Edit</span>
-            <span class="sm:hidden">Edit</span>
-        </a>
-
-        <form action="{% url 'delete_commission_slip' slip.id %}" method="POST" class="inline-block" onsubmit="return confirm('Are you sure you want to delete this commission slip?');">
-            {% csrf_token %}
-            <button type="submit" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
-                <span class="hidden sm:inline">Delete</span>
-                <span class="sm:hidden">Delete</span>
-            </button>
-        </form>
         
         <button onclick="printContent()" class="inline-flex items-center justify-center px-4 py-2 sm:px-5 sm:py-2.5 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75 transition-all duration-200 text-sm sm:text-base">
                 <span class="hidden sm:inline">Print Commission Slip</span>

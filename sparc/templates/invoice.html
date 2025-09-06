@@ -296,17 +296,17 @@
             </div>
             <div class="p-4 space-y-2 text-sm">
               {% if is_combined_invoice %}
-                <!-- Combined Invoice Summary (Simplified) -->
+                <!-- Combined Invoice Summary - Simplified to match Down Payment Schedule -->
                 <div class="flex justify-between">
-                  <span class="font-semibold text-gray-700">Total Commission:</span>
-                  <span class="font-semibold text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
+                  <span class="text-gray-600">Net Commission:</span>
+                  <span class="font-medium text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-600">Less Tax:</span>
                   <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
                 </div>
                 <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
-                  <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                  <span class="font-bold text-gray-800">NET COMMISSION PAYABLE:</span>
                   <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
                 </div>
               {% else %}
@@ -314,29 +314,29 @@
                 {% if is_lto_invoice %}
                   <!-- LTO Invoice Summary -->
                   <div class="flex justify-between">
-                    <span class="text-gray-600"> Commission:</span>
+                    <span class="text-gray-600">LTO Commission:</span>
                     <span class="font-medium text-gray-800">₱ {{ lto_deduction_value|floatformat:2|intcomma }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
+                    <span class="text-gray-600">Less: Withholding Tax ({{ invoice.option2_tax_rate|floatformat:0 }}%):</span>
                     <span class="font-medium text-gray-800">₱ {{ lto_deduction_tax|floatformat:2|intcomma }}</span>
                   </div>
                   <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
-                    <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                    <span class="font-bold text-gray-800">NET COMMISSION PAYABLE:</span>
                     <span class="font-bold text-blue-600">₱ {{ lto_deduction_net|floatformat:2|intcomma }}</span>
                   </div>
                 {% else %}
-                  <!-- DP Invoice Summary -->
+                  <!-- DP Invoice Summary - Simplified to match Down Payment Schedule -->
                   <div class="flex justify-between">
-                    <span class="text-gray-600"> Commission:</span>
+                    <span class="text-gray-600">Net Commission:</span>
                     <span class="font-medium text-gray-800">₱ {{ net_price|floatformat:2|intcomma }}</span>
                   </div>
                   <div class="flex justify-between">
-                    <span class="text-gray-600">Less: Tax ({{ invoice.vat_rate|floatformat:0 }}%)</span>
+                    <span class="text-gray-600">Less Tax:</span>
                     <span class="font-medium text-gray-800">₱ {{ vat_amount|floatformat:2|intcomma }}</span>
                   </div>
                   <div class="flex justify-between pt-3 mt-3 border-t-2 border-gray-200">
-                    <span class="font-bold text-gray-800">TOTAL AMOUNT DUE:</span>
+                    <span class="font-bold text-gray-800">NET COMMISSION PAYABLE:</span>
                     <span class="font-bold text-blue-600">₱ {{ total_due|floatformat:2|intcomma }}</span>
                   </div>
                 {% endif %}

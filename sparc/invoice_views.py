@@ -17,6 +17,7 @@ import subprocess
 import base64
 import json
 from pathlib import Path
+from datetime import date
 
 
 def _extract_payment_terms_from_notes(invoice):
@@ -877,26 +878,32 @@ def create_combined_invoice(request):
 
 def _get_dp_tranche_data_from_view_logic(record):
     """Get DP tranche data using exact view_tranche calculation logic."""
-    # Replicate the exact calculation from views.py lines 2854-2910
-    # Check if net_of_vat_amount is provided (manual divisor)
+    # Use the updated calculation logic that matches views.py
+    # Two calculation paths based on Net of VAT input
     if record.net_of_vat_amount and record.net_of_vat_amount > 0:
-        # Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
+        # Path 1: Use Net of VAT divisor calculation
         net_of_vat_base = (Decimal(str(record.total_contract_price)) / Decimal(str(record.net_of_vat_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
+        total_selling_price = net_of_vat_base - less_process_fee
+        gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
     else:
-        # Fallback to VAT rate calculation (TCP / (1+VAT))
-        vat_rate_decimal = record.vat_rate / Decimal(100)
-        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-    
-    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
-    total_selling_price = net_of_vat_base - less_process_fee
-    gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
-    
-    vat_rate_decimal = record.vat_rate / Decimal(100)
-    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-    
+        # Path 2: Use Total Contract Price directly when Net of VAT is 0 or empty
+        net_of_vat_base = record.total_contract_price
+        less_process_fee = record.total_contract_price * (record.process_fee_percentage / Decimal(100))
+        total_selling_price = record.total_contract_price - less_process_fee
+        gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
+
+    # Common calculations for both paths
     tax_rate = record.withholding_tax_rate / Decimal(100)
+    vat_rate_decimal = record.vat_rate / Decimal(100)
+    
+    # Calculate VAT and Net of VAT from gross commission
+    vat_amount = gross_commission * vat_rate_decimal
+    net_of_vat = gross_commission - vat_amount
+    
+    # Calculate withholding tax and final net commission
     tax = net_of_vat * tax_rate
-    net_commission = gross_commission - tax
+    net_commission = net_of_vat - tax
     
     # Calculate option1 values (DP period)
     option1_value_before_deduction = net_commission * (record.option1_percentage / Decimal(100))
@@ -910,7 +917,8 @@ def _get_dp_tranche_data_from_view_logic(record):
     option1_value = option1_value_before_deduction - deduction_net
     option1_monthly = option1_value / Decimal(record.number_months)
     
-    # Individual tranche values - exact same as view_tranche lines 2898-2900
+    # Individual tranche values - exact same as view_tranche lines 3742-3744
+    # NO quantization here to match views.py exactly
     net = option1_monthly
     tax_amount = net * option1_tax_rate
     expected_commission = net - tax_amount
@@ -924,26 +932,32 @@ def _get_dp_tranche_data_from_view_logic(record):
 
 def _get_lto_tranche_data_from_view_logic(record):
     """Get LTO tranche data using exact view_tranche calculation logic."""
-    # Replicate the exact calculation from views.py lines 2854-2922
-    # Check if net_of_vat_amount is provided (manual divisor)
+    # Use the updated calculation logic that matches views.py
+    # Two calculation paths based on Net of VAT input
     if record.net_of_vat_amount and record.net_of_vat_amount > 0:
-        # Use the manually entered Net of VAT divisor: TCP / Net of VAT divisor
+        # Path 1: Use Net of VAT divisor calculation
         net_of_vat_base = (Decimal(str(record.total_contract_price)) / Decimal(str(record.net_of_vat_amount))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
+        total_selling_price = net_of_vat_base - less_process_fee
+        gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
     else:
-        # Fallback to VAT rate calculation (TCP / (1+VAT))
-        vat_rate_decimal = record.vat_rate / Decimal(100)
-        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-    
-    less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
-    total_selling_price = net_of_vat_base - less_process_fee
-    gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
-    
-    vat_rate_decimal = record.vat_rate / Decimal(100)
-    net_of_vat = gross_commission / (Decimal(1) + vat_rate_decimal)
-    
+        # Path 2: Use Total Contract Price directly when Net of VAT is 0 or empty
+        net_of_vat_base = record.total_contract_price
+        less_process_fee = record.total_contract_price * (record.process_fee_percentage / Decimal(100))
+        total_selling_price = record.total_contract_price - less_process_fee
+        gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
+
+    # Common calculations for both paths
     tax_rate = record.withholding_tax_rate / Decimal(100)
+    vat_rate_decimal = record.vat_rate / Decimal(100)
+    
+    # Calculate VAT and Net of VAT from gross commission
+    vat_amount = gross_commission * vat_rate_decimal
+    net_of_vat = gross_commission - vat_amount
+    
+    # Calculate withholding tax and final net commission
     tax = net_of_vat * tax_rate
-    net_commission = gross_commission - tax
+    net_commission = net_of_vat - tax
     
     # Calculate LTO values - exact same as view_tranche lines 2914-2922
     option2_value = net_commission * (record.option2_percentage / Decimal(100))
@@ -961,6 +975,46 @@ def _get_lto_tranche_data_from_view_logic(record):
         'tax_amount': lto_deduction_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),       # Less Tax = ₱3,465.40  
         'expected_commission': lto_deduction_net.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)  # Total Due = ₱19,637.28 (after tax)
     }
+
+
+def _consolidate_billing_history(all_received_tranches):
+    """
+    Consolidate billing history to show only one row total.
+    Sums all receivable amounts and percentages into a single entry.
+    Shows the most recent date from all receivables.
+    """
+    if not all_received_tranches:
+        return []
+    
+    # Sum all amounts and percentages into a single consolidated entry
+    total_amount = Decimal('0.00')
+    total_percentage = Decimal('0.00')
+    latest_date = None
+    
+    for tranche in all_received_tranches:
+        # Sum the received amount
+        total_amount += tranche.received_amount or Decimal('0.00')
+        
+        # Track the latest date
+        if tranche.date_received:
+            if latest_date is None or tranche.date_received > latest_date:
+                latest_date = tranche.date_received
+        
+        # Calculate percentage for this tranche
+        if tranche.tranche_record:
+            same_type_tranches = tranche.tranche_record.payments.filter(is_lto=tranche.is_lto)
+            same_type_total = same_type_tranches.aggregate(total=Sum('expected_amount'))['total'] or Decimal('1.0')
+            percentage_within_type = (tranche.expected_amount / same_type_total) * Decimal('50.0')
+            total_percentage += percentage_within_type
+    
+    # Return single consolidated entry
+    return [{
+        'date_received': latest_date,
+        'amount': total_amount,
+        'status': 'Received',
+        'percentage': total_percentage,
+        'due_date': latest_date,  # Use latest date as due date
+    }]
 
 
 def _get_tranche_data_for_invoice(tranche_payment):
@@ -981,9 +1035,9 @@ def _get_tranche_data_for_invoice(tranche_payment):
         dp_data = _get_dp_tranche_data_from_view_logic(record)
         
         return {
-            'net_amount': dp_data['net_amount'].quantize(Decimal('0.01')),
-            'tax_amount': dp_data['tax_amount'].quantize(Decimal('0.01')),
-            'expected_commission': dp_data['expected_commission'].quantize(Decimal('0.01'))
+            'net_amount': dp_data['net_amount'],
+            'tax_amount': dp_data['tax_amount'],
+            'expected_commission': dp_data['expected_commission']
         }
 
 
@@ -1159,23 +1213,31 @@ def _get_invoice_context(invoice, request):
     summary_vat_amount = Decimal('0.00')
     summary_withholding_tax_rate = Decimal('0.00')
 
-    # Use the definitive tranche calculation logic for the summary section
+    # Use the updated two-path calculation logic for the summary section
     if invoice.tranche and invoice.tranche.tranche_record:
         record = invoice.tranche.tranche_record
 
-        # Same base calculation for all invoices based on the same tranche record
-        vat_rate_decimal = record.vat_rate / Decimal(100)
-        net_of_vat_base = record.total_contract_price / (Decimal(1) + vat_rate_decimal)
-        less_process_fee = (record.total_contract_price * record.process_fee_percentage) / Decimal(100)
-        total_selling_price = net_of_vat_base - less_process_fee
-        
-        # Gross commission is based on the total selling price
-        summary_gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
-        
-        # VAT calculations
+        # Use the new two-path calculation logic that matches views.py
+        if record.net_of_vat_amount and record.net_of_vat_amount > 0:
+            # Path 1: Use Net of VAT divisor calculation
+            net_of_vat_base = record.total_contract_price / record.net_of_vat_amount
+            less_process_fee = (net_of_vat_base * record.process_fee_percentage) / Decimal(100)
+            total_selling_price = net_of_vat_base - less_process_fee
+            summary_gross_commission = total_selling_price * (record.commission_rate / Decimal(100))
+        else:
+            # Path 2: Use Total Contract Price directly when Net of VAT is 0 or empty
+            net_of_vat_base = record.total_contract_price
+            less_process_fee = record.total_contract_price * (record.process_fee_percentage / Decimal(100))
+            total_selling_price = record.total_contract_price - less_process_fee
+            summary_gross_commission = record.total_contract_price * (record.commission_rate / Decimal(100))
+
+        # Common calculations for both paths
         summary_vat_rate = record.vat_rate
-        summary_net_of_vat = summary_gross_commission / (Decimal(1) + vat_rate_decimal)
-        summary_vat_amount = summary_gross_commission - summary_net_of_vat
+        vat_rate_decimal = record.vat_rate / Decimal(100)
+        
+        # Calculate VAT and Net of VAT from gross commission
+        summary_vat_amount = summary_gross_commission * vat_rate_decimal
+        summary_net_of_vat = summary_gross_commission - summary_vat_amount
         
         # Withholding tax calculations
         summary_withholding_tax_rate = record.withholding_tax_rate
@@ -1183,7 +1245,7 @@ def _get_invoice_context(invoice, request):
         summary_withholding_tax_amount = summary_net_of_vat * withholding_tax_rate_decimal
         
         # Final net commission
-        summary_net_commission = summary_gross_commission - summary_withholding_tax_amount
+        summary_net_commission = summary_net_of_vat - summary_withholding_tax_amount
 
     # --- Prepare Billing Statement Data ---
     billing_statement_items = []
@@ -1223,21 +1285,9 @@ def _get_invoice_context(invoice, request):
             'due_date': min(t.expected_date for t in combined_tranches),
         }
 
-        # Add individual tranches to billing statement history if received
-        for tranche_payment in all_tranches:
-            if tranche_payment.status == 'Received':
-                # Calculate percentage based on period type (DP or LTO should each be 50%)
-                same_type_tranches = record.payments.filter(is_lto=tranche_payment.is_lto)
-                same_type_total = same_type_tranches.aggregate(total=Sum('expected_amount'))['total'] or Decimal('1.0')
-                percentage_within_type = (tranche_payment.expected_amount / same_type_total) * Decimal('50.0')
-                
-                billing_statement_items.append({
-                    'date_received': tranche_payment.date_received,
-                    'amount': tranche_payment.received_amount,
-                    'status': tranche_payment.status,
-                    'percentage': percentage_within_type,
-                    'due_date': tranche_payment.expected_date,
-                })
+        # Collect all received tranches for consolidation
+        all_received_tranches = [t for t in all_tranches if t.status == 'Received']
+        
     elif invoice.tranche and invoice.tranche.tranche_record:
         # Single tranche invoice logic
         record = invoice.tranche.tranche_record
@@ -1269,9 +1319,13 @@ def _get_invoice_context(invoice, request):
             if invoice.tranche and invoice.tranche.pk == tranche_payment.pk:
                 current_billing_item = item_data
 
-            # Add to billing statement history only if it's received
-            if tranche_payment.status == 'Received':
-                billing_statement_items.append(item_data)
+        # Collect all received tranches for consolidation
+        all_received_tranches = [t for t in all_tranches if t.status == 'Received']
+    else:
+        all_received_tranches = []
+
+    # Consolidate billing history: Group by invoice and sum amounts
+    billing_statement_items = _consolidate_billing_history(all_received_tranches)
 
     # Check for previously released commissions for the same deal (TrancheRecord)
     previous_invoices = []

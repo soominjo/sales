@@ -781,24 +781,55 @@
         };
 
         const updateLivePreview = () => {
+            // --- Helper function ---
+            const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
+            
             const totalContractPrice = getFloatValue('id_total_contract_price');
             const netOfVatDivisor = getFloatValue('id_net_of_vat_amount');
             const processFeePercentage = getFloatValue('id_process_fee_percentage') / 100;
             const commissionRate = getFloatValue('id_commission_rate') / 100;
             const vatRate = getFloatValue('id_vat_rate') / 100;
             const withholdingTaxRate = getFloatValue('id_withholding_tax_rate') / 100;
-            // --- Calculations ---
-            const baseAmount = netOfVatDivisor > 0 ? totalContractPrice / netOfVatDivisor : 0;
-            const lmfAmount = baseAmount * processFeePercentage;
-            const commissionableAmount = baseAmount - lmfAmount;
-            const grossCommission = commissionableAmount * commissionRate;
-            const commissionNetVat = grossCommission / (1 + vatRate);
-            const commissionVatAmount = grossCommission - commissionNetVat;
+            
+            // Check if Total Contract Price is present and valid
+            if (!totalContractPrice || totalContractPrice <= 0) {
+                // Reset all preview values to zero if Total Contract Price is missing or invalid
+                document.getElementById('preview-total-contract-price').textContent = formatCurrency(0);
+                document.getElementById('preview-base-amount').textContent = formatCurrency(0);
+                document.getElementById('preview-lmf-amount').textContent = formatCurrency(0);
+                document.getElementById('preview-commissionable-amount').textContent = formatCurrency(0);
+                document.getElementById('preview-total-commission').textContent = formatCurrency(0);
+                document.getElementById('preview-commission-net-vat').textContent = formatCurrency(0);
+                document.getElementById('preview-commission-vat').textContent = formatCurrency(0);
+                document.getElementById('preview-withholding-tax').textContent = formatCurrency(0);
+                document.getElementById('preview-net-commission').textContent = formatCurrency(0);
+                return;
+            }
+            
+            let baseAmount, lmfAmount, commissionableAmount, grossCommission;
+            
+            // --- Two calculation paths ---
+            if (netOfVatDivisor && netOfVatDivisor > 0) {
+                // Path 1: Use Net of VAT divisor calculation (original logic)
+                baseAmount = totalContractPrice / netOfVatDivisor;
+                lmfAmount = baseAmount * processFeePercentage;
+                commissionableAmount = baseAmount - lmfAmount;
+                grossCommission = commissionableAmount * commissionRate;
+            } else {
+                // Path 2: Use Total Contract Price directly when Net of VAT is 0 or empty
+                baseAmount = totalContractPrice;
+                lmfAmount = totalContractPrice * processFeePercentage;
+                commissionableAmount = totalContractPrice - lmfAmount;
+                grossCommission = totalContractPrice * commissionRate;
+            }
+            
+            // Common calculations for both paths
+            const commissionVatAmount = grossCommission * vatRate;
+            const commissionNetVat = grossCommission - commissionVatAmount;
             const withholdingTax = commissionNetVat * withholdingTaxRate;
-            const netCommissionPayable = grossCommission - withholdingTax;
+            const netCommissionPayable = commissionNetVat - withholdingTax;
 
             // --- UI Update ---
-            const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 
             document.getElementById('preview-total-contract-price').textContent = formatCurrency(totalContractPrice);
             document.getElementById('preview-base-amount').textContent = formatCurrency(baseAmount);

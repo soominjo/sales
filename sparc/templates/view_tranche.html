@@ -455,6 +455,7 @@
 </div>
 
 
+  {% if user.is_superuser %}
   <!-- Invoice Summary Section -->
   <div id="invoice-summary" class="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-2xl p-6 mb-8 hidden">
     <div class="flex items-center justify-between">
@@ -489,24 +490,29 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <!-- Down Payment Schedule Table -->
   <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-12">
     <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 flex items-center justify-between">
       <h3 class="text-2xl font-bold text-white">Down Payment Schedule ({{ option1_percentage }}%)</h3>
+      {% if user.is_superuser %}
       <div class="flex items-center">
         <label class="flex items-center text-white cursor-pointer">
           <input type="checkbox" id="select-all-dp" class="mr-2 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
           <span class="text-sm font-medium">Select All</span>
         </label>
       </div>
+      {% endif %}
     </div>
     
     <div class="overflow-x-auto">
       <table class="min-w-full">
         <thead class="bg-gray-50">
           <tr>
+            {% if user.is_superuser %}
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider w-16">Select</th>
+            {% endif %}
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Tranche #</th>
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Date</th>
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Net Commission</th>
@@ -523,12 +529,14 @@
         <tbody class="bg-white divide-y divide-gray-200">
           {% for item in dp_tranches %}
           <tr class="table-row">
+            {% if user.is_superuser %}
             <td class="px-6 py-4 whitespace-nowrap text-center">
               <input type="checkbox" class="invoice-checkbox dp-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500" 
                      data-expected="{{ item.expected_commission }}" 
                      data-actual="{{ item.tranche.received_amount }}" 
                      data-tranche-id="{{ item.tranche.id }}">
             </td>
+            {% endif %}
             <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-gray-900">{{ item.tranche.tranche_number }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-gray-700">{{ item.tranche.expected_date|date:"M d, Y" }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center font-semibold text-gray-900">₱ {{ item.net_amount|floatformat:2|intcomma }}</td>
@@ -566,19 +574,23 @@
   <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-12">
     <div class="bg-gradient-to-r from-orange-600 to-orange-700 px-8 py-6 flex items-center justify-between">
       <h3 class="text-2xl font-bold text-white">Loan Take Out Schedule ({{ option2_percentage }}%)</h3>
+      {% if user.is_superuser %}
       <div class="flex items-center">
         <label class="flex items-center text-white cursor-pointer">
           <input type="checkbox" id="select-all-lto" class="mr-2 w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500">
           <span class="text-sm font-medium">Select All</span>
         </label>
       </div>
+      {% endif %}
     </div>
     
     <div class="overflow-x-auto">
       <table class="min-w-full">
         <thead class="bg-gray-50">
           <tr>
+            {% if user.is_superuser %}
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider w-16">Select</th>
+            {% endif %}
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Expected Date</th>
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Net Commission</th>
             <th class="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Less Tax</th>
@@ -594,12 +606,14 @@
         <tbody class="bg-white divide-y divide-gray-200">
           {% for item in lto_tranches %}
           <tr class="table-row">
+            {% if user.is_superuser %}
             <td class="px-6 py-4 whitespace-nowrap text-center">
               <input type="checkbox" class="invoice-checkbox lto-checkbox w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500" 
                      data-expected="{{ lto_deduction_net }}" 
                      data-actual="{{ item.tranche.received_amount }}" 
                      data-tranche-id="{{ item.tranche.id }}">
             </td>
+            {% endif %}
             <td class="px-6 py-4 whitespace-nowrap text-center text-gray-700">{{ item.tranche.expected_date|date:"M d, Y" }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center font-semibold text-gray-900">₱ {{ lto_deduction_value|floatformat:2|intcomma }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-red-600 font-medium">₱ {{ lto_deduction_tax|floatformat:2|intcomma }}</td>
